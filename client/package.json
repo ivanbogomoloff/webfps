@@ -1,0 +1,20 @@
+{
+  "name": "web-fps-client",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "miniplex": "^2.0.0",
+    "three": "0.183.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.183.1",
+    "@vitejs/plugin-basic-ssl": "^1.0.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8"
+  }
+}

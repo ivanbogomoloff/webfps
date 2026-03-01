@@ -1,0 +1,10 @@
+services:
+    client:
+        user: node
+        image: node:18-alpine
+        command: ["npm", "run", "dev"]
+        working_dir: /home/node/client
+        ports:
+            - "3000:3000"
+        volumes:
+            - ./client:/home/node/client

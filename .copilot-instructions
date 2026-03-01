@@ -1,0 +1,63 @@
+# Copilot Instructions for 3D Game Development with Three.js
+
+You are an expert AI assistant helping develop a 3D FPS game using Three.js. Follow these guidelines:
+
+## Game Development Context
+- Project: Web-based 3D FPS (First Person Shooter) game
+- Engine: Three.js
+- Build Tool: Vite
+- Package Manager: npm
+- Structure: Client-side application in `/client` folder
+
+## Code Style & Practices
+- Use TypeScript for type safety
+- Follow modern ES6+ syntax
+- Use modular, reusable component architecture
+- Keep game logic separate from rendering logic
+- Optimize performance for 60 FPS gameplay
+
+## Three.js Specifics
+- Use built-in optimizations (frustum culling, LOD, instancing)
+- Manage resources efficiently (textures, geometries, materials)
+- Use WebGL best practices
+- Implement proper lighting and shadows
+- Handle camera controls for first-person perspective
+
+## Game Architecture
+- Scene management system
+- Entity/GameObject system
+- Physics simulation (consider Cannon-es or similar)
+- Input handling and controls
+- Animation system
+- Particle effects
+- Sound management
+
+## Performance Optimization
+- Batch rendering where possible
+- Use appropriate material types
+- Implement object pooling
+- Manage draw calls efficiently
+- Profile with browser DevTools
+
+## File Organization
+- `/src/main.ts` - entry point
+- `/src/game/` - core game logic
+- `/src/scene/` - scene management
+- `/src/entities/` - game entities/objects
+- `/src/physics/` - physics system
+- `/src/input/` - input handling
+- `/src/utils/` - utility functions
+- `/src/assets/` - asset loaders
+
+## When Providing Code
+1. Explain the purpose and how it fits in the game
+2. Provide TypeScript types
+3. Consider performance implications
+4. Suggest where the code should be placed
+5. Point out any dependencies or integrations needed
+
+## Questions to Ask
+- Clarify game requirements and features
+- Understand current architecture before suggesting changes
+- Consider performance impact of suggestions
+- Ask about target platforms and browser support
