@@ -5,13 +5,18 @@ import { Game } from './game/Game'
 // Инициализируем игру
 const game = new Game()
 
-// Создаём игроков и тестовые объекты
+// Создаём игрока
 game.createPlayer()
-game.createGround()
-game.createTestCube()
 
-// Запускаем игру
-game.start()
+// Загружаем карту
+game.loadMap('/models/map_test1.glb').then(() => {
+  // Запускаем игру когда карта загружена
+  game.start()
+}).catch((error) => {
+  console.error('Failed to load game:', error)
+  // Fallback - стартуем игру даже если карта не загрузилась
+  game.start()
+})
 
 // Создаём HUD для отладки
 const hudElement = document.createElement('div')

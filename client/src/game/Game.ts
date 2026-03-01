@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { World } from 'miniplex';
 import {
   createTransform,
-  createMesh,
   createRigidBody,
   createCamera,
   createInput,
@@ -15,6 +14,7 @@ import {
   createInputSystem,
   createPlayerControllerSystem,
 } from '../ecs/systems';
+import { MapLoader } from '../utils/MapLoader';
 
 export class Game {
   private world: World;
@@ -24,6 +24,8 @@ export class Game {
   private systems: Array<(deltaTime: number) => void> = [];
   private lastTime: number = 0;
   private isRunning: boolean = false;
+  private mapLoader: MapLoader;
+  private currentMap: THREE.Group | null = null;
 
   constructor() {
     // Инициализируем Three.js
@@ -35,6 +37,9 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     document.body.appendChild(this.renderer.domElement);
 
+    // Инициализируем MapLoader
+    this.mapLoader = new MapLoader();
+
     // Инициализируем ECS World
     this.world = new World();
 
@@ -45,7 +50,7 @@ export class Game {
     );
     this.camera = cameraComponent.camera;
     this.camera.position.set(0, 1.6, 8);
-    this.camera.lookAt(0, 1.6, -5); // Смотрим на куб!
+    this.camera.lookAt(0, 1.6, -5); // Смотрим вперед!
     this.scene.add(this.camera);
 
     // Инициализируем системы (порядок важен!)
@@ -101,65 +106,25 @@ export class Game {
     this.camera.position.y += 0.5;
   }
 
-  public createGround(): void {
-    const groundGeometry = new THREE.BoxGeometry(100, 1, 100);
-    
-    // Создаём текстуру (шахматный паттерн для наглядности)
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d')!;
-    
-    const squareSize = 8;
-    for (let y = 0; y < canvas.height; y += squareSize) {
-      for (let x = 0; x < canvas.width; x += squareSize) {
-        const isEven = (Math.floor(x / squareSize) + Math.floor(y / squareSize)) % 2 === 0;
-        ctx.fillStyle = isEven ? '#444444' : '#666666';
-        ctx.fillRect(x, y, squareSize, squareSize);
+  public async loadMap(mapPath: string): Promise<void> {
+    try {
+      console.log(`Loading map: ${mapPath}`);
+      const mapScene = await this.mapLoader.loadMap(mapPath);
+      
+      // Удаляем старую карту если она была
+      if (this.currentMap) {
+        this.scene.remove(this.currentMap);
       }
+      
+      // Добавляем новую карту в сцену
+      this.currentMap = mapScene;
+      this.scene.add(mapScene);
+      
+      console.log(`Map loaded successfully: ${mapPath}`);
+    } catch (error) {
+      console.error(`Failed to load map: ${mapPath}`, error);
+      throw error;
     }
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
-    texture.repeat.set(10, 10);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      map: texture,
-      roughness: 0.8,
-    });
-    const groundMesh = createMesh(groundGeometry, groundMaterial);
-
-    const ground = this.createEntity({
-      transform: createTransform([0, -1, 0]),
-      mesh: groundMesh,
-      rigidBody: createRigidBody(0, true), // Кинематическое тело (неподвижное)
-    });
-
-    ground.mesh.object3d.receiveShadow = true;
-    ground.mesh.object3d.castShadow = true;
-    this.scene.add(ground.mesh.object3d);
-  }
-
-  public createTestCube(): void {
-    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const cubeMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff0000,
-      roughness: 0.7,
-    });
-    const cubeMesh = createMesh(cubeGeometry, cubeMaterial);
-
-    const cube = this.createEntity({
-      transform: createTransform([0, 1, -5]),
-      mesh: cubeMesh,
-      rigidBody: createRigidBody(0, true), // Кинематическое - не падает
-    });
-
-    cube.mesh.object3d.castShadow = true;
-    cube.mesh.object3d.receiveShadow = true;
-    this.scene.add(cube.mesh.object3d);
   }
 
   public start(): void {
