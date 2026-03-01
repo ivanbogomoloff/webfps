@@ -32,12 +32,7 @@ hudElement.style.cssText = `
 document.body.appendChild(hudElement)
 
 // Обновляем HUD каждый кадр
-let lastUpdate = 0
 const updateHUD = () => {
-  const now = performance.now()
-  if (now - lastUpdate < 100) return // Обновляем каждые 100мс
-  lastUpdate = now
-
   const world = game.getWorld()
   const player = Array.from(world.entities).find((e: any) => e.playerController)
   
