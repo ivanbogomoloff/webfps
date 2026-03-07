@@ -63,7 +63,7 @@ export class Game {
     window.addEventListener('resize', () => this.onWindowResize());
 
     // Добавляем освещение
-    this.setupLighting();
+    //this.setupLighting();
   }
 
   private setupLighting(): void {
@@ -106,10 +106,10 @@ export class Game {
     this.camera.position.y += 0.5;
   }
 
-  public async loadMap(mapPath: string): Promise<void> {
+  public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
     try {
       console.log(`Loading map: ${mapPath}`);
-      const mapScene = await this.mapLoader.loadMap(mapPath);
+      const { scene: mapScene, environment } = await this.mapLoader.loadMap(mapPath, hdrPath);
       
       // Удаляем старую карту если она была
       if (this.currentMap) {
@@ -119,6 +119,12 @@ export class Game {
       // Добавляем новую карту в сцену
       this.currentMap = mapScene;
       this.scene.add(mapScene);
+      
+      // Устанавливаем окружение (HDR) если оно загружено
+      if (environment) {
+        this.scene.environment = environment;
+        this.scene.background = environment; // Опционально: используем HDR как фон
+      }
       
       console.log(`Map loaded successfully: ${mapPath}`);
     } catch (error) {
