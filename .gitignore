@@ -35,5 +35,5 @@ logs/
 
 # Optional eslint cache
 .eslintcache
-public/models
-public/other
+client/public/models
+client/public/other
