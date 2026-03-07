@@ -35,6 +35,7 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     document.body.appendChild(this.renderer.domElement);
 
     // Инициализируем MapLoader
@@ -45,7 +46,7 @@ export class Game {
 
     // Получаем камеру для трёхмерной сцены
     const cameraComponent = createCamera(
-      75,
+      50,
       window.innerWidth / window.innerHeight
     );
     this.camera = cameraComponent.camera;
@@ -61,27 +62,6 @@ export class Game {
 
     // Обработка изменения размера окна
     window.addEventListener('resize', () => this.onWindowResize());
-
-    // Добавляем освещение
-    //this.setupLighting();
-  }
-
-  private setupLighting(): void {
-    // Ambient light - более яркий
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    this.scene.add(ambientLight);
-
-    // Directional light
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(10, 15, 10);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.left = -100;
-    directionalLight.shadow.camera.right = 100;
-    directionalLight.shadow.camera.top = 100;
-    directionalLight.shadow.camera.bottom = -100;
-    this.scene.add(directionalLight);
   }
 
   public createEntity(components: Record<string, any>) {

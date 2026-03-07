@@ -39,6 +39,7 @@ export class MapLoader {
             try {
               const hdrTexture = await this.loadHDR(hdrPath);
               hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
+              
               environment = hdrTexture;
               console.log(`HDR environment loaded: ${hdrPath}`);
             } catch (error) {
