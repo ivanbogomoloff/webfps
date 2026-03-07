@@ -9,7 +9,7 @@ const game = new Game()
 game.createPlayer()
 
 // Загружаем карту
-game.loadMap('/models/maps/test2/map_test2.glb').then(() => {
+game.loadMap('/models/maps/test2/map_test2.glb', '/models/maps/test2/map_test2.hdr').then(() => {
   // Запускаем игру когда карта загружена
   game.start()
 }).catch((error) => {

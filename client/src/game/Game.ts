@@ -32,10 +32,13 @@ export class Game {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb); // Небесно-голубой цвет
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      
+    });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    //this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     document.body.appendChild(this.renderer.domElement);
 
     // Инициализируем MapLoader
@@ -102,7 +105,7 @@ export class Game {
       
       // Устанавливаем окружение (HDR) если оно загружено
       if (environment) {
-        this.scene.environment = environment;
+        //this.scene.environment = environment;
         this.scene.background = environment; // Опционально: используем HDR как фон
       }
       
