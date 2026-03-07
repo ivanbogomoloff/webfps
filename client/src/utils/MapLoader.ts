@@ -31,12 +31,12 @@ export class MapLoader {
             }
 
             if (node instanceof THREE.Light) {
-              // node.castShadow = true;
-              // node.shadow.bias = -0.0001;
-              // node.shadow.mapSize.width = 2048;
-              // node.shadow.mapSize.height = 2048;
-              // node.shadow.camera.near = 0.5;
-              // node.shadow.camera.far = 50;
+              node.castShadow = true;
+              node.shadow.bias = -0.0001;
+              node.shadow.mapSize.width = 2048;
+              node.shadow.mapSize.height = 2048;
+              node.shadow.camera.near = 0.5;
+              node.shadow.camera.far = 50;
             }
           });
 
