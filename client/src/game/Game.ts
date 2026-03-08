@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import Stats from 'stats.js';
 import { World } from 'miniplex';
 import {
   createTransform,
@@ -26,8 +27,15 @@ export class Game {
   private isRunning: boolean = false;
   private mapLoader: MapLoader;
   private currentMap: THREE.Group | null = null;
+  private statsJs: Stats;
 
   constructor() {
+    this.statsJs = new Stats();
+    this.statsJs.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+    this.statsJs.dom.setAttribute('id', 'statsjs');
+    this.statsJs.dom.setAttribute('style', '');
+    document.body.appendChild( this.statsJs.dom );
+
     // Инициализируем Three.js
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb); // Небесно-голубой цвет
@@ -38,7 +46,8 @@ export class Game {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    //this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(this.renderer.domElement);
 
     // Инициализируем MapLoader
@@ -105,7 +114,7 @@ export class Game {
       
       // Устанавливаем окружение (HDR) если оно загружено
       if (environment) {
-        //this.scene.environment = environment;
+        this.scene.environment = environment;
         this.scene.background = environment; // Опционально: используем HDR как фон
       }
       
@@ -123,6 +132,7 @@ export class Game {
   }
 
   private animate = (): void => {
+    this.statsJs.begin();
     if (!this.isRunning) return;
 
     requestAnimationFrame(this.animate);
@@ -135,9 +145,10 @@ export class Game {
     for (const system of this.systems) {
       system(deltaTime);
     }
-
     // Рендерим сцену
     this.renderer.render(this.scene, this.camera);
+
+    this.statsJs.end();
   };
 
   private onWindowResize(): void {

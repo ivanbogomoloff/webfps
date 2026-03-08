@@ -2,3 +2,10 @@ body {
     margin: 0;
     padding: 0;
 }
+
+#statsjs {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1000;
+}

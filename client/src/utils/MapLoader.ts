@@ -26,17 +26,19 @@ export class MapLoader {
           // Включаем тени для всех объектов на карте
           mapScene.traverse((node) => {
             if (node instanceof THREE.Mesh) {
-              node.castShadow = true;
-              node.receiveShadow = true;
+              // TODO: с этим тоже надо будет думать, динамические тени будут только у игроков и оружия, а карта будет запекать тени в текстуры
+              // node.castShadow = true;
+              // node.receiveShadow = true;
             }
 
-            if (node instanceof THREE.Light) {
-              node.castShadow = true;
-              node.shadow.bias = -0.0001;
-              node.shadow.mapSize.width = 2048;
-              node.shadow.mapSize.height = 2048;
-              node.shadow.camera.near = 0.5;
-              node.shadow.camera.far = 50;
+            if (node instanceof THREE.PointLight) {
+              // TODO: на уровне сцены надо будет использовать запекание теней
+              // node.castShadow = true;
+              // node.shadow.bias = -0.002;
+              // node.shadow.mapSize.width = 2048;
+              // node.shadow.mapSize.height = 2048;
+              // node.shadow.camera.near = 0.5;
+              // node.shadow.camera.far = 50;
             }
           });
 

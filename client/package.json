@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "miniplex": "^2.0.0",
+    "stats.js": "^0.17.0",
     "three": "0.183.1"
   },
   "devDependencies": {
