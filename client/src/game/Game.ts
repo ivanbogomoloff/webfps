@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { World } from 'miniplex';
+import * as CANNON from 'cannon-es';
+
 import {
-  createTransform,
-  createRigidBody,
+  createPhysicBody,
   createCamera,
   createInput,
   createHealth,
@@ -28,6 +29,7 @@ export class Game {
   private mapLoader: MapLoader;
   private currentMap: THREE.Group | null = null;
   private statsJs: Stats;
+  private physicsWorld: CANNON.World;
 
   constructor() {
     this.statsJs = new Stats();
@@ -55,6 +57,8 @@ export class Game {
 
     // Инициализируем ECS World
     this.world = new World();
+    this.physicsWorld = new CANNON.World();
+    this.physicsWorld.gravity.set(0, -9.82, 0); // Стандартная гравитация
 
     // Получаем камеру для трёхмерной сцены
     const cameraComponent = createCamera(
@@ -69,7 +73,7 @@ export class Game {
     // Инициализируем системы (порядок важен!)
     this.systems.push(createInputSystem(this.world)); // Сначала обновляем ввод
     this.systems.push(createPlayerControllerSystem(this.world, this.renderer.domElement)); // Потом обрабатываем управление
-    this.systems.push(createPhysicsSystem(this.world)); // Потом физика
+    this.systems.push(createPhysicsSystem(this.world, this.physicsWorld)); // Потом физика
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна
@@ -85,16 +89,20 @@ export class Game {
 
   public createPlayer(): void {
     const player = this.createEntity({
-      transform: createTransform([0, 1, 0]),
       input: createInput(),
       camera: this.camera,
       health: createHealth(100),
-      rigidBody: createRigidBody(1, true), // Кинематическое - управляем вручную
+      physicBody: createPhysicBody(
+        new CANNON.Vec3(0, 6, 0),
+        new CANNON.Sphere(0.5),
+        1,
+        CANNON.Body.KINEMATIC
+      ), // Сфера радиусом 0.5, масса 1, кинематическая
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
     });
 
     // Устанавливаем начальную позицию камеры
-    this.camera.position.copy(player.transform.position);
+    this.camera.position.copy(player.physicBody.position);
     this.camera.position.y += 0.5;
   }
 

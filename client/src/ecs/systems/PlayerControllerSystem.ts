@@ -1,5 +1,6 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 
 export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasElement) {
   const setupPointerLock = () => {
@@ -23,9 +24,9 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
   const cameraState = new Map<any, { pitch: number; yaw: number }>();
 
   return (deltaTime: number) => {
-    for (const entity of world.with('playerController', 'transform', 'input', 'camera')) {
+    for (const entity of world.with('playerController', 'physicBody', 'input', 'camera')) {
       const controller = entity.playerController as any;
-      const transform = entity.transform as any;
+      const physicBody = entity.physicBody as CANNON.Body;
       const input = entity.input as any;
       const camera = entity.camera as THREE.PerspectiveCamera;
 
@@ -50,9 +51,7 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
         camera.rotation.x = camState.pitch;
 
         // Также обновляем трансформ игрока для консистентности
-        transform.rotation.order = 'YXZ';
-        transform.rotation.y = camState.yaw;
-        transform.rotation.x = camState.pitch;
+        physicBody.quaternion.setFromEuler(camState.pitch, camState.yaw, 0, 'YXZ');
       }
 
       // Обработка движения (WASD)
@@ -89,12 +88,12 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
         const rotatedZ = -direction.x * sin + direction.z * cos;
 
         // Применяем движение к позиции
-        transform.position.x += rotatedX * controller.speed * deltaTime;
-        transform.position.z += rotatedZ * controller.speed * deltaTime;
+        physicBody.position.x += rotatedX * controller.speed * deltaTime;
+        physicBody.position.z += rotatedZ * controller.speed * deltaTime;
       }
 
       // Обновляем позицию камеры чтобы она следила за игроком
-      camera.position.copy(transform.position);
+      camera.position.copy(physicBody.position);
       camera.position.y += 0.5; // Смещение камеры относительно позиции игрока
     }
   };

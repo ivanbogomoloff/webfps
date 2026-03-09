@@ -1,23 +1,9 @@
 import { World } from 'miniplex';
+import * as CANNON from 'cannon-es';
 
-const GRAVITY = -9.81;
-
-export function createPhysicsSystem(world: World) {
+export function createPhysicsSystem(world: World, physicsWorld: CANNON.World) {
   return (deltaTime: number) => {
-    for (const entity of world.with('rigidBody', 'transform')) {
-      const rigidBody = entity.rigidBody as any;
-      const transform = entity.transform as any;
-
-      if (rigidBody.isKinematic) continue;
-
-      // Применяем гравитацию
-      rigidBody.acceleration.y = GRAVITY;
-
-      // Обновляем скорость
-      rigidBody.velocity.addScaledVector(rigidBody.acceleration, deltaTime);
-
-      // Обновляем позицию
-      transform.position.addScaledVector(rigidBody.velocity, deltaTime);
-    }
+    // Обновляем физический мир
+    physicsWorld.fixedStep(1 / 60, deltaTime); // Шаг физики с фиксированным временем
   };
 }
