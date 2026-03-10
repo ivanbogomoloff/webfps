@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import Stats from 'stats.js';
 import { World } from 'miniplex';
 import * as CANNON from 'cannon-es';
+import { threeToCannon, ShapeType } from 'three-to-cannon';
 
 import {
   createPhysicBody,
@@ -115,7 +116,26 @@ export class Game {
       if (this.currentMap) {
         this.scene.remove(this.currentMap);
       }
-      
+
+      mapScene.traverse((node) => {
+        if (node instanceof THREE.Mesh) {
+          console.log(`Processing mesh for physics: ${node.name}`);
+          console.log(node.getWorldPosition(new THREE.Vector3()));
+          const shapeResult = threeToCannon(node);
+          if (shapeResult?.shape) {
+            const body = new CANNON.Body({
+              mass: 0, // Статическая карта
+              shape: shapeResult.shape,
+            });
+            const worldPos = node.getWorldPosition(new THREE.Vector3());
+            body.position.copy(new CANNON.Vec3(worldPos.x, worldPos.y, worldPos.z));
+            body.quaternion.copy(new CANNON.Quaternion(node.quaternion.x, node.quaternion.y, node.quaternion.z, node.quaternion.w));
+            console.log(body.position);
+            this.physicsWorld.addBody(body);
+          }
+        }
+      });
+
       // Добавляем новую карту в сцену
       this.currentMap = mapScene;
       this.scene.add(mapScene);
