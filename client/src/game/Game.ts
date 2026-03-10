@@ -72,8 +72,8 @@ export class Game {
     this.scene.add(this.camera);
 
     // Инициализируем системы (порядок важен!)
-    this.systems.push(createInputSystem(this.world)); // Сначала обновляем ввод
-    this.systems.push(createPlayerControllerSystem(this.world, this.renderer.domElement)); // Потом обрабатываем управление
+    //this.systems.push(createInputSystem(this.world)); // Сначала обновляем ввод
+    //this.systems.push(createPlayerControllerSystem(this.world, this.renderer.domElement)); // Потом обрабатываем управление
     this.systems.push(createPhysicsSystem(this.world, this.physicsWorld)); // Потом физика
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
@@ -85,25 +85,48 @@ export class Game {
     const entity: any = { id: Math.random() };
     Object.assign(entity, components);
     this.world.add(entity);
+    
+    if(entity.physicBody) {
+      this.physicsWorld.addBody(entity.physicBody);
+    }
+
+    if(entity.object3d) {
+      this.scene.add(entity.object3d);
+    }
+
     return entity;
   }
 
   public createPlayer(): void {
-    const player = this.createEntity({
-      input: createInput(),
-      camera: this.camera,
-      health: createHealth(100),
-      physicBody: createPhysicBody(
+    const playerRadius = 0.5;
+    const playerBody = createPhysicBody(
         new CANNON.Vec3(0, 6, 0),
-        new CANNON.Sphere(0.5),
-        1,
-        CANNON.Body.KINEMATIC
-      ), // Сфера радиусом 0.5, масса 1, кинематическая
-      playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
+        new CANNON.Sphere(playerRadius),
+        1
+      );
+      
+    const playerObject3D = new THREE.Mesh(
+        new THREE.SphereGeometry(playerRadius, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+    );
+    
+    playerObject3D.position.copy(new THREE.Vector3(
+      playerBody.position.x, 
+      playerBody.position.y, 
+      playerBody.position.z
+    ));
+
+    this.createEntity({
+      input: createInput(),
+      // camera: this.camera,
+      object3d: playerObject3D,
+      health: createHealth(100),
+      physicBody: playerBody
+      //playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
     });
 
     // Устанавливаем начальную позицию камеры
-    this.camera.position.copy(player.physicBody.position);
+    this.camera.position.copy(new THREE.Vector3(0, 3, 20));
     this.camera.position.y += 0.5;
   }
 
@@ -119,18 +142,19 @@ export class Game {
 
       mapScene.traverse((node) => {
         if (node instanceof THREE.Mesh) {
-          console.log(`Processing mesh for physics: ${node.name}`);
-          console.log(node.getWorldPosition(new THREE.Vector3()));
           const shapeResult = threeToCannon(node);
           if (shapeResult?.shape) {
-            const body = new CANNON.Body({
-              mass: 0, // Статическая карта
-              shape: shapeResult.shape,
-            });
+            console.log('Adding physics body for mesh:', node.name);
+            const body = createPhysicBody(
+              new CANNON.Vec3(0, 0, 0), // Позиция будет установлена ниже
+              shapeResult.shape,
+              0 // Статическое тело
+            );
+            
             const worldPos = node.getWorldPosition(new THREE.Vector3());
             body.position.copy(new CANNON.Vec3(worldPos.x, worldPos.y, worldPos.z));
             body.quaternion.copy(new CANNON.Quaternion(node.quaternion.x, node.quaternion.y, node.quaternion.z, node.quaternion.w));
-            console.log(body.position);
+            
             this.physicsWorld.addBody(body);
           }
         }
