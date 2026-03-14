@@ -4,7 +4,7 @@ export function createPhysicBody(
   position: CANNON.Vec3,
   shape: CANNON.Shape,
   mass: number = 1,
-  type: CANNON.BodyType = CANNON.Body.KINEMATIC
+  type: CANNON.BodyType = CANNON.Body.DYNAMIC
 ): CANNON.Body {
   return new CANNON.Body({
     position, // Позиция тела
