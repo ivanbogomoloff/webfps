@@ -130,6 +130,22 @@ export class Game {
     //this.camera.position.y += 0.5;
   }
 
+  private createVisualFromCannonBox(shape: CANNON.Box) {
+  // 1. Получаем полные размеры (halfExtents * 2)
+  const width = shape.halfExtents.x * 2;
+  const height = shape.halfExtents.y * 2;
+  const depth = shape.halfExtents.z * 2;
+
+  // 2. Создаем геометрию и красный материал
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const material = new THREE.MeshBasicMaterial({ 
+    color: 0xff0000, 
+    wireframe: true // Сетка удобнее для отладки
+  });
+
+  return new THREE.Mesh(geometry, material);
+}
+
   public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
     try {
       console.log(`Loading map: ${mapPath}`);
@@ -144,17 +160,49 @@ export class Game {
         if (node instanceof THREE.Mesh) {
           const shapeResult = threeToCannon(node);
           if (shapeResult?.shape) {
+            let box = shapeResult.shape;
+            if(shapeResult.shape instanceof CANNON.Box) {
+              console.log('Box is ', node.name);
+
+              // 1. Создаем временные объекты Three.js для расчетов
+const worldPos = new THREE.Vector3();
+const worldQuat = new THREE.Quaternion();
+const worldSize = new THREE.Vector3();
+const box3 = new THREE.Box3();
+
+// 2. Обновляем матрицу меша, чтобы данные были актуальными
+node.updateMatrixWorld(true);
+
+// 3. Получаем МИРОВЫЕ координаты и размер
+node.getWorldPosition(worldPos);
+node.getWorldQuaternion(worldQuat);
+box3.setFromObject(node); // Это учитывает Scale и всех потомков
+box3.getSize(worldSize);
+
+              const box = new CANNON.Box(new CANNON.Vec3(
+    worldSize.x / 2, 
+    worldSize.y / 2, 
+    worldSize.z / 2
+));
+              // Debug
+              const m = this.createVisualFromCannonBox(box);
+              this.world.add(this.createEntity({
+                object3d: m
+              }));
+            }
             console.log('Adding physics body for mesh:', node.name);
-            const body = createPhysicBody(
-              new CANNON.Vec3(0, 0, 0), // Позиция будет установлена ниже
-              shapeResult.shape,
-              0 // Статическое тело
-            );
+            const body = new CANNON.Body({mass: 0});
+            body.addShape(box);
             
-            const worldPos = node.getWorldPosition(new THREE.Vector3());
-            body.position.copy(new CANNON.Vec3(worldPos.x, worldPos.y, worldPos.z));
-            body.quaternion.copy(new CANNON.Quaternion(node.quaternion.x, node.quaternion.y, node.quaternion.z, node.quaternion.w));
-            
+            const worldPosition = new THREE.Vector3();
+const worldQuaternion = new THREE.Quaternion();
+
+node.getWorldPosition(worldPosition);
+node.getWorldQuaternion(worldQuaternion);
+
+body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
+body.quaternion.set(worldQuaternion.x, worldQuaternion.y, worldQuaternion.z, worldQuaternion.w);
+
             this.physicsWorld.addBody(body);
           }
         }
