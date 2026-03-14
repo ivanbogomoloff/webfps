@@ -15,7 +15,7 @@ import {
   createRenderSystem,
   createPhysicsSystem,
   createInputSystem,
-  createPlayerControllerSystem,
+  createPlayerControllerSystem
 } from '../ecs/systems';
 import { MapLoader } from '../utils/MapLoader';
 
@@ -72,8 +72,8 @@ export class Game {
     this.scene.add(this.camera);
 
     // Инициализируем системы (порядок важен!)
-    //this.systems.push(createInputSystem(this.world)); // Сначала обновляем ввод
-    //this.systems.push(createPlayerControllerSystem(this.world, this.renderer.domElement)); // Потом обрабатываем управление
+    this.systems.push(createInputSystem(this.world)); // Сначала обновляем ввод
+    this.systems.push(createPlayerControllerSystem(this.world, this.renderer.domElement)); // Потом обрабатываем управление
     this.systems.push(createPhysicsSystem(this.world, this.physicsWorld)); // Потом физика
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
@@ -118,16 +118,16 @@ export class Game {
 
     this.createEntity({
       input: createInput(),
-      // camera: this.camera,
+      camera: this.camera,
       object3d: playerObject3D,
       health: createHealth(100),
-      physicBody: playerBody
-      //playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
+      physicBody: playerBody,
+      playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
     });
 
     // Устанавливаем начальную позицию камеры
-    this.camera.position.copy(new THREE.Vector3(0, 3, 20));
-    this.camera.position.y += 0.5;
+    //this.camera.position.copy(new THREE.Vector3(0, 3, 20));
+    //this.camera.position.y += 0.5;
   }
 
   public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
@@ -158,6 +158,7 @@ export class Game {
             this.physicsWorld.addBody(body);
           }
         }
+
       });
 
       // Добавляем новую карту в сцену

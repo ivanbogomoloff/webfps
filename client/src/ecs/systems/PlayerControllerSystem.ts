@@ -95,6 +95,31 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
       // Обновляем позицию камеры чтобы она следила за игроком
       camera.position.copy(physicBody.position);
       camera.position.y += 0.5; // Смещение камеры относительно позиции игрока
+
+      // Устанавливаем камеру в положение для вида от третьего лица
+      const distance = 5; // Расстояние от игрока до камеры
+      const directionVector = new THREE.Vector3(0, 0, -1); // Направление смотрит вперед
+      directionVector.applyEuler(new THREE.Euler(camState.pitch, camState.yaw, 0));
+      directionVector.normalize();
+      directionVector.multiplyScalar(distance);
+      camera.position.set(
+        physicBody.position.x + directionVector.x,
+        physicBody.position.y + directionVector.y,
+        physicBody.position.z + directionVector.z
+      );
+
+      // Устанавливаем направление камеры на игрока
+      const lookAtVector = new THREE.Vector3(
+        physicBody.position.x - camera.position.x,
+        physicBody.position.y - camera.position.y,
+        physicBody.position.z - camera.position.z
+      );
+      lookAtVector.normalize();
+      camera.lookAt(new THREE.Vector3(
+        camera.position.x + lookAtVector.x,
+        camera.position.y + lookAtVector.y,
+        camera.position.z + lookAtVector.z
+      ));
     }
   };
 }
