@@ -42,7 +42,7 @@ const updateHUD = () => {
   const player = Array.from(world.entities).find((e: any) => e.playerController)
   
   if (player) {
-    const pos = player.physicBody.position
+    const pos = player.object3d.position
     const camera = player.camera
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ')
     

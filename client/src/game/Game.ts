@@ -1,11 +1,8 @@
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { World } from 'miniplex';
-import * as CANNON from 'cannon-es';
-import { threeToCannon } from 'three-to-cannon';
 
 import {
-  createPhysicBody,
   createCamera,
   createInput,
   createHealth,
@@ -13,7 +10,6 @@ import {
 } from '../ecs/components';
 import {
   createRenderSystem,
-  createPhysicsSystem,
   createInputSystem,
   createPlayerControllerSystem
 } from '../ecs/systems';
@@ -30,7 +26,16 @@ export class Game {
   private mapLoader: MapLoader;
   private currentMap: THREE.Group | null = null;
   private statsJs: Stats;
-  private physicsWorld: CANNON.World;
+  private ammo: any | null = null;
+  private physicsWorld: any | null = null;
+  private ammoCollisionConfig: any;
+  private ammoDispatcher: any;
+  private ammoBroadphase: any;
+  private ammoSolver: any;
+  private ammoTransform: any;
+  private physicsReady: Promise<void>;
+  private playerBody: any | null = null;
+  private playerObject3D: THREE.Object3D | null = null;
 
   constructor() {
     this.statsJs = new Stats();
@@ -58,8 +63,9 @@ export class Game {
 
     // Инициализируем ECS World
     this.world = new World();
-    this.physicsWorld = new CANNON.World();
-    this.physicsWorld.gravity.set(0, -9.82, 0); // Стандартная гравитация
+
+    // Инициализируем Ammo.js физику (асинхронно)
+    this.physicsReady = this.initPhysics();
 
     // Получаем камеру для трёхмерной сцены
     const cameraComponent = createCamera(
@@ -73,22 +79,46 @@ export class Game {
 
     // Инициализируем системы (порядок важен!)
     this.systems.push(createInputSystem(this.world)); // Сначала обновляем ввод
-    this.systems.push(createPlayerControllerSystem(this.world, this.renderer.domElement)); // Потом обрабатываем управление
-    this.systems.push(createPhysicsSystem(this.world, this.physicsWorld)); // Потом физика
+    this.systems.push(
+      createPlayerControllerSystem(
+        this.world,
+        this.renderer.domElement,
+      )
+    ); // Потом обрабатываем управление
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна
     window.addEventListener('resize', () => this.onWindowResize());
   }
 
+  private async initPhysics(): Promise<void> {
+    // Ammo загружается через <script> в index.html и даёт глобальный Ammo (сначала Promise, после resolve — API)
+    const AmmoGlobal = (typeof window !== 'undefined' ? window : (globalThis as any)) as any;
+    if (!AmmoGlobal.Ammo) {
+      console.error('AmmoPhysics: Ammo.js not loaded. Include ammo.wasm.js script before the app.');
+      return;
+    }
+    this.ammo = await AmmoGlobal.Ammo();
+
+    this.ammoCollisionConfig = new this.ammo.btDefaultCollisionConfiguration();
+    this.ammoDispatcher = new this.ammo.btCollisionDispatcher(this.ammoCollisionConfig);
+    this.ammoBroadphase = new this.ammo.btDbvtBroadphase();
+    this.ammoSolver = new this.ammo.btSequentialImpulseConstraintSolver();
+    this.physicsWorld = new this.ammo.btDiscreteDynamicsWorld(
+      this.ammoDispatcher,
+      this.ammoBroadphase,
+      this.ammoSolver,
+      this.ammoCollisionConfig
+    );
+    this.physicsWorld.setGravity(new this.ammo.btVector3(0, -9.8, 0));
+
+    this.ammoTransform = new this.ammo.btTransform();
+  }
+
   public createEntity(components: Record<string, any>) {
     const entity: any = { id: Math.random() };
     Object.assign(entity, components);
     this.world.add(entity);
-    
-    if(entity.physicBody) {
-      this.physicsWorld.addBody(entity.physicBody);
-    }
 
     if(entity.object3d) {
       this.scene.add(entity.object3d);
@@ -99,52 +129,52 @@ export class Game {
 
   public createPlayer(): void {
     const playerRadius = 0.5;
-    const playerBody = createPhysicBody(
-        new CANNON.Vec3(0, 6, 0),
-        new CANNON.Sphere(playerRadius),
-        1
-      );
-      
     const playerObject3D = new THREE.Mesh(
         new THREE.SphereGeometry(playerRadius, 16, 16),
         new THREE.MeshStandardMaterial({ color: 0x00ff00 })
     );
-    
-    playerObject3D.position.copy(new THREE.Vector3(
-      playerBody.position.x, 
-      playerBody.position.y, 
-      playerBody.position.z
-    ));
 
-    this.createEntity({
+    playerObject3D.position.set(0, 6, 0);
+
+    const entity = this.createEntity({
       input: createInput(),
       camera: this.camera,
       object3d: playerObject3D,
       health: createHealth(100),
-      physicBody: playerBody,
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
+      moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в stepPhysics
     });
 
-    // Устанавливаем начальную позицию камеры
-    //this.camera.position.copy(new THREE.Vector3(0, 3, 20));
-    //this.camera.position.y += 0.5;
+    this.playerObject3D = playerObject3D;
+
+    // Добавляем игрока в физический мир Ammo как динамическое тело
+    (async () => {
+      await this.physicsReady;
+      if (!this.ammo || !this.physicsWorld) return;
+
+      const startTransform = new this.ammo.btTransform();
+      startTransform.setIdentity();
+      startTransform.setOrigin(new this.ammo.btVector3(0, 6, 0));
+
+      const shape = new this.ammo.btSphereShape(playerRadius);
+      const mass = 1;
+      const localInertia = new this.ammo.btVector3(0, 0, 0);
+      shape.calculateLocalInertia(mass, localInertia);
+
+      const motionState = new this.ammo.btDefaultMotionState(startTransform);
+      const rbInfo = new this.ammo.btRigidBodyConstructionInfo(
+        mass,
+        motionState,
+        shape,
+        localInertia
+      );
+      const body = new this.ammo.btRigidBody(rbInfo);
+
+      this.physicsWorld.addRigidBody(body);
+      this.playerBody = body;
+      (entity as any).physicBody = body;
+    })();
   }
-
-  private createVisualFromCannonBox(shape: CANNON.Box) {
-  // 1. Получаем полные размеры (halfExtents * 2)
-  const width = shape.halfExtents.x * 2;
-  const height = shape.halfExtents.y * 2;
-  const depth = shape.halfExtents.z * 2;
-
-  // 2. Создаем геометрию и красный материал
-  const geometry = new THREE.BoxGeometry(width, height, depth);
-  const material = new THREE.MeshBasicMaterial({ 
-    color: 0xff0000, 
-    wireframe: true // Сетка удобнее для отладки
-  });
-
-  return new THREE.Mesh(geometry, material);
-}
 
   public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
     try {
@@ -156,51 +186,49 @@ export class Game {
         this.scene.remove(this.currentMap);
       }
 
-      mapScene.traverse((node) => {
-        if (node instanceof THREE.Mesh) {
-          const shapeResult = threeToCannon(node);
-          if (!shapeResult?.shape) return;
+      // Добавляем все меши карты в Ammo как статические box-тела
+      await this.physicsReady;
+      if (this.ammo && this.physicsWorld) {
+        const box = new THREE.Box3();
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
 
-          node.updateMatrixWorld(true);
+        mapScene.traverse((node) => {
+          const mesh = node as THREE.Mesh;
+          if ((mesh as any).isMesh) {
+            box.setFromObject(mesh);
+            box.getSize(size);
+            box.getCenter(center);
 
-          const worldPosition = new THREE.Vector3();
-          const worldQuaternion = new THREE.Quaternion();
-          node.getWorldPosition(worldPosition);
-          node.getWorldQuaternion(worldQuaternion);
+            const halfExtents = new this.ammo.btVector3(
+              size.x / 2,
+              size.y / 2,
+              size.z / 2
+            );
+            const shape = new this.ammo.btBoxShape(halfExtents);
 
-          let shape: CANNON.Shape = shapeResult.shape;
+            const transform = new this.ammo.btTransform();
+            transform.setIdentity();
+            transform.setOrigin(
+              new this.ammo.btVector3(center.x, center.y, center.z)
+            );
 
-          if (shapeResult.shape instanceof CANNON.Box) {
-            const box3 = new THREE.Box3();
-            const worldSize = new THREE.Vector3();
-            box3.setFromObject(node);
-            box3.getSize(worldSize);
+            const motionState = new this.ammo.btDefaultMotionState(transform);
+            const mass = 0;
+            const localInertia = new this.ammo.btVector3(0, 0, 0);
 
-            shape = new CANNON.Box(new CANNON.Vec3(
-              worldSize.x / 2,
-              worldSize.y / 2,
-              worldSize.z / 2
-            ));
+            const rbInfo = new this.ammo.btRigidBodyConstructionInfo(
+              mass,
+              motionState,
+              shape,
+              localInertia
+            );
+            const body = new this.ammo.btRigidBody(rbInfo);
 
-            const debugMesh = this.createVisualFromCannonBox(shape as CANNON.Box);
-            debugMesh.position.copy(worldPosition);
-            debugMesh.quaternion.copy(worldQuaternion);
-            this.createEntity({ object3d: debugMesh });
+            this.physicsWorld.addRigidBody(body);
           }
-
-          const body = new CANNON.Body({ mass: 0 });
-          body.addShape(shape);
-          body.position.set(worldPosition.x, worldPosition.y, worldPosition.z);
-          body.quaternion.set(
-            worldQuaternion.x,
-            worldQuaternion.y,
-            worldQuaternion.z,
-            worldQuaternion.w
-          );
-
-          this.physicsWorld.addBody(body);
-        }
-      });
+        });
+      }
 
       // Добавляем новую карту в сцену
       this.currentMap = mapScene;
@@ -239,11 +267,66 @@ export class Game {
     for (const system of this.systems) {
       system(deltaTime);
     }
+
+    // Обновляем физику Ammo и синхронизируем игрока
+    this.stepPhysics(deltaTime);
+
     // Рендерим сцену
     this.renderer.render(this.scene, this.camera);
 
     this.statsJs.end();
   };
+
+  private stepPhysics(deltaTime: number): void {
+    if (!this.physicsWorld || !this.ammo) return;
+
+    // Применяем управление к телу игрока через скорость (игрок — тот же, что в PlayerControllerSystem)
+    if (this.playerBody) {
+      let vx = 0;
+      let vz = 0;
+
+      for (const player of this.world.with('playerController', 'object3d')) {
+        const dir = (player as any).moveDirection as THREE.Vector3 | undefined;
+        const speed = (player as any).playerController?.speed ?? 5;
+        if (dir) {
+          vx = dir.x * speed;
+          vz = dir.z * speed;
+        }
+        break; // один игрок
+      }
+
+      const currentVel = this.playerBody.getLinearVelocity();
+      const vy = currentVel.y();
+
+      const newVel = new this.ammo.btVector3(vx, vy, vz);
+      this.playerBody.setLinearVelocity(newVel);
+      this.ammo.destroy(newVel);
+    }
+
+    this.physicsWorld.stepSimulation(deltaTime, 10);
+
+    // Синхронизируем позицию и поворот меша игрока с телом Ammo
+    if (this.playerBody && this.playerObject3D) {
+      const motionState = this.playerBody.getMotionState();
+      if (motionState) {
+        motionState.getWorldTransform(this.ammoTransform);
+        const origin = this.ammoTransform.getOrigin();
+        const rotation = this.ammoTransform.getRotation();
+
+        this.playerObject3D.position.set(
+          origin.x(),
+          origin.y(),
+          origin.z()
+        );
+        this.playerObject3D.quaternion.set(
+          rotation.x(),
+          rotation.y(),
+          rotation.z(),
+          rotation.w()
+        );
+      }
+    }
+  }
 
   private onWindowResize(): void {
     const width = window.innerWidth;

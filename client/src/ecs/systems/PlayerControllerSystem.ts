@@ -1,8 +1,10 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
 
-export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasElement) {
+export function createPlayerControllerSystem(
+  world: World,
+  canvas: HTMLCanvasElement,
+) {
   const setupPointerLock = () => {
     canvas.addEventListener('click', () => {
       canvas.requestPointerLock =
@@ -23,10 +25,10 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
   // Состояние камеры для отслеживания углов
   const cameraState = new Map<any, { pitch: number; yaw: number }>();
 
-  return (deltaTime: number) => {
-    for (const entity of world.with('playerController', 'physicBody', 'input', 'camera')) {
+  return (_deltaTime: number) => {
+    for (const entity of world.with('playerController', 'object3d', 'input', 'camera')) {
       const controller = entity.playerController as any;
-      const physicBody = entity.physicBody as CANNON.Body;
+      const object3d = entity.object3d as THREE.Object3D;
       const input = entity.input as any;
       const camera = entity.camera as THREE.PerspectiveCamera;
 
@@ -50,8 +52,10 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
         camera.rotation.y = camState.yaw;
         camera.rotation.x = camState.pitch;
 
-        // Также обновляем трансформ игрока для консистентности
-        physicBody.quaternion.setFromEuler(camState.pitch, camState.yaw, 0, 'YXZ');
+        // Также обновляем трансформ игрока для консистентности (YXZ)
+        object3d.rotation.order = 'YXZ';
+        object3d.rotation.y = camState.yaw;
+        object3d.rotation.x = camState.pitch;
       }
 
       // Обработка движения (WASD)
@@ -87,13 +91,19 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
         const rotatedX = direction.x * cos + direction.z * sin;
         const rotatedZ = -direction.x * sin + direction.z * cos;
 
-        // Применяем движение к позиции
-        physicBody.position.x += rotatedX * controller.speed * deltaTime;
-        physicBody.position.z += rotatedZ * controller.speed * deltaTime;
+        // Сохраняем желаемое направление движения для физики
+        let moveDir = entity.moveDirection as THREE.Vector3 | undefined;
+        if (!moveDir) {
+          moveDir = new THREE.Vector3();
+          entity.moveDirection = moveDir;
+        }
+        moveDir.set(rotatedX, 0, rotatedZ);
+      } else if (entity.moveDirection) {
+        (entity.moveDirection as THREE.Vector3).set(0, 0, 0);
       }
 
       // Обновляем позицию камеры чтобы она следила за игроком
-      camera.position.copy(physicBody.position);
+      camera.position.copy(object3d.position);
       camera.position.y += 0.5; // Смещение камеры относительно позиции игрока
 
       // Устанавливаем камеру в положение для вида от третьего лица
@@ -103,16 +113,16 @@ export function createPlayerControllerSystem(world: World, canvas: HTMLCanvasEle
       directionVector.normalize();
       directionVector.multiplyScalar(distance);
       camera.position.set(
-        physicBody.position.x + directionVector.x,
-        physicBody.position.y + directionVector.y,
-        physicBody.position.z + directionVector.z
+        object3d.position.x + directionVector.x,
+        object3d.position.y + directionVector.y,
+        object3d.position.z + directionVector.z
       );
 
       // Устанавливаем направление камеры на игрока
       const lookAtVector = new THREE.Vector3(
-        physicBody.position.x - camera.position.x,
-        physicBody.position.y - camera.position.y,
-        physicBody.position.z - camera.position.z
+        object3d.position.x - camera.position.x,
+        object3d.position.y - camera.position.y,
+        object3d.position.z - camera.position.z
       );
       lookAtVector.normalize();
       camera.lookAt(new THREE.Vector3(
