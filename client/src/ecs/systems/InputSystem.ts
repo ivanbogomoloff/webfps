@@ -8,17 +8,19 @@ export function createInputSystem(world: World) {
   let globalMouseDeltaX = 0;
   let globalMouseDeltaY = 0;
   let globalMouseLocked = false;
+  // Игнорируем keyup сразу после входа в pointer lock (браузер шлёт синтетические keyup при смене фокуса)
+  let ignoreKeyUpUntil = 0;
 
-  // Глобальные слушатели для клавиатуры
-  window.addEventListener('keydown', (e) => {
+  const onKeyDown = (e: KeyboardEvent) => {
     globalKeys.set(e.key.toLowerCase(), true);
-  });
-
-  window.addEventListener('keyup', (e) => {
+  };
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (Date.now() < ignoreKeyUpUntil) return;
     globalKeys.set(e.key.toLowerCase(), false);
-  });
+  };
+  document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('keyup', onKeyUp, true);
 
-  // Глобальные слушатели для мыши
   window.addEventListener('mousemove', (e) => {
     globalMouseDeltaX = e.movementX;
     globalMouseDeltaY = e.movementY;
@@ -27,7 +29,11 @@ export function createInputSystem(world: World) {
   });
 
   document.addEventListener('pointerlockchange', () => {
-    globalMouseLocked = document.pointerLockElement !== null;
+    const locked = document.pointerLockElement !== null;
+    if (locked) {
+      ignoreKeyUpUntil = Date.now() + 150;
+    }
+    globalMouseLocked = locked;
   });
 
   return (_deltaTime: number) => {
