@@ -336,6 +336,9 @@ export class Game {
       const currentVel = this.playerBody.getLinearVelocity();
       const vy = currentVel.y();
 
+      // Будим тело, если оно уснуло, чтобы скорость применилась
+      this.playerBody.activate(true);
+
       const newVel = new this.ammo.btVector3(vx, vy, vz);
       this.playerBody.setLinearVelocity(newVel);
       this.ammo.destroy(newVel);

@@ -67,13 +67,13 @@ export function createPlayerControllerSystem(
       const hasD = input.keys.get('d');
 
       if (hasW) {
-        direction.z += 1; // Вперед (в мировых координатах +Z после поворота даёт движение вперёд)
+        direction.z += 1; // Вперёд
       }
       if (hasS) {
         direction.z -= 1; // Назад
       }
       if (hasA) {
-        direction.x = 1; // Влево
+        direction.x += 1; // Влево
       }
       if (hasD) {
         direction.x -= 1; // Вправо
@@ -83,7 +83,6 @@ export function createPlayerControllerSystem(
         direction.normalize();
 
         // Применяем поворот к направлению движения вокруг оси Y
-        // Three.js камера смотрит в направлении -Z, поэтому инвертируем
         const cos = Math.cos(camState.yaw);
         const sin = Math.sin(camState.yaw);
 
