@@ -15,6 +15,9 @@ import {
 } from '../ecs/systems';
 import { MapLoader } from '../utils/MapLoader';
 
+/** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
+const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
+
 export class Game {
   private world: World;
   private scene: THREE.Scene;
@@ -25,6 +28,8 @@ export class Game {
   private isRunning: boolean = false;
   private mapLoader: MapLoader;
   private currentMap: THREE.Group | null = null;
+  /** Группа с wireframe-боксами границ физических тел карты (только при VITE_DEBUG_PHYSICS=true) */
+  private physicsDebugRoot: THREE.Group | null = null;
   private statsJs: Stats;
   private ammo: any | null = null;
   private physicsWorld: any | null = null;
@@ -181,9 +186,13 @@ export class Game {
       console.log(`Loading map: ${mapPath}`);
       const { scene: mapScene, environment } = await this.mapLoader.loadMap(mapPath, hdrPath);
       
-      // Удаляем старую карту если она была
+      // Удаляем старую карту и отладочные границы физики если были
       if (this.currentMap) {
         this.scene.remove(this.currentMap);
+      }
+      if (this.physicsDebugRoot) {
+        this.scene.remove(this.physicsDebugRoot);
+        this.physicsDebugRoot = null;
       }
 
       // Добавляем все меши карты в Ammo как статические box-тела
@@ -192,6 +201,11 @@ export class Game {
         const box = new THREE.Box3();
         const size = new THREE.Vector3();
         const center = new THREE.Vector3();
+
+        if (DEBUG_PHYSICS) {
+          this.physicsDebugRoot = new THREE.Group();
+          this.physicsDebugRoot.name = 'PhysicsDebugBounds';
+        }
 
         mapScene.traverse((node) => {
           const mesh = node as THREE.Mesh;
@@ -226,8 +240,18 @@ export class Game {
             const body = new this.ammo.btRigidBody(rbInfo);
 
             this.physicsWorld.addRigidBody(body);
+
+            if (DEBUG_PHYSICS && this.physicsDebugRoot) {
+              const debugMesh = this.createPhysicsDebugBox(size, center);
+              this.physicsDebugRoot.add(debugMesh);
+            }
           }
         });
+
+        if (DEBUG_PHYSICS && this.physicsDebugRoot) {
+          this.scene.add(this.physicsDebugRoot);
+          console.log('[DEBUG] Physics bounds visible (VITE_DEBUG_PHYSICS=true)');
+        }
       }
 
       // Добавляем новую карту в сцену
@@ -276,6 +300,20 @@ export class Game {
 
     this.statsJs.end();
   };
+
+  /** Рисует wireframe-бокс для отладки границ физического тела (карта). */
+  private createPhysicsDebugBox(size: THREE.Vector3, center: THREE.Vector3): THREE.Mesh {
+    const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      wireframe: true,
+      depthTest: true,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.copy(center);
+    mesh.name = 'PhysicsDebugBox';
+    return mesh;
+  }
 
   private stepPhysics(deltaTime: number): void {
     if (!this.physicsWorld || !this.ammo) return;
