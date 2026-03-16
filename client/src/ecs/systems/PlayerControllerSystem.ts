@@ -67,16 +67,16 @@ export function createPlayerControllerSystem(
       const hasD = input.keys.get('d');
 
       if (hasW) {
-        direction.z -= 1; // Вперед - в направлении -Z (где смотрит камера)
+        direction.z += 1; // Вперед (в мировых координатах +Z после поворота даёт движение вперёд)
       }
       if (hasS) {
-        direction.z += 1; // Назад - в направлении +Z
+        direction.z -= 1; // Назад
       }
       if (hasA) {
-        direction.x -= 1; // Влево
+        direction.x = 1; // Влево
       }
       if (hasD) {
-        direction.x += 1; // Вправо
+        direction.x -= 1; // Вправо
       }
 
       if (direction.length() > 0) {
