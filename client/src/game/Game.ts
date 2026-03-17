@@ -195,8 +195,9 @@ export class Game {
         this.physicsDebugRoot = null;
       }
 
-      // Добавляем все меши карты в Ammo как статические box-тела
+      // Добавляем все меши карты в Ammo как статические box-тела; собираем точки респауна (userData.respawn === true)
       await this.physicsReady;
+      const respawnPoints: { center: THREE.Vector3; size: THREE.Vector3 }[] = [];
       if (this.ammo && this.physicsWorld) {
         const box = new THREE.Box3();
         const size = new THREE.Vector3();
@@ -213,6 +214,11 @@ export class Game {
             box.setFromObject(mesh);
             box.getSize(size);
             box.getCenter(center);
+
+            const userData = (mesh as any).userData;
+            if (userData && userData.respawn === true) {
+              respawnPoints.push({ center: center.clone(), size: size.clone() });
+            }
 
             const halfExtents = new this.ammo.btVector3(
               size.x / 2,
@@ -257,7 +263,22 @@ export class Game {
       // Добавляем новую карту в сцену
       this.currentMap = mapScene;
       this.scene.add(mapScene);
-      
+
+      // Позиционируем игрока на одной из точек респауна (меши с userData.respawn === true)
+      const playerRadius = 0.5;
+      if (respawnPoints.length > 0 && this.playerBody && this.playerObject3D) {
+        const point = respawnPoints[Math.floor(Math.random() * respawnPoints.length)];
+        const spawnY = point.center.y + point.size.y / 2 + playerRadius;
+        const spawnX = point.center.x;
+        const spawnZ = point.center.z;
+        this.playerObject3D.position.set(spawnX, spawnY, spawnZ);
+        const originVec = new this.ammo!.btVector3(spawnX, spawnY, spawnZ);
+        this.ammoTransform.setIdentity();
+        this.ammoTransform.setOrigin(originVec);
+        this.playerBody.setWorldTransform(this.ammoTransform);
+        this.ammo!.destroy(originVec);
+      }
+
       // Устанавливаем окружение (HDR) если оно загружено
       if (environment) {
         this.scene.environment = environment;
