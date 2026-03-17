@@ -220,19 +220,47 @@ export class Game {
               respawnPoints.push({ center: center.clone(), size: size.clone() });
             }
 
-            const halfExtents = new this.ammo.btVector3(
-              size.x / 2,
-              size.y / 2,
-              size.z / 2
-            );
+            const isRamp = mesh.name != null && mesh.name.startsWith('ramp-');
+            let halfExtents: any;
+            let transform: any;
+
+            if (isRamp) {
+              // Рампа: повторяем позицию и наклон меша, чтобы игрок мог закатываться вверх и скатываться вниз
+              const geom = mesh.geometry;
+              if (!geom.boundingBox) geom.computeBoundingBox();
+              const localBox = geom.boundingBox!;
+              const localSize = new THREE.Vector3();
+              const localCenter = new THREE.Vector3();
+              localBox.getSize(localSize);
+              localBox.getCenter(localCenter);
+              halfExtents = new this.ammo.btVector3(
+                localSize.x / 2,
+                localSize.y / 2,
+                localSize.z / 2
+              );
+              const worldCenter = new THREE.Vector3().copy(localCenter).applyMatrix4(mesh.matrixWorld);
+              const worldQuat = new THREE.Quaternion();
+              mesh.getWorldQuaternion(worldQuat);
+              transform = new this.ammo.btTransform();
+              transform.setIdentity();
+              transform.setOrigin(new this.ammo.btVector3(worldCenter.x, worldCenter.y, worldCenter.z));
+              const btQuat = new this.ammo.btQuaternion(worldQuat.x, worldQuat.y, worldQuat.z, worldQuat.w);
+              transform.setRotation(btQuat);
+              this.ammo.destroy(btQuat);
+            } else {
+              halfExtents = new this.ammo.btVector3(
+                size.x / 2,
+                size.y / 2,
+                size.z / 2
+              );
+              transform = new this.ammo.btTransform();
+              transform.setIdentity();
+              transform.setOrigin(
+                new this.ammo.btVector3(center.x, center.y, center.z)
+              );
+            }
+
             const shape = new this.ammo.btBoxShape(halfExtents);
-
-            const transform = new this.ammo.btTransform();
-            transform.setIdentity();
-            transform.setOrigin(
-              new this.ammo.btVector3(center.x, center.y, center.z)
-            );
-
             const motionState = new this.ammo.btDefaultMotionState(transform);
             const mass = 0;
             const localInertia = new this.ammo.btVector3(0, 0, 0);
@@ -248,8 +276,23 @@ export class Game {
             this.physicsWorld.addRigidBody(body);
 
             if (DEBUG_PHYSICS && this.physicsDebugRoot) {
-              const debugMesh = this.createPhysicsDebugBox(size, center);
-              this.physicsDebugRoot.add(debugMesh);
+              if (isRamp) {
+                const worldQuat = new THREE.Quaternion();
+                mesh.getWorldQuaternion(worldQuat);
+                const geom = mesh.geometry;
+                const localBox = geom.boundingBox!;
+                const localSize = new THREE.Vector3();
+                const localCenter = new THREE.Vector3();
+                localBox.getSize(localSize);
+                localBox.getCenter(localCenter);
+                localCenter.applyMatrix4(mesh.matrixWorld);
+                const debugMesh = this.createPhysicsDebugBox(localSize, localCenter);
+                debugMesh.quaternion.copy(worldQuat);
+                this.physicsDebugRoot.add(debugMesh);
+              } else {
+                const debugMesh = this.createPhysicsDebugBox(size, center);
+                this.physicsDebugRoot.add(debugMesh);
+              }
             }
           }
         });
