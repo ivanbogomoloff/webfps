@@ -14,6 +14,7 @@ import {
   createPlayerControllerSystem
 } from '../ecs/systems';
 import { MapLoader } from '../utils/MapLoader';
+import { MapBuilder } from './MapBuilder';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
@@ -27,6 +28,7 @@ export class Game {
   private lastTime: number = 0;
   private isRunning: boolean = false;
   private mapLoader: MapLoader;
+  private mapBuilder: MapBuilder;
   private currentMap: THREE.Group | null = null;
   /** Группа с wireframe-боксами границ физических тел карты (только при VITE_DEBUG_PHYSICS=true) */
   private physicsDebugRoot: THREE.Group | null = null;
@@ -63,8 +65,9 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(this.renderer.domElement);
 
-    // Инициализируем MapLoader
+    // Инициализируем MapLoader и MapBuilder
     this.mapLoader = new MapLoader();
+    this.mapBuilder = new MapBuilder(this.mapLoader);
 
     // Инициализируем ECS World
     this.world = new World();
@@ -184,9 +187,7 @@ export class Game {
   public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
     try {
       console.log(`Loading map: ${mapPath}`);
-      const { scene: mapScene, environment } = await this.mapLoader.loadMap(mapPath, hdrPath);
-      
-      // Удаляем старую карту и отладочные границы физики если были
+
       if (this.currentMap) {
         this.scene.remove(this.currentMap);
       }
@@ -195,122 +196,33 @@ export class Game {
         this.physicsDebugRoot = null;
       }
 
-      // Добавляем все меши карты в Ammo как статические box-тела; собираем точки респауна (userData.respawn === true)
-      await this.physicsReady;
-      const respawnPoints: { center: THREE.Vector3; size: THREE.Vector3 }[] = [];
-      if (this.ammo && this.physicsWorld) {
-        const box = new THREE.Box3();
-        const size = new THREE.Vector3();
-        const center = new THREE.Vector3();
-
-        if (DEBUG_PHYSICS) {
-          this.physicsDebugRoot = new THREE.Group();
-          this.physicsDebugRoot.name = 'PhysicsDebugBounds';
-        }
-
-        mapScene.traverse((node) => {
-          const mesh = node as THREE.Mesh;
-          if ((mesh as any).isMesh) {
-            box.setFromObject(mesh);
-            box.getSize(size);
-            box.getCenter(center);
-
-            const userData = (mesh as any).userData;
-            if (userData && userData.respawn === true) {
-              respawnPoints.push({ center: center.clone(), size: size.clone() });
-            }
-
-            const isRamp = mesh.name != null && mesh.name.startsWith('ramp-');
-            let halfExtents: any;
-            let transform: any;
-
-            if (isRamp) {
-              // Рампа: повторяем позицию и наклон меша, чтобы игрок мог закатываться вверх и скатываться вниз
-              const geom = mesh.geometry;
-              if (!geom.boundingBox) geom.computeBoundingBox();
-              const localBox = geom.boundingBox!;
-              const localSize = new THREE.Vector3();
-              const localCenter = new THREE.Vector3();
-              localBox.getSize(localSize);
-              localBox.getCenter(localCenter);
-              halfExtents = new this.ammo.btVector3(
-                localSize.x / 2,
-                localSize.y / 2,
-                localSize.z / 2
-              );
-              const worldCenter = new THREE.Vector3().copy(localCenter).applyMatrix4(mesh.matrixWorld);
-              const worldQuat = new THREE.Quaternion();
-              mesh.getWorldQuaternion(worldQuat);
-              transform = new this.ammo.btTransform();
-              transform.setIdentity();
-              transform.setOrigin(new this.ammo.btVector3(worldCenter.x, worldCenter.y, worldCenter.z));
-              const btQuat = new this.ammo.btQuaternion(worldQuat.x, worldQuat.y, worldQuat.z, worldQuat.w);
-              transform.setRotation(btQuat);
-              this.ammo.destroy(btQuat);
-            } else {
-              halfExtents = new this.ammo.btVector3(
-                size.x / 2,
-                size.y / 2,
-                size.z / 2
-              );
-              transform = new this.ammo.btTransform();
-              transform.setIdentity();
-              transform.setOrigin(
-                new this.ammo.btVector3(center.x, center.y, center.z)
-              );
-            }
-
-            const shape = new this.ammo.btBoxShape(halfExtents);
-            const motionState = new this.ammo.btDefaultMotionState(transform);
-            const mass = 0;
-            const localInertia = new this.ammo.btVector3(0, 0, 0);
-
-            const rbInfo = new this.ammo.btRigidBodyConstructionInfo(
-              mass,
-              motionState,
-              shape,
-              localInertia
-            );
-            const body = new this.ammo.btRigidBody(rbInfo);
-
-            this.physicsWorld.addRigidBody(body);
-
-            if (DEBUG_PHYSICS && this.physicsDebugRoot) {
-              if (isRamp) {
-                const worldQuat = new THREE.Quaternion();
-                mesh.getWorldQuaternion(worldQuat);
-                const geom = mesh.geometry;
-                const localBox = geom.boundingBox!;
-                const localSize = new THREE.Vector3();
-                const localCenter = new THREE.Vector3();
-                localBox.getSize(localSize);
-                localBox.getCenter(localCenter);
-                localCenter.applyMatrix4(mesh.matrixWorld);
-                const debugMesh = this.createPhysicsDebugBox(localSize, localCenter);
-                debugMesh.quaternion.copy(worldQuat);
-                this.physicsDebugRoot.add(debugMesh);
-              } else {
-                const debugMesh = this.createPhysicsDebugBox(size, center);
-                this.physicsDebugRoot.add(debugMesh);
-              }
-            }
+      const { map, physicsDebugRoot } = await this.mapBuilder.build(mapPath, {
+        getPhysics: async () => {
+          await this.physicsReady;
+          if (!this.ammo || !this.physicsWorld) {
+            throw new Error('Physics not initialized');
           }
-        });
+          return { ammo: this.ammo, physicsWorld: this.physicsWorld };
+        },
+        debugPhysics: DEBUG_PHYSICS,
+        scene: this.scene,
+        createPhysicsDebugBox: (size, center) => this.createPhysicsDebugBox(size, center),
+      }, hdrPath);
 
-        if (DEBUG_PHYSICS && this.physicsDebugRoot) {
-          this.scene.add(this.physicsDebugRoot);
+      this.currentMap = map.scene;
+      this.scene.add(map.scene);
+      if (physicsDebugRoot) {
+        this.physicsDebugRoot = physicsDebugRoot;
+        if (DEBUG_PHYSICS) {
           console.log('[DEBUG] Physics bounds visible (VITE_DEBUG_PHYSICS=true)');
         }
       }
 
-      // Добавляем новую карту в сцену
-      this.currentMap = mapScene;
-      this.scene.add(mapScene);
-
-      // Позиционируем игрока на одной из точек респауна (меши с userData.respawn === true)
+      // Позиционируем игрока на одной из точек респауна
+      const respawns = map.getRespawns();
       const playerRadius = 0.5;
-      if (respawnPoints.length > 0 && this.playerBody && this.playerObject3D) {
-        const point = respawnPoints[Math.floor(Math.random() * respawnPoints.length)];
+      if (respawns.length > 0 && this.playerBody && this.playerObject3D) {
+        const point = respawns[Math.floor(Math.random() * respawns.length)];
         const spawnY = point.center.y + point.size.y / 2 + playerRadius;
         const spawnX = point.center.x;
         const spawnZ = point.center.z;
@@ -322,12 +234,11 @@ export class Game {
         this.ammo!.destroy(originVec);
       }
 
-      // Устанавливаем окружение (HDR) если оно загружено
-      if (environment) {
-        this.scene.environment = environment;
-        this.scene.background = environment; // Опционально: используем HDR как фон
+      if (map.environment) {
+        this.scene.environment = map.environment;
+        this.scene.background = map.environment;
       }
-      
+
       console.log(`Map loaded successfully: ${mapPath}`);
     } catch (error) {
       console.error(`Failed to load map: ${mapPath}`, error);
