@@ -12,12 +12,123 @@ export interface MapBuildContext {
   createPhysicsDebugBox: (size: THREE.Vector3, center: THREE.Vector3) => THREE.Mesh;
 }
 
+interface CollisionPhysicsCtx {
+  ammo: any;
+  physicsWorld: any;
+  debugPhysics: boolean;
+  physicsDebugRoot: THREE.Group | null;
+  createPhysicsDebugBox: (size: THREE.Vector3, center: THREE.Vector3) => THREE.Mesh;
+}
+
 /**
  * Собирает карту: загружает через MapLoader, добавляет статические тела в Ammo,
  * собирает точки респауна. Результат — Map, из которого можно получить респауны.
  */
 export class MapBuilder {
   constructor(private mapLoader: MapLoader) {}
+
+  private createRampPhysicsBody(mesh: THREE.Mesh, ctx: CollisionPhysicsCtx): boolean {
+    const { ammo, physicsWorld, debugPhysics, physicsDebugRoot } = ctx;
+    const geom = mesh.geometry as THREE.BufferGeometry;
+    const posAttr = geom.attributes.position;
+    if (!posAttr) return false;
+
+    const positions = posAttr.array as Float32Array;
+    const indexAttr = geom.index;
+    const seen = new Set<string>();
+
+    const hullShape = new ammo.btConvexHullShape();
+    const v = new ammo.btVector3(0, 0, 0);
+
+    const addVertex = (i: number) => {
+      const key = `${positions[i * 3]},${positions[i * 3 + 1]},${positions[i * 3 + 2]}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      v.setValue(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+      hullShape.addPoint(v);
+    };
+
+    if (indexAttr) {
+      const indices = indexAttr.array;
+      for (let i = 0; i < indices.length; i++) addVertex(indices[i]);
+    } else {
+      for (let i = 0; i < posAttr.count; i++) addVertex(i);
+    }
+    ammo.destroy(v);
+
+    if (hullShape.getNumVertices() < 4) {
+      ammo.destroy(hullShape);
+      return false;
+    }
+    hullShape.setMargin(0.01);
+
+    const worldCenter = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
+    const worldQuat = new THREE.Quaternion();
+    mesh.getWorldQuaternion(worldQuat);
+    const transform = new ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin(new ammo.btVector3(worldCenter.x, worldCenter.y, worldCenter.z));
+    const btQuat = new ammo.btQuaternion(worldQuat.x, worldQuat.y, worldQuat.z, worldQuat.w);
+    transform.setRotation(btQuat);
+    ammo.destroy(btQuat);
+
+    const motionState = new ammo.btDefaultMotionState(transform);
+    const mass = 0;
+    const localInertia = new ammo.btVector3(0, 0, 0);
+    const rbInfo = new ammo.btRigidBodyConstructionInfo(
+      mass,
+      motionState,
+      hullShape,
+      localInertia
+    );
+    const body = new ammo.btRigidBody(rbInfo);
+    physicsWorld.addRigidBody(body);
+
+    if (debugPhysics && physicsDebugRoot) {
+      const debugMesh = mesh.clone();
+      debugMesh.visible = true;
+      debugMesh.position.setFromMatrixPosition(mesh.matrixWorld);
+      mesh.getWorldQuaternion(debugMesh.quaternion);
+      debugMesh.scale.setFromMatrixScale(mesh.matrixWorld);
+      debugMesh.material = new THREE.MeshBasicMaterial({
+        wireframe: true,
+        color: 0x00ff00,
+      });
+      physicsDebugRoot.add(debugMesh);
+    }
+    return true;
+  }
+
+  private createBoxPhysicsBody(
+    size: THREE.Vector3,
+    center: THREE.Vector3,
+    ctx: CollisionPhysicsCtx
+  ): void {
+    const { ammo, physicsWorld, debugPhysics, physicsDebugRoot, createPhysicsDebugBox } = ctx;
+
+    const halfExtents = new ammo.btVector3(size.x / 2, size.y / 2, size.z / 2);
+    const shape = new ammo.btBoxShape(halfExtents);
+    const transform = new ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin(new ammo.btVector3(center.x, center.y, center.z));
+
+    const motionState = new ammo.btDefaultMotionState(transform);
+    const mass = 0;
+    const localInertia = new ammo.btVector3(0, 0, 0);
+    const rbInfo = new ammo.btRigidBodyConstructionInfo(
+      mass,
+      motionState,
+      shape,
+      localInertia
+    );
+    const body = new ammo.btRigidBody(rbInfo);
+    physicsWorld.addRigidBody(body);
+
+    if (debugPhysics && physicsDebugRoot) {
+      const debugMesh = createPhysicsDebugBox(size, center);
+      physicsDebugRoot.add(debugMesh);
+    }
+  }
 
   async build(
     mapPath: string,
@@ -59,89 +170,19 @@ export class MapBuilder {
 
           mesh.visible = false;
 
+          const physicsCtx: CollisionPhysicsCtx = {
+            ammo,
+            physicsWorld,
+            debugPhysics,
+            physicsDebugRoot,
+            createPhysicsDebugBox,
+          };
+
           const isRamp = mesh.name.startsWith('collision_ramp');
-          let shape: any;
-          let transform: any;
-
           if (isRamp) {
-            const geom = mesh.geometry as THREE.BufferGeometry;
-            const posAttr = geom.attributes.position;
-            if (!posAttr) return;
-            const positions = posAttr.array as Float32Array;
-            const indexAttr = geom.index;
-            const seen = new Set<string>();
-
-            const hullShape = new ammo.btConvexHullShape();
-            const v = new ammo.btVector3(0, 0, 0);
-
-            const addVertex = (i: number) => {
-              const key = `${positions[i * 3]},${positions[i * 3 + 1]},${positions[i * 3 + 2]}`;
-              if (seen.has(key)) return;
-              seen.add(key);
-              v.setValue(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
-              hullShape.addPoint(v);
-            };
-
-            if (indexAttr) {
-              const indices = indexAttr.array;
-              for (let i = 0; i < indices.length; i++) addVertex(indices[i]);
-            } else {
-              for (let i = 0; i < posAttr.count; i++) addVertex(i);
-            }
-            ammo.destroy(v);
-
-            if (hullShape.getNumVertices() < 4) {
-              ammo.destroy(hullShape);
-              return;
-            }
-            hullShape.setMargin(0.01);
-            shape = hullShape;
-
-            const worldCenter = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
-            const worldQuat = new THREE.Quaternion();
-            mesh.getWorldQuaternion(worldQuat);
-            transform = new ammo.btTransform();
-            transform.setIdentity();
-            transform.setOrigin(new ammo.btVector3(worldCenter.x, worldCenter.y, worldCenter.z));
-            const btQuat = new ammo.btQuaternion(worldQuat.x, worldQuat.y, worldQuat.z, worldQuat.w);
-            transform.setRotation(btQuat);
-            ammo.destroy(btQuat);
+            this.createRampPhysicsBody(mesh, physicsCtx);
           } else {
-            const halfExtents = new ammo.btVector3(size.x / 2, size.y / 2, size.z / 2);
-            shape = new ammo.btBoxShape(halfExtents);
-            transform = new ammo.btTransform();
-            transform.setIdentity();
-            transform.setOrigin(new ammo.btVector3(center.x, center.y, center.z));
-          }
-
-          const motionState = new ammo.btDefaultMotionState(transform);
-          const mass = 0;
-          const localInertia = new ammo.btVector3(0, 0, 0);
-          const rbInfo = new ammo.btRigidBodyConstructionInfo(
-            mass,
-            motionState,
-            shape,
-            localInertia
-          );
-          const body = new ammo.btRigidBody(rbInfo);
-          physicsWorld.addRigidBody(body);
-
-          if (debugPhysics && physicsDebugRoot) {
-            if (isRamp) {
-              const debugMesh = mesh.clone();
-              debugMesh.visible = true;
-              debugMesh.position.setFromMatrixPosition(mesh.matrixWorld);
-              mesh.getWorldQuaternion(debugMesh.quaternion);
-              debugMesh.scale.setFromMatrixScale(mesh.matrixWorld);
-              debugMesh.material = new THREE.MeshBasicMaterial({
-                wireframe: true,
-                color: 0x00ff00,
-              });
-              physicsDebugRoot.add(debugMesh);
-            } else {
-              const debugMesh = createPhysicsDebugBox(size, center);
-              physicsDebugRoot.add(debugMesh);
-            }
+            this.createBoxPhysicsBody(size, center, physicsCtx);
           }
         }
       });
