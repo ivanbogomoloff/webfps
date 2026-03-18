@@ -99,6 +99,51 @@ export class MapBuilder {
     return true;
   }
 
+  private createCylinderPhysicsBody(mesh: THREE.Mesh, ctx: CollisionPhysicsCtx): void {
+    const { ammo, physicsWorld, debugPhysics, physicsDebugRoot, createPhysicsDebugBox } = ctx;
+
+    const geom = mesh.geometry as THREE.BufferGeometry;
+    if (!geom.boundingBox) geom.computeBoundingBox();
+    const localBox = geom.boundingBox!;
+    const localSize = new THREE.Vector3();
+    localBox.getSize(localSize);
+
+    const halfExtents = new ammo.btVector3(
+      localSize.x / 2,
+      localSize.y / 2,
+      localSize.z / 2
+    );
+    const shape = new ammo.btCylinderShape(halfExtents);
+
+    const worldCenter = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
+    const worldQuat = new THREE.Quaternion();
+    mesh.getWorldQuaternion(worldQuat);
+    const transform = new ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin(new ammo.btVector3(worldCenter.x, worldCenter.y, worldCenter.z));
+    const btQuat = new ammo.btQuaternion(worldQuat.x, worldQuat.y, worldQuat.z, worldQuat.w);
+    transform.setRotation(btQuat);
+    ammo.destroy(btQuat);
+
+    const motionState = new ammo.btDefaultMotionState(transform);
+    const mass = 0;
+    const localInertia = new ammo.btVector3(0, 0, 0);
+    const rbInfo = new ammo.btRigidBodyConstructionInfo(
+      mass,
+      motionState,
+      shape,
+      localInertia
+    );
+    const body = new ammo.btRigidBody(rbInfo);
+    physicsWorld.addRigidBody(body);
+
+    if (debugPhysics && physicsDebugRoot) {
+      const debugMesh = createPhysicsDebugBox(localSize, worldCenter);
+      debugMesh.quaternion.copy(worldQuat);
+      physicsDebugRoot.add(debugMesh);
+    }
+  }
+
   private createBoxPhysicsBody(
     size: THREE.Vector3,
     center: THREE.Vector3,
@@ -165,10 +210,14 @@ export class MapBuilder {
             respawnPoints.push({ center: center.clone(), size: size.clone() });
           }
 
-          const isCollision = mesh.name != null && mesh.name.startsWith('collision');
+          const isCollision =
+            (mesh.name != null && mesh.name.startsWith('collision')) ||
+            (userData && userData.collider === true);
           if (!isCollision) return;
 
-          mesh.visible = false;
+          if (mesh.name != null && mesh.name.startsWith('collision')) {
+            mesh.visible = false;
+          }
 
           const physicsCtx: CollisionPhysicsCtx = {
             ammo,
@@ -178,8 +227,13 @@ export class MapBuilder {
             createPhysicsDebugBox,
           };
 
-          const isRamp = mesh.name.startsWith('collision_ramp');
-          if (isRamp) {
+          const name = mesh.name ?? '';
+          const isCylinder = name.toLowerCase().includes('cylinder');
+          const isRamp = name.startsWith('collision_ramp');
+
+          if (isCylinder) {
+            this.createCylinderPhysicsBody(mesh, physicsCtx);
+          } else if (isRamp) {
             this.createRampPhysicsBody(mesh, physicsCtx);
           } else {
             this.createBoxPhysicsBody(size, center, physicsCtx);
