@@ -99,20 +99,47 @@ export class MapBuilder {
     return true;
   }
 
+  /**
+   * Локальные радиус (в плоскости XZ) и половина высоты (ось Y) для btCylinderShape,
+   * в единицах мирового масштаба вдоль осей меша.
+   */
+  private getCylinderShapeExtents(
+    mesh: THREE.Mesh,
+    geom: THREE.BufferGeometry
+  ): { radius: number; halfHeight: number } {
+    const worldScale = new THREE.Vector3();
+    mesh.getWorldScale(worldScale);
+    const sx = Math.abs(worldScale.x);
+    const sy = Math.abs(worldScale.y);
+    const sz = Math.abs(worldScale.z);
+
+    if (geom.type === 'CylinderGeometry') {
+      const p = (geom as THREE.CylinderGeometry).parameters;
+      const r = Math.max(p.radiusTop, p.radiusBottom);
+      return {
+        radius: r * Math.max(sx, sz),
+        halfHeight: (p.height / 2) * sy,
+      };
+    }
+
+    if (!geom.boundingBox) geom.computeBoundingBox();
+    const localSize = new THREE.Vector3();
+    geom.boundingBox!.getSize(localSize);
+    const rx = (localSize.x / 2) * sx;
+    const rz = (localSize.z / 2) * sz;
+    return {
+      radius: Math.max(rx, rz),
+      halfHeight: (localSize.y / 2) * sy,
+    };
+  }
+
   private createCylinderPhysicsBody(mesh: THREE.Mesh, ctx: CollisionPhysicsCtx): void {
-    const { ammo, physicsWorld, debugPhysics, physicsDebugRoot, createPhysicsDebugBox } = ctx;
+    const { ammo, physicsWorld, debugPhysics, physicsDebugRoot } = ctx;
 
     const geom = mesh.geometry as THREE.BufferGeometry;
-    if (!geom.boundingBox) geom.computeBoundingBox();
-    const localBox = geom.boundingBox!;
-    const localSize = new THREE.Vector3();
-    localBox.getSize(localSize);
+    const { radius, halfHeight } = this.getCylinderShapeExtents(mesh, geom);
 
-    const halfExtents = new ammo.btVector3(
-      localSize.x / 2,
-      localSize.y / 2,
-      localSize.z / 2
-    );
+    const halfExtents = new ammo.btVector3(radius, halfHeight, radius);
     const shape = new ammo.btCylinderShape(halfExtents);
 
     const worldCenter = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
@@ -138,8 +165,14 @@ export class MapBuilder {
     physicsWorld.addRigidBody(body);
 
     if (debugPhysics && physicsDebugRoot) {
-      const debugMesh = createPhysicsDebugBox(localSize, worldCenter);
+      const debugGeom = new THREE.CylinderGeometry(radius, radius, halfHeight * 2, 24, 1, true);
+      const debugMesh = new THREE.Mesh(
+        debugGeom,
+        new THREE.MeshBasicMaterial({ wireframe: true, color: 0x00ff00, depthTest: true })
+      );
+      debugMesh.position.copy(worldCenter);
       debugMesh.quaternion.copy(worldQuat);
+      debugMesh.name = 'PhysicsDebugCylinder';
       physicsDebugRoot.add(debugMesh);
     }
   }
