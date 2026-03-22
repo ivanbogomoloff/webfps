@@ -47,16 +47,14 @@ export function createPlayerControllerSystem(
         // Ограничиваем вертикальный поворот чтобы не смотреть за спину
         camState.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, camState.pitch));
 
-        // Применяем ротацию к камере (YXZ порядок важен для FPS)
+        // Камера: yaw/pitch для состояния (ниже позиция и lookAt задают фактический вид)
         camera.rotation.order = 'YXZ';
         camera.rotation.y = camState.yaw;
         camera.rotation.x = camState.pitch;
-
-        // Также обновляем трансформ игрока для консистентности (YXZ)
-        object3d.rotation.order = 'YXZ';
-        object3d.rotation.y = camState.yaw;
-        object3d.rotation.x = camState.pitch;
       }
+
+      // Модель игрока всегда вертикальна: только yaw (как в TPS), без наклона от pitch мыши
+      object3d.rotation.set(0, camState.yaw, 0, 'YXZ');
 
       // Обработка движения (WASD)
       const direction = new THREE.Vector3();
