@@ -7,17 +7,41 @@ import {
   createInput,
   createHealth,
   createPlayerController,
+  createPlayerAnimation,
 } from '../ecs/components';
 import {
   createRenderSystem,
   createInputSystem,
-  createPlayerControllerSystem
+  createPlayerControllerSystem,
+  createPlayerAnimationSystem,
 } from '../ecs/systems';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
+
+const PLAYER_MODEL_URL = '/models/players/player1.glb';
+
+function findAnimationClip(
+  animations: THREE.AnimationClip[],
+  namePart: string,
+): THREE.AnimationClip | undefined {
+  const part = namePart.toLowerCase();
+  return animations.find((clip) => clip.name.toLowerCase().includes(part));
+}
+
+/** Центр по XZ, ноги на высоте -playerRadius (центр сферы коллизии в корне игрока). */
+function alignPlayerModelToCapsule(model: THREE.Object3D, playerRadius: number): void {
+  const box = new THREE.Box3().setFromObject(model);
+  if (box.isEmpty()) return;
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  model.position.x = -center.x;
+  model.position.z = -center.z;
+  model.position.y = -box.min.y - playerRadius;
+}
 
 export class Game {
   private world: World;
@@ -93,6 +117,7 @@ export class Game {
         this.renderer.domElement,
       )
     ); // Потом обрабатываем управление
+    this.systems.push(createPlayerAnimationSystem(this.world)); // Анимации персонажа
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна
@@ -137,23 +162,59 @@ export class Game {
 
   public createPlayer(): void {
     const playerRadius = 0.5;
-    const playerObject3D = new THREE.Mesh(
-        new THREE.SphereGeometry(playerRadius, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0x00ff00 })
-    );
-
-    playerObject3D.position.set(0, 6, 0);
+    const playerRoot = new THREE.Group();
+    playerRoot.position.set(0, 6, 0);
 
     const entity = this.createEntity({
       input: createInput(),
       camera: this.camera,
-      object3d: playerObject3D,
+      object3d: playerRoot,
       health: createHealth(100),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
       moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в stepPhysics
     });
 
-    this.playerObject3D = playerObject3D;
+    this.playerObject3D = playerRoot;
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load(
+      PLAYER_MODEL_URL,
+      (gltf) => {
+        const model = gltf.scene;
+        model.traverse((child) => {
+          const mesh = child as THREE.Mesh;
+          if (mesh.isMesh) {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+          }
+        });
+
+        alignPlayerModelToCapsule(model, playerRadius);
+        playerRoot.add(model);
+
+        let idleClip = findAnimationClip(gltf.animations, 'idle');
+        let walkClip = findAnimationClip(gltf.animations, 'walk');
+        if ((!idleClip || !walkClip) && gltf.animations.length >= 2) {
+          idleClip = idleClip ?? gltf.animations[0];
+          walkClip = walkClip ?? gltf.animations[1];
+        }
+        if (idleClip && walkClip) {
+          // Miniplex: нельзя просто присвоить entity.playerAnimation — сущность не попадёт в query
+          this.world.addComponent(
+            entity as any,
+            'playerAnimation',
+            createPlayerAnimation(model, idleClip, walkClip),
+          );
+        } else {
+          console.warn(
+            '[Game] Нужны две анимации (idle/walk по имени или первые два клипа). Найдено:',
+            gltf.animations.map((c) => c.name),
+          );
+        }
+      },
+      undefined,
+      (error) => console.error('[Game] Не удалось загрузить модель игрока:', error),
+    );
 
     // Добавляем игрока в физический мир Ammo как динамическое тело
     (async () => {
@@ -321,24 +382,17 @@ export class Game {
 
     this.physicsWorld.stepSimulation(deltaTime, 10);
 
-    // Синхронизируем позицию и поворот меша игрока с телом Ammo
+    // Синхронизируем только позицию меша игрока с телом Ammo; поворот задаёт PlayerControllerSystem (камера)
     if (this.playerBody && this.playerObject3D) {
       const motionState = this.playerBody.getMotionState();
       if (motionState) {
         motionState.getWorldTransform(this.ammoTransform);
         const origin = this.ammoTransform.getOrigin();
-        const rotation = this.ammoTransform.getRotation();
 
         this.playerObject3D.position.set(
           origin.x(),
           origin.y(),
           origin.z()
-        );
-        this.playerObject3D.quaternion.set(
-          rotation.x(),
-          rotation.y(),
-          rotation.z(),
-          rotation.w()
         );
       }
     }

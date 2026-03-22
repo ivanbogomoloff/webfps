@@ -79,6 +79,8 @@ export function createPlayerControllerSystem(
         direction.x -= 1; // Вправо
       }
 
+      controller.isMoving = !!hasW;
+
       if (direction.length() > 0) {
         direction.normalize();
 
