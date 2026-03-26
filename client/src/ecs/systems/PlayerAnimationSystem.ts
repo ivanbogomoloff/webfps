@@ -1,8 +1,12 @@
 import { World } from 'miniplex';
 import type { PlayerAnimation } from '../components/PlayerAnimation';
-import type { PlayerController } from '../components/PlayerController';
+import {
+  pickAnimationAction,
+  PLAYER_ANIMATION_FADE_DURATION,
+} from '../components/PlayerAnimation';
+import type { PlayerController, PlayerLocomotion } from '../components/PlayerController';
 
-const FADE = 0.2;
+const FADE = PLAYER_ANIMATION_FADE_DURATION;
 
 export function createPlayerAnimationSystem(world: World) {
   return (deltaTime: number) => {
@@ -12,16 +16,18 @@ export function createPlayerAnimationSystem(world: World) {
 
       pa.mixer.update(deltaTime);
 
-      const wantWalk = controller.isMoving;
-      if (wantWalk && pa.current !== 'walk') {
-        pa.current = 'walk';
-        pa.idleAction.fadeOut(FADE);
-        pa.walkAction.reset().fadeIn(FADE).play();
-      } else if (!wantWalk && pa.current !== 'idle') {
-        pa.current = 'idle';
-        pa.walkAction.fadeOut(FADE);
-        pa.idleAction.reset().fadeIn(FADE).play();
+      const nextLoc: PlayerLocomotion = controller.locomotion;
+      if (nextLoc === pa.current) continue;
+
+      const prevAction = pickAnimationAction(pa.actionByLocomotion, pa.current);
+      const nextAction = pickAnimationAction(pa.actionByLocomotion, nextLoc);
+
+      if (prevAction !== nextAction) {
+        prevAction.fadeOut(FADE);
+        nextAction.reset().fadeIn(FADE).play();
       }
+
+      pa.current = nextLoc;
     }
   };
 }

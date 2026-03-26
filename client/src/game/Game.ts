@@ -15,33 +15,12 @@ import {
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
 } from '../ecs/systems';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
+import type { PlayerVisualSetup } from './playerModelPrep';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
-
-const PLAYER_MODEL_URL = '/models/players/player1.glb';
-
-function findAnimationClip(
-  animations: THREE.AnimationClip[],
-  namePart: string,
-): THREE.AnimationClip | undefined {
-  const part = namePart.toLowerCase();
-  return animations.find((clip) => clip.name.toLowerCase().includes(part));
-}
-
-/** Центр по XZ, ноги на высоте -playerRadius (центр сферы коллизии в корне игрока). */
-function alignPlayerModelToCapsule(model: THREE.Object3D, playerRadius: number): void {
-  const box = new THREE.Box3().setFromObject(model);
-  if (box.isEmpty()) return;
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  model.position.x = -center.x;
-  model.position.z = -center.z;
-  model.position.y = -box.min.y - playerRadius;
-}
 
 export class Game {
   private world: World;
@@ -160,10 +139,14 @@ export class Game {
     return entity;
   }
 
-  public createPlayer(): void {
-    const playerRadius = 0.5;
+  /**
+   * Создаёт сущность игрока и физическое тело. Визуал и клипы анимаций готовятся снаружи (см. main.ts).
+   */
+  public createPlayer(setup: PlayerVisualSetup, playerRadius: number = 0.5): void {
+    const { visualModel, idleClip, walkClip, backwardsClip, leftStClip, rightStClip } = setup;
     const playerRoot = new THREE.Group();
     playerRoot.position.set(0, 6, 0);
+    playerRoot.add(visualModel);
 
     const entity = this.createEntity({
       input: createInput(),
@@ -176,45 +159,20 @@ export class Game {
 
     this.playerObject3D = playerRoot;
 
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.load(
-      PLAYER_MODEL_URL,
-      (gltf) => {
-        const model = gltf.scene;
-        model.traverse((child) => {
-          const mesh = child as THREE.Mesh;
-          if (mesh.isMesh) {
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-          }
-        });
-
-        alignPlayerModelToCapsule(model, playerRadius);
-        playerRoot.add(model);
-
-        let idleClip = findAnimationClip(gltf.animations, 'idle');
-        let walkClip = findAnimationClip(gltf.animations, 'walk');
-        if ((!idleClip || !walkClip) && gltf.animations.length >= 2) {
-          idleClip = idleClip ?? gltf.animations[0];
-          walkClip = walkClip ?? gltf.animations[1];
-        }
-        if (idleClip && walkClip) {
-          // Miniplex: нельзя просто присвоить entity.playerAnimation — сущность не попадёт в query
-          this.world.addComponent(
-            entity as any,
-            'playerAnimation',
-            createPlayerAnimation(model, idleClip, walkClip),
-          );
-        } else {
-          console.warn(
-            '[Game] Нужны две анимации (idle/walk по имени или первые два клипа). Найдено:',
-            gltf.animations.map((c) => c.name),
-          );
-        }
-      },
-      undefined,
-      (error) => console.error('[Game] Не удалось загрузить модель игрока:', error),
-    );
+    if (idleClip && walkClip) {
+      // Miniplex: нельзя просто присвоить entity.playerAnimation — сущность не попадёт в query
+      this.world.addComponent(
+        entity as any,
+        'playerAnimation',
+        createPlayerAnimation(visualModel, {
+          idle: idleClip,
+          walk: walkClip,
+          backwards: backwardsClip,
+          left_st: leftStClip,
+          right_st: rightStClip,
+        }),
+      );
+    }
 
     // Добавляем игрока в физический мир Ammo как динамическое тело
     (async () => {

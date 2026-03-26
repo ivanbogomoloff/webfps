@@ -1,7 +1,15 @@
+/** Какую анимацию локомоции показывать (ввод в локальных осях камеры). */
+export type PlayerLocomotion =
+  | 'idle'
+  | 'walk'
+  | 'backwards'
+  | 'left_st'
+  | 'right_st';
+
 export interface PlayerController {
   speed: number;
   sensitivity: number;
-  isMoving: boolean;
+  locomotion: PlayerLocomotion;
 }
 
 export function createPlayerController(
@@ -11,6 +19,6 @@ export function createPlayerController(
   return {
     speed,
     sensitivity,
-    isMoving: false,
+    locomotion: 'idle',
   };
 }

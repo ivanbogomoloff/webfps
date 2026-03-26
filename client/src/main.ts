@@ -1,22 +1,50 @@
 import './main.css'
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Game } from './game/Game'
+import {
+  DEFAULT_PLAYER_RADIUS,
+  preparePlayerVisualFromGltf,
+  type PlayerVisualSetup,
+} from './game/playerModelPrep'
 
-// Инициализируем игру
+const PLAYER_MODEL_URL = '/models/players/player1.glb'
+
 const game = new Game()
 
-// Создаём игрока
-game.createPlayer()
+async function startGame(): Promise<void> {
+  let setup: PlayerVisualSetup
+  try {
+    const loader = new GLTFLoader()
+    const gltf = await loader.loadAsync(PLAYER_MODEL_URL)
+    setup = preparePlayerVisualFromGltf(gltf, DEFAULT_PLAYER_RADIUS)
+  } catch (error) {
+    console.error('[main] Не удалось загрузить модель игрока:', error)
+    setup = {
+      visualModel: new THREE.Group(),
+      idleClip: null,
+      walkClip: null,
+      backwardsClip: null,
+      leftStClip: null,
+      rightStClip: null,
+    }
+  }
 
-// Загружаем карту
-game.loadMap('/models/maps/test2/map_test2.glb', '/models/maps/test2/map_test2.hdr').then(() => {
-  // Запускаем игру когда карта загружена
-  game.start()
-}).catch((error) => {
-  console.error('Failed to load game:', error)
-  // Fallback - стартуем игру даже если карта не загрузилась
-  game.start()
-})
+  game.createPlayer(setup, DEFAULT_PLAYER_RADIUS)
+
+  try {
+    await game.loadMap(
+      '/models/maps/test2/map_test2.glb',
+      '/models/maps/test2/map_test2.hdr',
+    )
+  } catch (error) {
+    console.error('Failed to load game:', error)
+  } finally {
+    game.start()
+  }
+}
+
+void startGame()
 
 // Создаём HUD для отладки
 const hudElement = document.createElement('div')
@@ -40,20 +68,20 @@ document.body.appendChild(hudElement)
 const updateHUD = () => {
   const world = game.getWorld()
   const player = Array.from(world.entities).find((e: any) => e.playerController)
-  
+
   if (player) {
     const pos = player.object3d.position
     const camera = player.camera
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ')
-    
+
     hudElement.innerHTML = `
       <div>POSITION: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}</div>
-      <div>ROTATION: ${(euler.y * 180 / Math.PI).toFixed(0)}°, ${(euler.x * 180 / Math.PI).toFixed(0)}°</div>
+      <div>ROTATION: ${((euler.y * 180) / Math.PI).toFixed(0)}°, ${((euler.x * 180) / Math.PI).toFixed(0)}°</div>
       <div>MOUSE LOCKED: ${player.input.mouse.isLocked ? 'YES' : 'NO'}</div>
       <div style="margin-top: 5px; color: #0f8;">WASD - Move, Mouse - Look</div>
     `
   }
-  
+
   requestAnimationFrame(updateHUD)
 }
 updateHUD()

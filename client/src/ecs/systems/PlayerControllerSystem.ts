@@ -77,7 +77,16 @@ export function createPlayerControllerSystem(
         direction.x -= 1; // Вправо
       }
 
-      controller.isMoving = !!hasW;
+      // Локомоция для анимаций: при диагонали доминирует ось с большей величиной (|вперёд| vs |стрейф|)
+      const fz = (hasW ? 1 : 0) + (hasS ? -1 : 0);
+      const fx = (hasA ? 1 : 0) + (hasD ? -1 : 0);
+      if (fz === 0 && fx === 0) {
+        controller.locomotion = 'idle';
+      } else if (Math.abs(fz) >= Math.abs(fx)) {
+        controller.locomotion = fz > 0 ? 'walk' : 'backwards';
+      } else {
+        controller.locomotion = fx > 0 ? 'left_st' : 'right_st';
+      }
 
       if (direction.length() > 0) {
         direction.normalize();

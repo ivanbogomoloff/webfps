@@ -9,6 +9,6 @@ export { createMapData } from './MapData';
 export type { Camera } from './Camera';
 export type { Input } from './Input';
 export type { Health } from './Health';
-export type { PlayerController } from './PlayerController';
+export type { PlayerController, PlayerLocomotion } from './PlayerController';
 export type { PlayerAnimation } from './PlayerAnimation';
 export type { MapData } from './MapData';
