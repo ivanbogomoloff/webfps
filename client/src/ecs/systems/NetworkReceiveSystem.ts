@@ -2,6 +2,7 @@ import type { World } from 'miniplex'
 import * as THREE from 'three'
 import { createNetworkIdentity, createPlayerStats } from '../components'
 import type { NetworkContext } from '../../net/NetworkContext'
+import { parseNetworkLocomotion } from '../../game/playerLocomotionLogic'
 
 type AnyEntity = Record<string, any>
 
@@ -100,6 +101,10 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             entity.networkIdentity.role = state.role
             entity.playerStats.frags = state.frags
             entity.playerStats.deaths = state.deaths
+            const pc = (entity as any).playerController as { locomotion?: string } | undefined
+            if (pc) {
+              pc.locomotion = parseNetworkLocomotion(state.locomotion)
+            }
           }
           break
         }

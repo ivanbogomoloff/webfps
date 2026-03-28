@@ -69,6 +69,7 @@ export class WsTransport implements GameTransport {
         role: update.role,
         frags: update.frags,
         deaths: update.deaths,
+        locomotion: update.locomotion,
       },
     })
   }

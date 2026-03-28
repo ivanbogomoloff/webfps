@@ -1,4 +1,5 @@
 import type { IncomingMessage, JoinRoomPayload, PlayerRole } from './protocol'
+import type { PlayerLocomotion } from '../ecs/components/PlayerController'
 
 export interface TransportConnectParams extends JoinRoomPayload {}
 
@@ -10,6 +11,7 @@ export interface LocalStateUpdate {
   role: PlayerRole
   frags: number
   deaths: number
+  locomotion: PlayerLocomotion
 }
 
 export type TransportHandler = (message: IncomingMessage) => void

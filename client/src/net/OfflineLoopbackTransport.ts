@@ -1,4 +1,9 @@
+import type { PlayerLocomotion } from '../ecs/components/PlayerController'
 import { getSpawnCountByMap } from '../config/mapManifest'
+import {
+  locomotionFromStrafeAxes,
+  strafeAxesFromWorldVelocity,
+} from '../game/playerLocomotionLogic'
 import { pickRandomBotModelId } from '../game/supportedPlayerModels'
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
 import type { IncomingMessage, MatchPhase, PlayerRole, ScoreboardPlayer } from './protocol'
@@ -8,6 +13,7 @@ type SimPlayer = {
   nickname: string
   modelId: string
   role: PlayerRole
+  locomotion: PlayerLocomotion
   x: number
   y: number
   z: number
@@ -47,6 +53,7 @@ export class OfflineLoopbackTransport implements GameTransport {
       nickname: params.nickname || 'Player',
       modelId: params.modelId || 'player1',
       role: 'spectator',
+      locomotion: 'idle',
       x: 0,
       y: 1,
       z: 0,
@@ -59,6 +66,7 @@ export class OfflineLoopbackTransport implements GameTransport {
       nickname: 'Bot',
       modelId: pickRandomBotModelId(),
       role: 'player',
+      locomotion: 'idle',
       x: 4,
       y: 1,
       z: 0,
@@ -129,6 +137,7 @@ export class OfflineLoopbackTransport implements GameTransport {
     local.role = update.role
     local.frags = update.frags
     local.deaths = update.deaths
+    local.locomotion = update.locomotion
   }
 
   reportKill(victimPlayerId: string): void {
@@ -178,10 +187,16 @@ export class OfflineLoopbackTransport implements GameTransport {
     const bot = this.players.get(this.botId)
     const local = this.getLocal()
     if (!bot || !local) return
+    const prevX = bot.x
+    const prevZ = bot.z
     this.botAngle += dt * 0.8
     bot.x = Math.cos(this.botAngle) * 6
     bot.z = Math.sin(this.botAngle) * 6
     bot.rotY = this.botAngle
+    const vx = (bot.x - prevX) / dt
+    const vz = (bot.z - prevZ) / dt
+    const { fz, fx } = strafeAxesFromWorldVelocity(bot.rotY, vx, vz)
+    bot.locomotion = locomotionFromStrafeAxes(fz, fx)
 
     if (this.phase === 'running' && Math.random() < 0.02) {
       bot.frags += 1
@@ -238,6 +253,7 @@ export class OfflineLoopbackTransport implements GameTransport {
         states: Array.from(this.players.values()).map((player) => ({
           playerId: player.playerId,
           modelId: player.modelId,
+          locomotion: player.locomotion,
           x: player.x,
           y: player.y,
           z: player.z,

@@ -1,5 +1,6 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
+import { locomotionFromStrafeAxes } from '../../game/playerLocomotionLogic';
 
 export function createPlayerControllerSystem(
   world: World,
@@ -91,20 +92,9 @@ export function createPlayerControllerSystem(
         direction.set(0, 0, 0);
       }
 
-      // Локомоция: вперёд/назад + стрейф → *_left_d / *_right_d; иначе доминирует ось с большей |величиной|
       const fz = (hasW ? 1 : 0) + (hasS ? -1 : 0);
       const fx = (hasA ? 1 : 0) + (hasD ? -1 : 0);
-      if (fz === 0 && fx === 0) {
-        controller.locomotion = 'idle';
-      } else if (fz > 0 && fx !== 0) {
-        controller.locomotion = fx > 0 ? 'walk_left_d' : 'walk_right_d';
-      } else if (fz < 0 && fx !== 0) {
-        controller.locomotion = fx > 0 ? 'backwards_left_d' : 'backwards_right_d';
-      } else if (Math.abs(fz) >= Math.abs(fx)) {
-        controller.locomotion = fz > 0 ? 'walk' : 'backwards';
-      } else {
-        controller.locomotion = fx > 0 ? 'left' : 'right';
-      }
+      controller.locomotion = locomotionFromStrafeAxes(fz, fx);
 
       if (direction.length() > 0) {
         direction.normalize();

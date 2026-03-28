@@ -17,6 +17,8 @@ export function createNetworkSendSystem(world: World, networkContext: NetworkCon
     const match = Array.from(world.with('matchState'))[0] as { matchState: MatchState } | undefined
     if (match?.matchState.phase === 'ended') return
 
+    const locomotion = (local as any).playerController?.locomotion ?? 'idle'
+
     networkContext.sendState({
       x: local.object3d.position.x,
       y: local.object3d.position.y,
@@ -25,6 +27,7 @@ export function createNetworkSendSystem(world: World, networkContext: NetworkCon
       role: local.networkIdentity.role,
       frags: local.playerStats.frags,
       deaths: local.playerStats.deaths,
+      locomotion,
     })
   }
 }

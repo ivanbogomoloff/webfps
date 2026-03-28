@@ -1,6 +1,9 @@
 package protocol
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"slices"
+)
 
 const (
 	TypeJoinRoom       = "join_room"
@@ -39,14 +42,36 @@ type SetRolePayload struct {
 	Role string `json:"role"`
 }
 
+// PlayerLocomotionValues — допустимые значения поля locomotion в state_update / player_state_batch.
+var PlayerLocomotionValues = []string{
+	"idle",
+	"walk",
+	"walk_left_d",
+	"walk_right_d",
+	"backwards",
+	"backwards_left_d",
+	"backwards_right_d",
+	"left",
+	"right",
+}
+
+// NormalizePlayerLocomotion возвращает допустимую локомоцию или "idle".
+func NormalizePlayerLocomotion(s string) string {
+	if slices.Contains(PlayerLocomotionValues, s) {
+		return s
+	}
+	return "idle"
+}
+
 type StateUpdatePayload struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Z      float64 `json:"z"`
-	RotY   float64 `json:"rotY"`
-	Role   string  `json:"role"`
-	Frags  int     `json:"frags"`
-	Deaths int     `json:"deaths"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	Z          float64 `json:"z"`
+	RotY       float64 `json:"rotY"`
+	Role       string  `json:"role"`
+	Frags      int     `json:"frags"`
+	Deaths     int     `json:"deaths"`
+	Locomotion string  `json:"locomotion"`
 }
 
 type ReportKillPayload struct {

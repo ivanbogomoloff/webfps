@@ -1,3 +1,5 @@
+import type { PlayerLocomotion } from '../ecs/components/PlayerController'
+
 export type PlayerRole = 'spectator' | 'player'
 export type MatchPhase = 'waiting' | 'running' | 'ended'
 
@@ -14,6 +16,8 @@ export interface PlayerStateMessage {
   playerId: string
   /** Совпадает с `room_state` / `player_joined`; нужен, если батч приходит раньше полного room_state. */
   modelId: string
+  /** Локомоция с отправителя state_update (если нет в JSON — на клиенте считается idle). */
+  locomotion?: PlayerLocomotion
   x: number
   y: number
   z: number
@@ -72,7 +76,16 @@ export type OutgoingMessage =
   | { type: 'spawn_request'; payload: Record<string, never> }
   | {
       type: 'state_update'
-      payload: { x: number; y: number; z: number; rotY: number; role: PlayerRole; frags: number; deaths: number }
+      payload: {
+        x: number
+        y: number
+        z: number
+        rotY: number
+        role: PlayerRole
+        frags: number
+        deaths: number
+        locomotion: PlayerLocomotion
+      }
     }
   | { type: 'report_kill'; payload: { victimPlayerId: string } }
   | { type: 'leave_room'; payload: Record<string, never> }

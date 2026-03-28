@@ -23,7 +23,7 @@ Every message has:
 - `spawn_request`
   - payload: `{}`
 - `state_update`
-  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0 }`
+  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" }`
 - `report_kill`
   - payload: `{ "victimPlayerId": "p-2" }`
 - `leave_room`
@@ -47,7 +47,7 @@ Every message has:
 - `match_tick`
   - payload: `{ timeLeftSec }`
 - `player_state_batch`
-  - payload: `{ states: [{ playerId, modelId, x, y, z, rotY, role, frags, deaths }] }`
+  - payload: `{ states: [{ playerId, modelId, locomotion, x, y, z, rotY, role, frags, deaths }] }`
 - `scoreboard_update`
   - payload: `{ players: [{ playerId, nickname, frags, deaths }] }`
 - `match_ended`

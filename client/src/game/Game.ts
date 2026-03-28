@@ -123,7 +123,6 @@ export class Game {
         this.renderer.domElement,
       )
     ); // Потом обрабатываем управление
-    this.systems.push(createPlayerAnimationSystem(this.world)); // Анимации персонажа
     this.matchEntity = this.createEntity({
       matchState: createMatchState(),
       scoreboard: [] as ScoreboardPlayer[],
@@ -147,6 +146,8 @@ export class Game {
       this.systems.push(createMatchRulesClientSystem(this.world));
       this.systems.push(createNetworkSendSystem(this.world, this.networkContext));
     }
+    // После сетевого приёма: у соперников `playerController.locomotion` уже из пакета.
+    this.systems.push(createPlayerAnimationSystem(this.world));
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна

@@ -28,16 +28,17 @@ type mapManifest struct {
 }
 
 type playerState struct {
-	PlayerID string  `json:"playerId"`
-	Nickname string  `json:"nickname"`
-	ModelID  string  `json:"modelId"`
-	Role     string  `json:"role"`
-	X        float64 `json:"x"`
-	Y        float64 `json:"y"`
-	Z        float64 `json:"z"`
-	RotY     float64 `json:"rotY"`
-	Frags    int     `json:"frags"`
-	Deaths   int     `json:"deaths"`
+	PlayerID    string  `json:"playerId"`
+	Nickname    string  `json:"nickname"`
+	ModelID     string  `json:"modelId"`
+	Role        string  `json:"role"`
+	Locomotion  string  `json:"locomotion"`
+	X           float64 `json:"x"`
+	Y           float64 `json:"y"`
+	Z           float64 `json:"z"`
+	RotY        float64 `json:"rotY"`
+	Frags       int     `json:"frags"`
+	Deaths      int     `json:"deaths"`
 }
 
 type roomState struct {
@@ -143,10 +144,11 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 	}
 
 	room.Players[playerID] = &playerState{
-		PlayerID: playerID,
-		Nickname: nickname,
-		ModelID:  modelID,
-		Role:     "spectator",
+		PlayerID:   playerID,
+		Nickname:   nickname,
+		ModelID:    modelID,
+		Role:       "spectator",
+		Locomotion: "idle",
 	}
 	room.Clients[client.ID()] = client
 	m.clientToRoom[client.ID()] = roomCode
@@ -243,6 +245,7 @@ func (m *Manager) UpdateState(clientID string, payload protocol.StateUpdatePaylo
 	if payload.Role == "player" || payload.Role == "spectator" {
 		player.Role = payload.Role
 	}
+	player.Locomotion = protocol.NormalizePlayerLocomotion(payload.Locomotion)
 
 	m.broadcastPlayerStatesLocked(room)
 }
@@ -389,15 +392,16 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 	states := make([]map[string]any, 0, len(room.Players))
 	for _, p := range room.Players {
 		states = append(states, map[string]any{
-			"playerId": p.PlayerID,
-			"modelId":  p.ModelID,
-			"x":        p.X,
-			"y":        p.Y,
-			"z":        p.Z,
-			"rotY":     p.RotY,
-			"role":     p.Role,
-			"frags":    p.Frags,
-			"deaths":   p.Deaths,
+			"playerId":   p.PlayerID,
+			"modelId":    p.ModelID,
+			"locomotion": protocol.NormalizePlayerLocomotion(p.Locomotion),
+			"x":          p.X,
+			"y":          p.Y,
+			"z":          p.Z,
+			"rotY":       p.RotY,
+			"role":       p.Role,
+			"frags":      p.Frags,
+			"deaths":     p.Deaths,
 		})
 	}
 	m.broadcastLocked(room, map[string]any{
