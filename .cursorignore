@@ -1,0 +1,4 @@
+public/models
+node_modules
+server/logs
+server/bin

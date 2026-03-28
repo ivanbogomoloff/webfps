@@ -37,3 +37,5 @@ logs/
 .eslintcache
 client/public/models
 client/public/other
+server/logs
+server/bin
