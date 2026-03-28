@@ -389,19 +389,20 @@ export class Game {
   private stepPhysics(deltaTime: number): void {
     if (!this.physicsWorld || !this.ammo) return;
 
-    // Применяем управление к телу игрока через скорость (игрок — тот же, что в PlayerControllerSystem)
+    // Только локальный игрок имеет физическое тело; у удалённых тоже есть playerController (анимация),
+    // поэтому нельзя брать «первого» из with('playerController') — иначе при 2+ игроках скорость читается не с того.
     if (this.playerBody) {
       let vx = 0;
       let vz = 0;
 
-      for (const player of this.world.with('playerController', 'object3d')) {
-        const dir = (player as any).moveDirection as THREE.Vector3 | undefined;
-        const speed = (player as any).playerController?.speed ?? 5;
-        if (dir) {
-          vx = dir.x * speed;
-          vz = dir.z * speed;
-        }
-        break; // один игрок
+      const local = this.localPlayerEntity as
+        | { moveDirection?: THREE.Vector3; playerController?: { speed?: number } }
+        | null;
+      if (local?.moveDirection && local.playerController) {
+        const dir = local.moveDirection;
+        const speed = local.playerController.speed ?? 5;
+        vx = dir.x * speed;
+        vz = dir.z * speed;
       }
 
       const currentVel = this.playerBody.getLinearVelocity();
