@@ -182,6 +182,8 @@ export class Game {
       backwardsClip,
       walkLeftDClip,
       walkRightDClip,
+      backwardsLeftDClip,
+      backwardsRightDClip,
       left,
       right,
     } = setup;
@@ -222,6 +224,8 @@ export class Game {
           walk_left_d: walkLeftDClip,
           walk_right_d: walkRightDClip,
           backwards: backwardsClip,
+          backwards_left_d: backwardsLeftDClip,
+          backwards_right_d: backwardsRightDClip,
           left,
           right,
         }),

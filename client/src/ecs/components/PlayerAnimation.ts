@@ -9,6 +9,8 @@ export interface PlayerAnimationActions {
   walk_left_d: THREE.AnimationAction | null;
   walk_right_d: THREE.AnimationAction | null;
   backwards: THREE.AnimationAction | null;
+  backwards_left_d: THREE.AnimationAction | null;
+  backwards_right_d: THREE.AnimationAction | null;
   left: THREE.AnimationAction | null;
   right: THREE.AnimationAction | null;
 }
@@ -26,6 +28,8 @@ export type PlayerAnimationClips = {
   walk_left_d?: THREE.AnimationClip | null;
   walk_right_d?: THREE.AnimationClip | null;
   backwards?: THREE.AnimationClip | null;
+  backwards_left_d?: THREE.AnimationClip | null;
+  backwards_right_d?: THREE.AnimationClip | null;
   left?: THREE.AnimationClip | null;
   right?: THREE.AnimationClip | null;
 };
@@ -54,6 +58,10 @@ export function pickAnimationAction(
       return actions.walk_right_d ?? actions.walk;
     case 'backwards':
       return actions.backwards ?? actions.walk;
+    case 'backwards_left_d':
+      return actions.backwards_left_d ?? actions.backwards ?? actions.walk;
+    case 'backwards_right_d':
+      return actions.backwards_right_d ?? actions.backwards ?? actions.walk;
     case 'left':
       return actions.left ?? actions.walk;
     case 'right':
@@ -79,6 +87,8 @@ export function createPlayerAnimation(
       walk_left_d: makeAction(mixer, clips.walk_left_d ?? null),
       walk_right_d: makeAction(mixer, clips.walk_right_d ?? null),
       backwards: makeAction(mixer, clips.backwards ?? null),
+      backwards_left_d: makeAction(mixer, clips.backwards_left_d ?? null),
+      backwards_right_d: makeAction(mixer, clips.backwards_right_d ?? null),
       left: makeAction(mixer, clips.left ?? null),
       right: makeAction(mixer, clips.right ?? null),
     },

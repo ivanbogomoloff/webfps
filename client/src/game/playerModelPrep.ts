@@ -10,6 +10,8 @@ export type PlayerVisualSetup = {
   backwardsClip: THREE.AnimationClip | null;
   walkLeftDClip: THREE.AnimationClip | null;
   walkRightDClip: THREE.AnimationClip | null;
+  backwardsLeftDClip: THREE.AnimationClip | null;
+  backwardsRightDClip: THREE.AnimationClip | null;
   left: THREE.AnimationClip | null;
   right: THREE.AnimationClip | null;
 };
@@ -38,6 +40,18 @@ function findForwardWalkClip(animations: THREE.AnimationClip[]): THREE.Animation
   });
 }
 
+const BACKWARDS_DIAGONAL_EXACT = new Set(['backwards_left_d', 'backwards_right_d']);
+
+/** Прямой backwards: точное backwards или подстрока, но не backwards_*_d диагонали. */
+function findBackwardClip(animations: THREE.AnimationClip[]): THREE.AnimationClip | undefined {
+  const exact = findAnimationClip(animations, 'backwards', 'exact');
+  if (exact) return exact;
+  return animations.find((clip) => {
+    const n = clip.name.trim().toLowerCase();
+    return n.includes('backwards') && !BACKWARDS_DIAGONAL_EXACT.has(n);
+  });
+}
+
 /** Центр по XZ, ноги на высоте -playerRadius (центр сферы коллизии в корне игрока). */
 function alignPlayerModelToCapsule(model: THREE.Object3D, playerRadius: number): void {
   const box = new THREE.Box3().setFromObject(model);
@@ -51,8 +65,8 @@ function alignPlayerModelToCapsule(model: THREE.Object3D, playerRadius: number):
 
 /**
  * Настраивает сцену GLTF для игрока: тени, выравнивание под капсулу, клипы idle/walk и опционально backwards.
- * Клип «прямого» ходьбы не путается с walk_left_d / walk_right_d при поиске по подстроке walk.
- * Стрейф left/right и walk_left_d / walk_right_d — по точному имени клипа (не подстрока), чтобы не подхватить варианты вроде left_crouch.
+ * Клип «прямого» walk/backwards не путается с диагональными *_left_d / *_right_d при поиске по подстроке.
+ * Стрейф, walk_*, backwards_* диагонали — по точному имени, где нужно (не подстрока), чтобы не подхватить варианты вроде left_crouch.
  */
 export function preparePlayerVisualFromGltf(
   gltf: GLTF,
@@ -76,7 +90,11 @@ export function preparePlayerVisualFromGltf(
     walkClip = walkClip ?? gltf.animations[1];
   }
 
-  const backwardsClip = findAnimationClip(gltf.animations, 'backwards') ?? null;
+  const backwardsClip = findBackwardClip(gltf.animations) ?? null;
+  const backwardsLeftDClip =
+    findAnimationClip(gltf.animations, 'backwards_left_d', 'exact') ?? null;
+  const backwardsRightDClip =
+    findAnimationClip(gltf.animations, 'backwards_right_d', 'exact') ?? null;
   const walkLeftDClip =
     findAnimationClip(gltf.animations, 'walk_left_d', 'exact') ?? null;
   const walkRightDClip =
@@ -98,6 +116,8 @@ export function preparePlayerVisualFromGltf(
     backwardsClip,
     walkLeftDClip,
     walkRightDClip,
+    backwardsLeftDClip,
+    backwardsRightDClip,
     left: leftClip,
     right: rightClip,
   };

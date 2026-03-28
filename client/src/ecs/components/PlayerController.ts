@@ -5,6 +5,8 @@ export type PlayerLocomotion =
   | 'walk_left_d'
   | 'walk_right_d'
   | 'backwards'
+  | 'backwards_left_d'
+  | 'backwards_right_d'
   | 'left'
   | 'right';
 
