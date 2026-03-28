@@ -2,9 +2,11 @@
 export type PlayerLocomotion =
   | 'idle'
   | 'walk'
+  | 'walk_left_d'
+  | 'walk_right_d'
   | 'backwards'
-  | 'left_st'
-  | 'right_st';
+  | 'left'
+  | 'right';
 
 export interface PlayerController {
   speed: number;

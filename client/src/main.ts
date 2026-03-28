@@ -43,8 +43,10 @@ async function loadPlayerSetup(): Promise<PlayerVisualSetup> {
       idleClip: null,
       walkClip: null,
       backwardsClip: null,
-      leftStClip: null,
-      rightStClip: null,
+      walkLeftDClip: null,
+      walkRightDClip: null,
+      left: null,
+      right: null,
     }
   }
   return setup

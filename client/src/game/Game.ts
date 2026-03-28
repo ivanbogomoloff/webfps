@@ -175,7 +175,16 @@ export class Game {
    * Создаёт сущность игрока и физическое тело. Визуал и клипы анимаций готовятся снаружи (см. main.ts).
    */
   public createPlayer(setup: PlayerVisualSetup, playerRadius: number = 0.5): void {
-    const { visualModel, idleClip, walkClip, backwardsClip, leftStClip, rightStClip } = setup;
+    const {
+      visualModel,
+      idleClip,
+      walkClip,
+      backwardsClip,
+      walkLeftDClip,
+      walkRightDClip,
+      left,
+      right,
+    } = setup;
     const playerRoot = new THREE.Group();
     playerRoot.position.set(0, 6, 0);
     playerRoot.add(visualModel);
@@ -210,9 +219,11 @@ export class Game {
         createPlayerAnimation(visualModel, {
           idle: idleClip,
           walk: walkClip,
+          walk_left_d: walkLeftDClip,
+          walk_right_d: walkRightDClip,
           backwards: backwardsClip,
-          left_st: leftStClip,
-          right_st: rightStClip,
+          left,
+          right,
         }),
       );
     }
