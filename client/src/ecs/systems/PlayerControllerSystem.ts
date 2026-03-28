@@ -15,6 +15,9 @@ export function createPlayerControllerSystem(
     document.addEventListener('pointerlockchange', () => {
       const isLocked = document.pointerLockElement === canvas;
       for (const entity of world.with('playerController')) {
+        if ((entity as any).networkIdentity && !(entity as any).networkIdentity.isLocal) {
+          continue;
+        }
         entity.input.mouse.isLocked = isLocked;
       }
     });
@@ -27,6 +30,13 @@ export function createPlayerControllerSystem(
 
   return (_deltaTime: number) => {
     for (const entity of world.with('playerController', 'object3d', 'input', 'camera')) {
+      const networkIdentity = (entity as any).networkIdentity as
+        | { isLocal: boolean; role: 'spectator' | 'player' }
+        | undefined;
+      if (networkIdentity && !networkIdentity.isLocal) {
+        continue;
+      }
+
       const controller = entity.playerController as any;
       const object3d = entity.object3d as THREE.Object3D;
       const input = entity.input as any;
@@ -75,6 +85,10 @@ export function createPlayerControllerSystem(
       }
       if (hasD) {
         direction.x -= 1; // Вправо
+      }
+
+      if (networkIdentity?.role === 'spectator') {
+        direction.set(0, 0, 0);
       }
 
       // Локомоция для анимаций: при диагонали доминирует ось с большей величиной (|вперёд| vs |стрейф|)

@@ -1,0 +1,9 @@
+{
+  "maps": [
+    {
+      "id": "test2",
+      "name": "Test 2",
+      "spawnCount": 4
+    }
+  ]
+}

@@ -5,6 +5,10 @@ export { createHealth } from './Health';
 export { createPlayerController } from './PlayerController';
 export { createPlayerAnimation } from './PlayerAnimation';
 export { createMapData } from './MapData';
+export { createNetworkIdentity } from './NetworkIdentity';
+export { createNetworkTransform } from './NetworkTransform';
+export { createPlayerStats } from './PlayerStats';
+export { createMatchState } from './MatchState';
 
 export type { Camera } from './Camera';
 export type { Input } from './Input';
@@ -12,3 +16,7 @@ export type { Health } from './Health';
 export type { PlayerController, PlayerLocomotion } from './PlayerController';
 export type { PlayerAnimation } from './PlayerAnimation';
 export type { MapData } from './MapData';
+export type { NetworkIdentity } from './NetworkIdentity';
+export type { NetworkTransform } from './NetworkTransform';
+export type { PlayerStats } from './PlayerStats';
+export type { MatchState } from './MatchState';

@@ -6,15 +6,26 @@ import {
   createCamera,
   createInput,
   createHealth,
+  createMatchState,
+  createNetworkIdentity,
+  createNetworkTransform,
   createPlayerController,
   createPlayerAnimation,
+  createPlayerStats,
 } from '../ecs/components';
 import {
+  createMatchRulesClientSystem,
+  createNetworkReceiveSystem,
+  createNetworkSendSystem,
   createRenderSystem,
+  createRemoteInterpolationSystem,
   createInputSystem,
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
 } from '../ecs/systems';
+import type { GameTransport } from '../net/GameTransport';
+import { NetworkContext } from '../net/NetworkContext';
+import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
 import type { PlayerVisualSetup } from './playerModelPrep';
@@ -46,8 +57,17 @@ export class Game {
   private physicsReady: Promise<void>;
   private playerBody: any | null = null;
   private playerObject3D: THREE.Object3D | null = null;
+  private localPlayerEntity: any | null = null;
+  private matchEntity: any | null = null;
+  private networkContext: NetworkContext | null = null;
 
-  constructor() {
+  constructor(
+    private readonly options?: {
+      transport?: GameTransport;
+      localNickname?: string;
+      localModelId?: string;
+    }
+  ) {
     this.statsJs = new Stats();
     this.statsJs.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
     this.statsJs.dom.setAttribute('id', 'statsjs');
@@ -97,6 +117,18 @@ export class Game {
       )
     ); // Потом обрабатываем управление
     this.systems.push(createPlayerAnimationSystem(this.world)); // Анимации персонажа
+    this.matchEntity = this.createEntity({
+      matchState: createMatchState(),
+      scoreboard: [] as ScoreboardPlayer[],
+    });
+    if (this.options?.transport) {
+      this.networkContext = new NetworkContext(this.options.transport);
+      this.networkContext.start();
+      this.systems.push(createNetworkReceiveSystem(this.world, this.scene, this.networkContext));
+      this.systems.push(createRemoteInterpolationSystem(this.world));
+      this.systems.push(createMatchRulesClientSystem(this.world));
+      this.systems.push(createNetworkSendSystem(this.world, this.networkContext));
+    }
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна
@@ -153,10 +185,21 @@ export class Game {
       camera: this.camera,
       object3d: playerRoot,
       health: createHealth(100),
+      networkTransform: createNetworkTransform(),
+      networkIdentity: createNetworkIdentity(
+        'pending-local',
+        this.options?.localNickname ?? 'Player',
+        this.options?.localModelId ?? 'player1',
+        true,
+        'spectator'
+      ),
+      playerStats: createPlayerStats(),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
       moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в stepPhysics
     });
 
+    this.localPlayerEntity = entity;
+    this.networkContext?.setLocalPlayerEntity(entity);
     this.playerObject3D = playerRoot;
 
     if (idleClip && walkClip) {
@@ -368,6 +411,8 @@ export class Game {
 
   public stop(): void {
     this.isRunning = false;
+    this.networkContext?.stop();
+    void this.options?.transport?.disconnect();
   }
 
   public getWorld(): World {
@@ -376,5 +421,44 @@ export class Game {
 
   public getScene(): THREE.Scene {
     return this.scene;
+  }
+
+  public setLocalRole(role: PlayerRole): void {
+    if (this.localPlayerEntity?.networkIdentity) {
+      this.localPlayerEntity.networkIdentity.role = role;
+    }
+    this.networkContext?.setRole(role);
+  }
+
+  public requestSpawn(): void {
+    this.networkContext?.requestSpawn();
+  }
+
+  public reportKill(victimPlayerId: string): void {
+    this.networkContext?.reportKill(victimPlayerId);
+  }
+
+  public getScoreboard(): ScoreboardPlayer[] {
+    return this.networkContext?.scoreboard ?? [];
+  }
+
+  public getLastNetworkError(): string | null {
+    return this.networkContext?.lastError ?? null;
+  }
+
+  public getMatchState(): {
+    phase: string;
+    timeLimitSec: number;
+    timeLeftSec: number;
+    fragLimit: number;
+    winnerPlayerId: string | null;
+    maxPlayers: number;
+  } | null {
+    if (!this.matchEntity?.matchState) return null;
+    return this.matchEntity.matchState;
+  }
+
+  public getRoomCode(): string | null {
+    return this.options?.transport?.getRoomCode() ?? null;
   }
 }
