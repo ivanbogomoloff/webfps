@@ -83,7 +83,14 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             if (state.playerId === networkContext.getLocalPlayerId()) continue
             let entity = networkContext.getPlayerEntity(state.playerId)
             if (!entity) {
-              entity = networkContext.getOrCreateRemoteEntity(world, scene, state.playerId, 'Remote', 'player1', state.role)
+              entity = networkContext.getOrCreateRemoteEntity(
+                world,
+                scene,
+                state.playerId,
+                'Remote',
+                state.modelId || 'player1',
+                state.role,
+              )
             }
             entity.networkTransform.x = state.x
             entity.networkTransform.y = state.y

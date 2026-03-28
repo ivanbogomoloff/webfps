@@ -390,6 +390,7 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 	for _, p := range room.Players {
 		states = append(states, map[string]any{
 			"playerId": p.PlayerID,
+			"modelId":  p.ModelID,
 			"x":        p.X,
 			"y":        p.Y,
 			"z":        p.Z,

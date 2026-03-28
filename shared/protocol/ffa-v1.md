@@ -47,7 +47,7 @@ Every message has:
 - `match_tick`
   - payload: `{ timeLeftSec }`
 - `player_state_batch`
-  - payload: `{ states: [{ playerId, x, y, z, rotY, role, frags, deaths }] }`
+  - payload: `{ states: [{ playerId, modelId, x, y, z, rotY, role, frags, deaths }] }`
 - `scoreboard_update`
   - payload: `{ players: [{ playerId, nickname, frags, deaths }] }`
 - `match_ended`

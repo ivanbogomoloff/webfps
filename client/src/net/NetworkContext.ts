@@ -1,10 +1,22 @@
 import type { World } from 'miniplex'
 import * as THREE from 'three'
-import { createHealth, createNetworkIdentity, createNetworkTransform, createPlayerStats } from '../ecs/components'
+import {
+  createHealth,
+  createNetworkIdentity,
+  createNetworkTransform,
+  createPlayerAnimation,
+  createPlayerController,
+  createPlayerStats,
+} from '../ecs/components'
+import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/playerModelPrep'
 import type { IncomingMessage, PlayerRole, ScoreboardPlayer } from './protocol'
 import type { GameTransport, LocalStateUpdate } from './GameTransport'
 
 type AnyEntity = Record<string, any>
+
+export type NetworkContextVisualOptions = {
+  getPlayerVisualTemplate(modelId: string): PlayerVisualSetup | undefined
+}
 
 export class NetworkContext {
   private queue: IncomingMessage[] = []
@@ -16,7 +28,10 @@ export class NetworkContext {
   public scoreboard: ScoreboardPlayer[] = []
   public lastError: string | null = null
 
-  constructor(private readonly transport: GameTransport) {}
+  constructor(
+    private readonly transport: GameTransport,
+    private readonly visualOptions?: NetworkContextVisualOptions,
+  ) {}
 
   start(): void {
     this.unsub = this.transport.subscribe((message) => {
@@ -49,12 +64,19 @@ export class NetworkContext {
     if (existing) return existing
 
     const remoteRoot = new THREE.Group()
-    const mesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.35, 1.1, 6, 12),
-      new THREE.MeshStandardMaterial({ color: 0x4fa3ff }),
-    )
-    mesh.castShadow = true
-    remoteRoot.add(mesh)
+    const template = this.visualOptions?.getPlayerVisualTemplate(modelId)
+    const setup = template?.idleClip && template?.walkClip ? clonePlayerVisualSetup(template) : null
+
+    if (setup) {
+      remoteRoot.add(setup.visualModel)
+    } else {
+      const mesh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.35, 1.1, 6, 12),
+        new THREE.MeshStandardMaterial({ color: 0x4fa3ff }),
+      )
+      mesh.castShadow = true
+      remoteRoot.add(mesh)
+    }
     scene.add(remoteRoot)
 
     const entity: AnyEntity = {
@@ -65,6 +87,26 @@ export class NetworkContext {
       networkTransform: createNetworkTransform(),
       playerStats: createPlayerStats(),
     }
+
+    if (setup) {
+      entity.playerController = createPlayerController(5, 0)
+      world.addComponent(
+        entity as any,
+        'playerAnimation',
+        createPlayerAnimation(setup.visualModel, {
+          idle: setup.idleClip!,
+          walk: setup.walkClip!,
+          walk_left_d: setup.walkLeftDClip,
+          walk_right_d: setup.walkRightDClip,
+          backwards: setup.backwardsClip,
+          backwards_left_d: setup.backwardsLeftDClip,
+          backwards_right_d: setup.backwardsRightDClip,
+          left: setup.left,
+          right: setup.right,
+        }),
+      )
+    }
+
     world.add(entity)
     this.playerEntityById.set(playerId, entity)
     return entity

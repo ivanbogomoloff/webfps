@@ -12,6 +12,8 @@ export interface JoinRoomPayload {
 
 export interface PlayerStateMessage {
   playerId: string
+  /** Совпадает с `room_state` / `player_joined`; нужен, если батч приходит раньше полного room_state. */
+  modelId: string
   x: number
   y: number
   z: number

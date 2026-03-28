@@ -29,6 +29,11 @@ import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
 import type { PlayerVisualSetup } from './playerModelPrep';
+import {
+  DEFAULT_PLAYER_MODEL_ID,
+  resolvePlayerModelId,
+  type SupportedPlayerModelId,
+} from './supportedPlayerModels';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
@@ -66,6 +71,8 @@ export class Game {
       transport?: GameTransport;
       localNickname?: string;
       localModelId?: string;
+      /** Шаблоны GLB по `SupportedPlayerModelId` — для визуала удалённых игроков. */
+      playerModelTemplates?: Map<SupportedPlayerModelId, PlayerVisualSetup>;
     }
   ) {
     this.statsJs = new Stats();
@@ -122,7 +129,18 @@ export class Game {
       scoreboard: [] as ScoreboardPlayer[],
     });
     if (this.options?.transport) {
-      this.networkContext = new NetworkContext(this.options.transport);
+      const templateMap = this.options.playerModelTemplates;
+      this.networkContext = new NetworkContext(
+        this.options.transport,
+        templateMap?.size
+          ? {
+              getPlayerVisualTemplate: (modelId: string) => {
+                const id = resolvePlayerModelId(modelId);
+                return templateMap.get(id) ?? templateMap.get(DEFAULT_PLAYER_MODEL_ID);
+              },
+            }
+          : undefined,
+      );
       this.networkContext.start();
       this.systems.push(createNetworkReceiveSystem(this.world, this.scene, this.networkContext));
       this.systems.push(createRemoteInterpolationSystem(this.world));

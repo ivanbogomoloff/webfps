@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 export const DEFAULT_PLAYER_RADIUS = 0.5;
 
@@ -120,5 +121,21 @@ export function preparePlayerVisualFromGltf(
     backwardsRightDClip,
     left: leftClip,
     right: rightClip,
+  };
+}
+
+/** Клон сцены для второго экземпляра игрока; клипы анимаций переиспользуются с новым микшером. */
+export function clonePlayerVisualSetup(template: PlayerVisualSetup): PlayerVisualSetup {
+  return {
+    visualModel: SkeletonUtils.clone(template.visualModel) as THREE.Object3D,
+    idleClip: template.idleClip,
+    walkClip: template.walkClip,
+    backwardsClip: template.backwardsClip,
+    walkLeftDClip: template.walkLeftDClip,
+    walkRightDClip: template.walkRightDClip,
+    backwardsLeftDClip: template.backwardsLeftDClip,
+    backwardsRightDClip: template.backwardsRightDClip,
+    left: template.left,
+    right: template.right,
   };
 }

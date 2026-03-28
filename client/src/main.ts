@@ -1,17 +1,13 @@
 import './main.css'
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Game } from './game/Game'
+import { loadSupportedPlayerModelTemplates } from './game/playerModelTemplates'
+import { clonePlayerVisualSetup, DEFAULT_PLAYER_RADIUS } from './game/playerModelPrep'
+import { DEFAULT_PLAYER_MODEL_ID, resolvePlayerModelId } from './game/supportedPlayerModels'
 import { OfflineLoopbackTransport } from './net/OfflineLoopbackTransport'
 import type { GameTransport, TransportConnectParams } from './net/GameTransport'
 import { WsTransport } from './net/WsTransport'
-import {
-  DEFAULT_PLAYER_RADIUS,
-  preparePlayerVisualFromGltf,
-  type PlayerVisualSetup,
-} from './game/playerModelPrep'
 
-const PLAYER_MODEL_URL = '/models/players/player1.glb'
 const DEFAULT_WS_URL = 'ws://localhost:8080/ws'
 
 type Mode = 'offline' | 'online'
@@ -30,32 +26,9 @@ type StartOptions = {
 let game: Game | null = null
 let lastLoggedRoomCode: string | null = null
 
-async function loadPlayerSetup(): Promise<PlayerVisualSetup> {
-  let setup: PlayerVisualSetup
-  try {
-    const loader = new GLTFLoader()
-    const gltf = await loader.loadAsync(PLAYER_MODEL_URL)
-    setup = preparePlayerVisualFromGltf(gltf, DEFAULT_PLAYER_RADIUS)
-  } catch (error) {
-    console.error('[main] Не удалось загрузить модель игрока:', error)
-    setup = {
-      visualModel: new THREE.Group(),
-      idleClip: null,
-      walkClip: null,
-      backwardsClip: null,
-      walkLeftDClip: null,
-      walkRightDClip: null,
-      backwardsLeftDClip: null,
-      backwardsRightDClip: null,
-      left: null,
-      right: null,
-    }
-  }
-  return setup
-}
-
 async function startGame(options: StartOptions): Promise<void> {
-  const setup = await loadPlayerSetup()
+  const templates = await loadSupportedPlayerModelTemplates()
+  const resolvedModelId = resolvePlayerModelId(options.modelId.trim() || DEFAULT_PLAYER_MODEL_ID)
   const transport: GameTransport =
     options.mode === 'online'
       ? new WsTransport(options.wsUrl)
@@ -63,19 +36,24 @@ async function startGame(options: StartOptions): Promise<void> {
   const connectParams: TransportConnectParams = {
     roomCode: options.roomCode.trim(),
     nickname: options.nickname.trim() || 'Player',
-    modelId: options.modelId.trim() || 'player1',
+    modelId: resolvedModelId,
     mapId: options.mapId.trim() || 'test2',
     timeLimitSec: options.timeLimitSec,
     fragLimit: options.fragLimit,
   }
   await transport.connect(connectParams)
 
+  const template =
+    templates.get(resolvedModelId) ?? templates.get(DEFAULT_PLAYER_MODEL_ID)!
+  const localVisual = clonePlayerVisualSetup(template)
+
   game = new Game({
     transport,
     localNickname: connectParams.nickname,
     localModelId: connectParams.modelId,
+    playerModelTemplates: templates,
   })
-  game.createPlayer(setup, DEFAULT_PLAYER_RADIUS)
+  game.createPlayer(localVisual, DEFAULT_PLAYER_RADIUS)
 
   try {
     await game.loadMap(

@@ -1,4 +1,5 @@
 import { getSpawnCountByMap } from '../config/mapManifest'
+import { pickRandomBotModelId } from '../game/supportedPlayerModels'
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
 import type { IncomingMessage, MatchPhase, PlayerRole, ScoreboardPlayer } from './protocol'
 
@@ -56,7 +57,7 @@ export class OfflineLoopbackTransport implements GameTransport {
     this.players.set(this.botId, {
       playerId: this.botId,
       nickname: 'Bot',
-      modelId: 'player1',
+      modelId: pickRandomBotModelId(),
       role: 'player',
       x: 4,
       y: 1,
@@ -236,6 +237,7 @@ export class OfflineLoopbackTransport implements GameTransport {
       payload: {
         states: Array.from(this.players.values()).map((player) => ({
           playerId: player.playerId,
+          modelId: player.modelId,
           x: player.x,
           y: player.y,
           z: player.z,
