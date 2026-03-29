@@ -1,0 +1,46 @@
+---
+description: Структура сервера web-fps (Go, WebSocket, комнаты, протокол)
+globs: server/**/*
+alwaysApply: false
+---
+
+# Сервер (`server/`)
+
+Минимальный HTTP + WebSocket сервер для FFA-комнат. Точка входа: **`cmd/api/main.go`**.
+
+## `cmd/api/main.go`
+
+- Читает **`PORT`** (по умолчанию `8080`), **`MAP_MANIFEST_PATH`** (по умолчанию путь к `shared/maps/maps.json`).
+- Создаёт **`rooms.Manager`**, **`ws.Hub`**, маршруты: **`/healthz`**, **`/ws`**.
+
+## `internal/ws/hub.go`
+
+- Принимает WebSocket (`coder/websocket`), выдаёт клиенту **`clientID`** (`c-N`).
+- Читает JSON-конверт **`protocol.Message`** (`type` + `payload`), делегирует в **`rooms.Manager`**.
+- Маршрутизация: `join_room`, `set_role`, `spawn_request`, `state_update`, `report_kill`, `leave_room`.
+- При обрыве соединения — **`Disconnect`** в менеджере.
+
+## `internal/rooms/manager.go`
+
+Ядро мультиплеера:
+
+- Комнаты по коду, игроки (`playerState`: позиция, роль, `modelId`, `locomotion`, счёт и т.д.), привязка клиент → комната → `playerId`.
+- Лимит слотов по карте из manifest (`spawnCount` по `mapId`).
+- События: join/leave, рассылка **`room_state`**, **`player_joined`/`player_left`**, **`player_state_batch`**, таймер матча, **`match_ended`**, scoreboard.
+- Обработчики: **`JoinRoom`**, **`SetRole`**, **`SpawnRequest`**, **`UpdateState`**, **`ReportKill`**, **`LeaveRoom`**, **`Disconnect`**.
+
+## `internal/protocol/messages.go`
+
+Константы типов сообщений и структуры payload (Go JSON-теги = контракт с клиентом). Нормализация **`locomotion`**, список допустимых значений.
+
+## `internal/match/ffa.go`
+
+Чистая логика условий окончания матча (фраги, время) и победитель; вызывается из менеджера.
+
+## `server/sh/`
+
+Скрипты запуска (оболочка над `go run` / бинарником).
+
+---
+
+Спецификация сообщений для людей: **`shared/protocol/ffa-v1.md`**. Клиентские типы зеркалятся в **`client/src/net/protocol.ts`**.

@@ -1,0 +1,56 @@
+---
+description: Структура клиента web-fps (Vite, Three.js, ECS, сеть)
+globs: client/**/*
+alwaysApply: false
+---
+
+# Клиент (`client/`)
+
+Точка входа: **`src/main.ts`** — лобби, загрузка моделей (`playerModelTemplates`), создание `Game` и транспорта (WS / offline).
+
+## `src/game/`
+
+| Файл / область | Назначение |
+|----------------|------------|
+| **`Game.ts`** | Сцена, рендерер, камера, ECS `World`, порядок систем, **Ammo** (`stepPhysics`), карта (`MapLoader`/`MapBuilder`), локальный игрок и `playerBody`. Физику движения применять только к **`localPlayerEntity`**, не к query по всем `playerController`. |
+| **`MapBuilder.ts`**, **`Map.ts`** | Сборка карты из GLB, точки респауна (`userData.respawn`). |
+| **`playerModelPrep.ts`** | Подготовка визуала из GLTF (тени, выравнивание под капсулу, клипы), **`clonePlayerVisualSetup`**. |
+| **`playerModelTemplates.ts`** | Загрузка шаблонов моделей по списку из `supportedPlayerModels`. |
+| **`supportedPlayerModels.ts`** | Поддерживаемые `modelId`, пути к `.glb`, `resolvePlayerModelId`, `pickRandomBotModelId`. |
+| **`playerLocomotionLogic.ts`** | Разбор сетевой `locomotion`, оси strafe ↔ локомоция (как у WASD), скорость → оси для бота. |
+
+## `src/ecs/components/`
+
+Чистые данные и фабрики: `Input`, `Camera`, `Health`, `PlayerController`, `PlayerAnimation`, `NetworkIdentity`, `NetworkTransform`, `PlayerStats`, `MatchState`, `MapData` и т.д. Реэкспорт в **`components/index.ts`**.
+
+## `src/ecs/systems/`
+
+Поведение по запросам miniplex; порядок задаётся в **`Game.ts`**.
+
+| Система | Роль |
+|---------|------|
+| **InputSystem** | Состояние клавиш/мыши. |
+| **PlayerControllerSystem** | Локальный игрок: камера, yaw модели, `moveDirection`, `locomotion` (только `isLocal`). |
+| **NetworkReceiveSystem** | Разбор входящих сообщений, сущности соперников, `networkTransform`, сетевая `locomotion`. |
+| **RemoteInterpolationSystem** | Сглаживание позиции/поворота удалённых (`!isLocal`). |
+| **NetworkSendSystem** | Периодическая отправка состояния локального игрока (~20 Hz). |
+| **PlayerAnimationSystem** | Микшер и смена клипов по `playerController.locomotion` (локальный и удалённый). |
+| **MatchRulesClientSystem** | Клиентская логика фаз матча / правил при необходимости. |
+| **RenderSystem** | Отрисовка кадра. |
+| **PhysicsSystem** | Если используется отдельно от Game — проверить актуальность относительно `Game.stepPhysics`. |
+
+## `src/net/`
+
+| Файл | Роль |
+|------|------|
+| **`protocol.ts`** | Типы сообщений клиент ↔ сервер. |
+| **`GameTransport.ts`**, **`WsTransport.ts`**, **`OfflineLoopbackTransport.ts`** | Абстракция сети; offline симулирует комнату и бота. |
+| **`NetworkContext`** | Очередь сообщений, `getOrCreateRemoteEntity` (модель по `modelId`), карта `playerId` → entity. |
+
+## Прочее
+
+- **`src/config/mapManifest.ts`** — лимиты игроков по карте (читает shared manifest).
+- **`src/utils/MapLoader.ts`** — загрузка GLB/HDR.
+- **`public/`** — статика, `models/`, `ammo.wasm.js`.
+
+Протокол в текстовом виде: репозиторий **`shared/protocol/`** (согласовать с `protocol.ts`).
