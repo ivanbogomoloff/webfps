@@ -14,15 +14,19 @@ import {
   createPlayerStats,
 } from '../ecs/components';
 import {
+  attachAmmoRuntimeToPhysicsContext,
+  createAmmoPhysicsContext,
   createMatchRulesClientSystem,
   createNetworkReceiveSystem,
   createNetworkSendSystem,
+  createPhysicsSystem,
   createRenderSystem,
   createRemoteInterpolationSystem,
   createInputSystem,
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
 } from '../ecs/systems';
+import type { AmmoPhysicsContext, GroundProbeDebugState } from '../ecs/systems/PhysicsSystem';
 import type { GameTransport } from '../net/GameTransport';
 import { NetworkContext } from '../net/NetworkContext';
 import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
@@ -37,21 +41,6 @@ import {
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
-
-/** Вертикальная скорость при прыжке (динамическое тело-сфера). */
-const PLAYER_JUMP_SPEED = 3.8;
-/** Луч вниз от нижней полусферы: длина и зазор от поверхности сферы. */
-const GROUND_RAY_MARGIN = 0.05;
-const GROUND_RAY_LENGTH = 0.38;
-
-type GroundProbeDebugState = {
-  x: number;
-  y: number;
-  z: number;
-  fromY: number;
-  toY: number;
-  hit: boolean;
-};
 
 export class Game {
   private world: World;
@@ -73,22 +62,8 @@ export class Game {
   private ammoDispatcher: any;
   private ammoBroadphase: any;
   private ammoSolver: any;
-  private ammoTransform: any;
   private physicsReady: Promise<void>;
-  private playerRadius = 0.5;
-  private groundRayCallback: any | null = null;
-  private groundRayFrom: any | null = null;
-  private groundRayTo: any | null = null;
-  private lastGroundProbe: GroundProbeDebugState = {
-    x: 0,
-    y: 0,
-    z: 0,
-    fromY: 0,
-    toY: 0,
-    hit: false,
-  };
-  private playerBody: any | null = null;
-  private playerObject3D: THREE.Object3D | null = null;
+  private physicsContext: AmmoPhysicsContext = createAmmoPhysicsContext();
   private localPlayerEntity: any | null = null;
   private matchEntity: any | null = null;
   private networkContext: NetworkContext | null = null;
@@ -175,6 +150,7 @@ export class Game {
     }
     // После сетевого приёма: у соперников `playerController.locomotion` уже из пакета.
     this.systems.push(createPlayerAnimationSystem(this.world));
+    this.systems.push(createPhysicsSystem(this.world, this.physicsContext));
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна
@@ -201,14 +177,10 @@ export class Game {
       this.ammoCollisionConfig
     );
     this.physicsWorld.setGravity(new this.ammo.btVector3(0, -9.8, 0));
-
-    this.ammoTransform = new this.ammo.btTransform();
-
-    this.groundRayFrom = new this.ammo.btVector3(0, 0, 0);
-    this.groundRayTo = new this.ammo.btVector3(0, -1, 0);
-    this.groundRayCallback = new this.ammo.ClosestRayResultCallback(
-      this.groundRayFrom,
-      this.groundRayTo,
+    attachAmmoRuntimeToPhysicsContext(
+      this.physicsContext,
+      this.ammo,
+      this.physicsWorld,
     );
   }
 
@@ -260,15 +232,14 @@ export class Game {
       ),
       playerStats: createPlayerStats(),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
-      moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в stepPhysics
+      moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в PhysicsSystem
       isGrounded: true,
       jumpPending: false,
     });
 
-    this.playerRadius = playerRadius;
+    this.physicsContext.playerRadius = playerRadius;
     this.localPlayerEntity = entity;
     this.networkContext?.setLocalPlayerEntity(entity);
-    this.playerObject3D = playerRoot;
 
     if (idleClip && walkClip) {
       // Miniplex: нельзя просто присвоить entity.playerAnimation — сущность не попадёт в query
@@ -314,7 +285,6 @@ export class Game {
       const body = new this.ammo.btRigidBody(rbInfo);
 
       this.physicsWorld.addRigidBody(body);
-      this.playerBody = body;
       (entity as any).physicBody = body;
     })();
   }
@@ -356,17 +326,30 @@ export class Game {
       // Позиционируем игрока на одной из точек респауна
       const respawns = map.getRespawns();
       const playerRadius = 0.5;
-      if (respawns.length > 0 && this.playerBody && this.playerObject3D) {
+      const local = this.localPlayerEntity as
+        | { physicBody?: any; object3d?: THREE.Object3D; isGrounded?: boolean; jumpPending?: boolean }
+        | null;
+      const playerBody = local?.physicBody ?? null;
+      const playerObject3D = local?.object3d ?? null;
+      const physicsTransform = this.physicsContext.ammoTransform;
+      if (respawns.length > 0 && playerBody && playerObject3D && physicsTransform) {
         const point = respawns[Math.floor(Math.random() * respawns.length)];
         const spawnY = point.center.y + point.size.y / 2 + playerRadius;
         const spawnX = point.center.x;
         const spawnZ = point.center.z;
-        this.playerObject3D.position.set(spawnX, spawnY, spawnZ);
+        playerObject3D.position.set(spawnX, spawnY, spawnZ);
         const originVec = new this.ammo!.btVector3(spawnX, spawnY, spawnZ);
-        this.ammoTransform.setIdentity();
-        this.ammoTransform.setOrigin(originVec);
-        this.playerBody.setWorldTransform(this.ammoTransform);
+        physicsTransform.setIdentity();
+        physicsTransform.setOrigin(originVec);
+        playerBody.setWorldTransform(physicsTransform);
+        const zeroVel = new this.ammo!.btVector3(0, 0, 0);
+        playerBody.setLinearVelocity(zeroVel);
+        this.ammo!.destroy(zeroVel);
         this.ammo!.destroy(originVec);
+        if (local) {
+          local.isGrounded = true;
+          local.jumpPending = false;
+        }
       }
 
       if (map.environment) {
@@ -402,9 +385,6 @@ export class Game {
       system(deltaTime);
     }
 
-    // Обновляем физику Ammo и синхронизируем игрока
-    this.stepPhysics(deltaTime);
-
     // Рендерим сцену
     this.renderer.render(this.scene, this.camera);
 
@@ -423,151 +403,6 @@ export class Game {
     mesh.position.copy(center);
     mesh.name = 'PhysicsDebugBox';
     return mesh;
-  }
-
-  private probeGrounded(worldX: number, worldY: number, worldZ: number): boolean {
-    if (!this.physicsWorld || !this.ammo || !this.groundRayCallback || !this.groundRayFrom || !this.groundRayTo) {
-      return false;
-    }
-    const r = this.playerRadius;
-    // Стартуем немного ВЫШЕ нижней точки сферы и лучом идём вниз через уровень пола.
-    // Иначе (при старте ниже) rayTest часто не видит поверхность под игроком.
-    const y0 = worldY - r + GROUND_RAY_MARGIN;
-    const y1 = y0 - (GROUND_RAY_MARGIN + GROUND_RAY_LENGTH);
-    this.lastGroundProbe.x = worldX;
-    this.lastGroundProbe.y = worldY;
-    this.lastGroundProbe.z = worldZ;
-    this.lastGroundProbe.fromY = y0;
-    this.lastGroundProbe.toY = y1;
-    this.groundRayFrom.setValue(worldX, y0, worldZ);
-    this.groundRayTo.setValue(worldX, y1, worldZ);
-    this.groundRayCallback.set_m_closestHitFraction(1);
-    this.groundRayCallback.set_m_rayFromWorld(this.groundRayFrom);
-    this.groundRayCallback.set_m_rayToWorld(this.groundRayTo);
-    this.physicsWorld.rayTest(this.groundRayFrom, this.groundRayTo, this.groundRayCallback);
-    const hit = this.groundRayCallback.hasHit();
-    this.lastGroundProbe.hit = hit;
-    return hit;
-  }
-
-  /** Надёжная проверка опоры: есть ли контакт тела игрока с поверхностью под ним. */
-  private isBodyGroundedByContacts(): boolean {
-    if (!this.physicsWorld || !this.playerBody) return false;
-    const dispatcher = this.physicsWorld.getDispatcher?.();
-    if (!dispatcher) return false;
-
-    const playerPtr = (this.playerBody as { hy?: number }).hy;
-    if (playerPtr == null) return false;
-
-    const manifolds = dispatcher.getNumManifolds?.() ?? 0;
-    for (let i = 0; i < manifolds; i += 1) {
-      const manifold = dispatcher.getManifoldByIndexInternal?.(i);
-      if (!manifold) continue;
-      const body0 = manifold.getBody0?.();
-      const body1 = manifold.getBody1?.();
-      const isBody0Player = !!body0 && (body0 as { hy?: number }).hy === playerPtr;
-      const isBody1Player = !!body1 && (body1 as { hy?: number }).hy === playerPtr;
-      if (!isBody0Player && !isBody1Player) continue;
-
-      const contacts = manifold.getNumContacts?.() ?? 0;
-      for (let j = 0; j < contacts; j += 1) {
-        const point = manifold.getContactPoint?.(j);
-        if (!point) continue;
-        // <= 0 означает реальный контакт/перекрытие.
-        if ((point.getDistance?.() ?? 1) > 0.02) continue;
-        const normal = point.get_m_normalWorldOnB?.();
-        if (!normal) continue;
-        const ny = normal.y?.() ?? 0;
-        // normalWorldOnB направлена от B к A; разворачиваем к направлению "вверх от опоры к игроку".
-        const supportUp = isBody0Player ? ny : -ny;
-        if (supportUp > 0.45) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private stepPhysics(deltaTime: number): void {
-    if (!this.physicsWorld || !this.ammo) return;
-
-    // Только локальный игрок имеет физическое тело; у удалённых тоже есть playerController (анимация),
-    // поэтому нельзя брать «первого» из with('playerController') — иначе при 2+ игроках скорость читается не с того.
-    if (this.playerBody) {
-      let vx = 0;
-      let vz = 0;
-
-      const local = this.localPlayerEntity as
-        | {
-            moveDirection?: THREE.Vector3;
-            playerController?: { speed?: number };
-            jumpPending?: boolean;
-            isGrounded?: boolean;
-          }
-        | null;
-
-      const motionState = this.playerBody.getMotionState();
-      let px = 0;
-      let py = 0;
-      let pz = 0;
-      if (motionState) {
-        motionState.getWorldTransform(this.ammoTransform);
-        const origin = this.ammoTransform.getOrigin();
-        px = origin.x();
-        py = origin.y();
-        pz = origin.z();
-      }
-
-      this.probeGrounded(px, py, pz);
-      const groundedForJump = this.isBodyGroundedByContacts();
-
-      if (local?.moveDirection && local.playerController) {
-        const dir = local.moveDirection;
-        const speed = local.playerController.speed ?? 5;
-        vx = dir.x * speed;
-        vz = dir.z * speed;
-      }
-
-      const currentVel = this.playerBody.getLinearVelocity();
-      let vy = currentVel.y();
-
-      if (local?.jumpPending && groundedForJump) {
-        vy = PLAYER_JUMP_SPEED;
-      }
-      if (local) {
-        local.jumpPending = false;
-      }
-
-      // Будим тело, если оно уснуло, чтобы скорость применилась
-      this.playerBody.activate(true);
-
-      const newVel = new this.ammo.btVector3(vx, vy, vz);
-      this.playerBody.setLinearVelocity(newVel);
-      this.ammo.destroy(newVel);
-    }
-
-    this.physicsWorld.stepSimulation(deltaTime, 10);
-
-    // Синхронизируем только позицию меша игрока с телом Ammo; поворот задаёт PlayerControllerSystem (камера)
-    if (this.playerBody && this.playerObject3D) {
-      const motionState = this.playerBody.getMotionState();
-      if (motionState) {
-        motionState.getWorldTransform(this.ammoTransform);
-        const origin = this.ammoTransform.getOrigin();
-
-        this.playerObject3D.position.set(
-          origin.x(),
-          origin.y(),
-          origin.z()
-        );
-
-        const le = this.localPlayerEntity as { isGrounded?: boolean } | null;
-        if (le) {
-          this.probeGrounded(origin.x(), origin.y(), origin.z());
-          le.isGrounded = this.isBodyGroundedByContacts();
-        }
-      }
-    }
   }
 
   private onWindowResize(): void {
@@ -647,7 +482,7 @@ export class Game {
       jumpPending: !!local.jumpPending,
       isGrounded: local.isGrounded !== false,
       locomotion: local.playerController?.locomotion ?? 'idle',
-      groundProbe: this.lastGroundProbe,
+      groundProbe: this.physicsContext.lastGroundProbe as GroundProbeDebugState,
     };
   }
 }
