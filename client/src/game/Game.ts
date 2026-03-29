@@ -39,7 +39,7 @@ import {
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
 
 /** Вертикальная скорость при прыжке (динамическое тело-сфера). */
-const PLAYER_JUMP_SPEED = 6.2;
+const PLAYER_JUMP_SPEED = 3.8;
 /** Луч вниз от нижней полусферы: длина и зазор от поверхности сферы. */
 const GROUND_RAY_MARGIN = 0.05;
 const GROUND_RAY_LENGTH = 0.38;
@@ -450,6 +450,44 @@ export class Game {
     return hit;
   }
 
+  /** Надёжная проверка опоры: есть ли контакт тела игрока с поверхностью под ним. */
+  private isBodyGroundedByContacts(): boolean {
+    if (!this.physicsWorld || !this.playerBody) return false;
+    const dispatcher = this.physicsWorld.getDispatcher?.();
+    if (!dispatcher) return false;
+
+    const playerPtr = (this.playerBody as { hy?: number }).hy;
+    if (playerPtr == null) return false;
+
+    const manifolds = dispatcher.getNumManifolds?.() ?? 0;
+    for (let i = 0; i < manifolds; i += 1) {
+      const manifold = dispatcher.getManifoldByIndexInternal?.(i);
+      if (!manifold) continue;
+      const body0 = manifold.getBody0?.();
+      const body1 = manifold.getBody1?.();
+      const isBody0Player = !!body0 && (body0 as { hy?: number }).hy === playerPtr;
+      const isBody1Player = !!body1 && (body1 as { hy?: number }).hy === playerPtr;
+      if (!isBody0Player && !isBody1Player) continue;
+
+      const contacts = manifold.getNumContacts?.() ?? 0;
+      for (let j = 0; j < contacts; j += 1) {
+        const point = manifold.getContactPoint?.(j);
+        if (!point) continue;
+        // <= 0 означает реальный контакт/перекрытие.
+        if ((point.getDistance?.() ?? 1) > 0.02) continue;
+        const normal = point.get_m_normalWorldOnB?.();
+        if (!normal) continue;
+        const ny = normal.y?.() ?? 0;
+        // normalWorldOnB направлена от B к A; разворачиваем к направлению "вверх от опоры к игроку".
+        const supportUp = isBody0Player ? ny : -ny;
+        if (supportUp > 0.45) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private stepPhysics(deltaTime: number): void {
     if (!this.physicsWorld || !this.ammo) return;
 
@@ -480,7 +518,8 @@ export class Game {
         pz = origin.z();
       }
 
-      const groundedForJump = this.probeGrounded(px, py, pz);
+      this.probeGrounded(px, py, pz);
+      const groundedForJump = this.isBodyGroundedByContacts();
 
       if (local?.moveDirection && local.playerController) {
         const dir = local.moveDirection;
@@ -524,11 +563,8 @@ export class Game {
 
         const le = this.localPlayerEntity as { isGrounded?: boolean } | null;
         if (le) {
-          le.isGrounded = this.probeGrounded(
-            origin.x(),
-            origin.y(),
-            origin.z(),
-          );
+          this.probeGrounded(origin.x(), origin.y(), origin.z());
+          le.isGrounded = this.isBodyGroundedByContacts();
         }
       }
     }
