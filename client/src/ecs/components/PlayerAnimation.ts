@@ -13,6 +13,7 @@ export interface PlayerAnimationActions {
   backwards_right_d: THREE.AnimationAction | null;
   left: THREE.AnimationAction | null;
   right: THREE.AnimationAction | null;
+  jump_up: THREE.AnimationAction | null;
 }
 
 export interface PlayerAnimation {
@@ -32,6 +33,7 @@ export type PlayerAnimationClips = {
   backwards_right_d?: THREE.AnimationClip | null;
   left?: THREE.AnimationClip | null;
   right?: THREE.AnimationClip | null;
+  jump_up?: THREE.AnimationClip | null;
 };
 
 function makeAction(
@@ -66,6 +68,8 @@ export function pickAnimationAction(
       return actions.left ?? actions.walk;
     case 'right':
       return actions.right ?? actions.walk;
+    case 'jump_up':
+      return actions.jump_up ?? actions.idle;
     default:
       return actions.idle;
   }
@@ -79,6 +83,11 @@ export function createPlayerAnimation(
   const idleAction = mixer.clipAction(clips.idle);
   const walkAction = mixer.clipAction(clips.walk);
   idleAction.play();
+  const jumpUp = makeAction(mixer, clips.jump_up ?? null);
+  if (jumpUp) {
+    jumpUp.setLoop(THREE.LoopOnce, 1);
+    jumpUp.clampWhenFinished = true;
+  }
   return {
     mixer,
     actionByLocomotion: {
@@ -91,6 +100,7 @@ export function createPlayerAnimation(
       backwards_right_d: makeAction(mixer, clips.backwards_right_d ?? null),
       left: makeAction(mixer, clips.left ?? null),
       right: makeAction(mixer, clips.right ?? null),
+      jump_up: jumpUp,
     },
     current: 'idle',
   };

@@ -15,6 +15,7 @@ export type PlayerVisualSetup = {
   backwardsRightDClip: THREE.AnimationClip | null;
   left: THREE.AnimationClip | null;
   right: THREE.AnimationClip | null;
+  jumpUpClip: THREE.AnimationClip | null;
 };
 
 function findAnimationClip(
@@ -102,6 +103,8 @@ export function preparePlayerVisualFromGltf(
     findAnimationClip(gltf.animations, 'walk_right_d', 'exact') ?? null;
   const leftClip = findAnimationClip(gltf.animations, 'left', 'exact') ?? null;
   const rightClip = findAnimationClip(gltf.animations, 'right', 'exact') ?? null;
+  const jumpUpClip =
+    findAnimationClip(gltf.animations, 'jump_up', 'exact') ?? null;
 
   if (!idleClip || !walkClip) {
     console.warn(
@@ -121,6 +124,7 @@ export function preparePlayerVisualFromGltf(
     backwardsRightDClip,
     left: leftClip,
     right: rightClip,
+    jumpUpClip,
   };
 }
 
@@ -137,5 +141,6 @@ export function clonePlayerVisualSetup(template: PlayerVisualSetup): PlayerVisua
     backwardsRightDClip: template.backwardsRightDClip,
     left: template.left,
     right: template.right,
+    jumpUpClip: template.jumpUpClip,
   };
 }

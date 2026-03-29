@@ -38,6 +38,21 @@ import {
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
 
+/** Вертикальная скорость при прыжке (динамическое тело-сфера). */
+const PLAYER_JUMP_SPEED = 6.2;
+/** Луч вниз от нижней полусферы: длина и зазор от поверхности сферы. */
+const GROUND_RAY_MARGIN = 0.05;
+const GROUND_RAY_LENGTH = 0.38;
+
+type GroundProbeDebugState = {
+  x: number;
+  y: number;
+  z: number;
+  fromY: number;
+  toY: number;
+  hit: boolean;
+};
+
 export class Game {
   private world: World;
   private scene: THREE.Scene;
@@ -60,6 +75,18 @@ export class Game {
   private ammoSolver: any;
   private ammoTransform: any;
   private physicsReady: Promise<void>;
+  private playerRadius = 0.5;
+  private groundRayCallback: any | null = null;
+  private groundRayFrom: any | null = null;
+  private groundRayTo: any | null = null;
+  private lastGroundProbe: GroundProbeDebugState = {
+    x: 0,
+    y: 0,
+    z: 0,
+    fromY: 0,
+    toY: 0,
+    hit: false,
+  };
   private playerBody: any | null = null;
   private playerObject3D: THREE.Object3D | null = null;
   private localPlayerEntity: any | null = null;
@@ -176,6 +203,13 @@ export class Game {
     this.physicsWorld.setGravity(new this.ammo.btVector3(0, -9.8, 0));
 
     this.ammoTransform = new this.ammo.btTransform();
+
+    this.groundRayFrom = new this.ammo.btVector3(0, 0, 0);
+    this.groundRayTo = new this.ammo.btVector3(0, -1, 0);
+    this.groundRayCallback = new this.ammo.ClosestRayResultCallback(
+      this.groundRayFrom,
+      this.groundRayTo,
+    );
   }
 
   public createEntity(components: Record<string, any>) {
@@ -205,6 +239,7 @@ export class Game {
       backwardsRightDClip,
       left,
       right,
+      jumpUpClip,
     } = setup;
     const playerRoot = new THREE.Group();
     playerRoot.position.set(0, 6, 0);
@@ -226,8 +261,11 @@ export class Game {
       playerStats: createPlayerStats(),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
       moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в stepPhysics
+      isGrounded: true,
+      jumpPending: false,
     });
 
+    this.playerRadius = playerRadius;
     this.localPlayerEntity = entity;
     this.networkContext?.setLocalPlayerEntity(entity);
     this.playerObject3D = playerRoot;
@@ -247,6 +285,7 @@ export class Game {
           backwards_right_d: backwardsRightDClip,
           left,
           right,
+          jump_up: jumpUpClip,
         }),
       );
     }
@@ -386,6 +425,31 @@ export class Game {
     return mesh;
   }
 
+  private probeGrounded(worldX: number, worldY: number, worldZ: number): boolean {
+    if (!this.physicsWorld || !this.ammo || !this.groundRayCallback || !this.groundRayFrom || !this.groundRayTo) {
+      return false;
+    }
+    const r = this.playerRadius;
+    // Стартуем немного ВЫШЕ нижней точки сферы и лучом идём вниз через уровень пола.
+    // Иначе (при старте ниже) rayTest часто не видит поверхность под игроком.
+    const y0 = worldY - r + GROUND_RAY_MARGIN;
+    const y1 = y0 - (GROUND_RAY_MARGIN + GROUND_RAY_LENGTH);
+    this.lastGroundProbe.x = worldX;
+    this.lastGroundProbe.y = worldY;
+    this.lastGroundProbe.z = worldZ;
+    this.lastGroundProbe.fromY = y0;
+    this.lastGroundProbe.toY = y1;
+    this.groundRayFrom.setValue(worldX, y0, worldZ);
+    this.groundRayTo.setValue(worldX, y1, worldZ);
+    this.groundRayCallback.set_m_closestHitFraction(1);
+    this.groundRayCallback.set_m_rayFromWorld(this.groundRayFrom);
+    this.groundRayCallback.set_m_rayToWorld(this.groundRayTo);
+    this.physicsWorld.rayTest(this.groundRayFrom, this.groundRayTo, this.groundRayCallback);
+    const hit = this.groundRayCallback.hasHit();
+    this.lastGroundProbe.hit = hit;
+    return hit;
+  }
+
   private stepPhysics(deltaTime: number): void {
     if (!this.physicsWorld || !this.ammo) return;
 
@@ -396,8 +460,28 @@ export class Game {
       let vz = 0;
 
       const local = this.localPlayerEntity as
-        | { moveDirection?: THREE.Vector3; playerController?: { speed?: number } }
+        | {
+            moveDirection?: THREE.Vector3;
+            playerController?: { speed?: number };
+            jumpPending?: boolean;
+            isGrounded?: boolean;
+          }
         | null;
+
+      const motionState = this.playerBody.getMotionState();
+      let px = 0;
+      let py = 0;
+      let pz = 0;
+      if (motionState) {
+        motionState.getWorldTransform(this.ammoTransform);
+        const origin = this.ammoTransform.getOrigin();
+        px = origin.x();
+        py = origin.y();
+        pz = origin.z();
+      }
+
+      const groundedForJump = this.probeGrounded(px, py, pz);
+
       if (local?.moveDirection && local.playerController) {
         const dir = local.moveDirection;
         const speed = local.playerController.speed ?? 5;
@@ -406,7 +490,14 @@ export class Game {
       }
 
       const currentVel = this.playerBody.getLinearVelocity();
-      const vy = currentVel.y();
+      let vy = currentVel.y();
+
+      if (local?.jumpPending && groundedForJump) {
+        vy = PLAYER_JUMP_SPEED;
+      }
+      if (local) {
+        local.jumpPending = false;
+      }
 
       // Будим тело, если оно уснуло, чтобы скорость применилась
       this.playerBody.activate(true);
@@ -430,6 +521,15 @@ export class Game {
           origin.y(),
           origin.z()
         );
+
+        const le = this.localPlayerEntity as { isGrounded?: boolean } | null;
+        if (le) {
+          le.isGrounded = this.probeGrounded(
+            origin.x(),
+            origin.y(),
+            origin.z(),
+          );
+        }
       }
     }
   }
@@ -495,5 +595,23 @@ export class Game {
 
   public getRoomCode(): string | null {
     return this.options?.transport?.getRoomCode() ?? null;
+  }
+
+  public getJumpDebugState(): {
+    jumpPending: boolean;
+    isGrounded: boolean;
+    locomotion: string;
+    groundProbe: GroundProbeDebugState;
+  } | null {
+    const local = this.localPlayerEntity as
+      | { jumpPending?: boolean; isGrounded?: boolean; playerController?: { locomotion?: string } }
+      | null;
+    if (!local) return null;
+    return {
+      jumpPending: !!local.jumpPending,
+      isGrounded: local.isGrounded !== false,
+      locomotion: local.playerController?.locomotion ?? 'idle',
+      groundProbe: this.lastGroundProbe,
+    };
   }
 }

@@ -10,6 +10,7 @@ export const PLAYER_LOCOMOTION_IDS = [
   'backwards_right_d',
   'left',
   'right',
+  'jump_up',
 ] as const satisfies readonly PlayerLocomotion[];
 
 export function isPlayerLocomotion(s: string): s is PlayerLocomotion {

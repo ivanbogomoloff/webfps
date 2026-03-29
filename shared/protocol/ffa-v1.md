@@ -23,7 +23,7 @@ Every message has:
 - `spawn_request`
   - payload: `{}`
 - `state_update`
-  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" }`
+  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" | "jump_up" }`
 - `report_kill`
   - payload: `{ "victimPlayerId": "p-2" }`
 - `leave_room`

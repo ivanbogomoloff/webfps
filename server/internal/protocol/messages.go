@@ -53,6 +53,7 @@ var PlayerLocomotionValues = []string{
 	"backwards_right_d",
 	"left",
 	"right",
+	"jump_up",
 }
 
 // NormalizePlayerLocomotion возвращает допустимую локомоцию или "idle".

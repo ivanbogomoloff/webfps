@@ -28,6 +28,7 @@ export function createPlayerControllerSystem(
 
   // Состояние камеры для отслеживания углов
   const cameraState = new Map<any, { pitch: number; yaw: number }>();
+  const prevSpaceDown = new Map<any, boolean>();
 
   return (_deltaTime: number) => {
     for (const entity of world.with('playerController', 'object3d', 'input', 'camera')) {
@@ -94,7 +95,24 @@ export function createPlayerControllerSystem(
 
       const fz = (hasW ? 1 : 0) + (hasS ? -1 : 0);
       const fx = (hasA ? 1 : 0) + (hasD ? -1 : 0);
-      controller.locomotion = locomotionFromStrafeAxes(fz, fx);
+      const baseLocomotion = locomotionFromStrafeAxes(fz, fx);
+
+      const spaceDown =
+        !!input.keys.get(' ') ||
+        !!input.keys.get('space');
+      const wasSpace = prevSpaceDown.get(entity) ?? false;
+      if (networkIdentity?.role === 'player' && spaceDown && !wasSpace) {
+        (entity as any).jumpPending = true;
+      }
+      prevSpaceDown.set(entity, spaceDown);
+
+      const isGrounded = (entity as any).isGrounded !== false;
+      const jumpPending = !!(entity as any).jumpPending;
+      if (!isGrounded || jumpPending) {
+        controller.locomotion = 'jump_up';
+      } else {
+        controller.locomotion = baseLocomotion;
+      }
 
       if (direction.length() > 0) {
         direction.normalize();

@@ -24,6 +24,7 @@ function emptyPlayerVisualSetup(): PlayerVisualSetup {
     backwardsRightDClip: null,
     left: null,
     right: null,
+    jumpUpClip: null,
   };
 }
 

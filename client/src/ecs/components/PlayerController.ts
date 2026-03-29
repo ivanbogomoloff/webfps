@@ -8,7 +8,8 @@ export type PlayerLocomotion =
   | 'backwards_left_d'
   | 'backwards_right_d'
   | 'left'
-  | 'right';
+  | 'right'
+  | 'jump_up';
 
 export interface PlayerController {
   speed: number;

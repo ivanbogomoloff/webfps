@@ -235,6 +235,7 @@ const updateHUD = () => {
     const pos = player.object3d.position
     const camera = player.camera
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ')
+    const jumpDebug = game.getJumpDebugState()
     const scoreboardLines = scoreboard
       .slice(0, 5)
       .map((entry, index) => `${index + 1}. ${entry.nickname} — ${entry.frags}/${entry.deaths}`)
@@ -250,12 +251,21 @@ const updateHUD = () => {
       console.log(`[main] room code: ${roomCode}`)
     }
 
+    const jumpStateLine = jumpDebug
+      ? `LOCOMOTION: ${jumpDebug.locomotion} | GROUNDED: ${jumpDebug.isGrounded ? 'YES' : 'NO'} | JUMP_PENDING: ${jumpDebug.jumpPending ? 'YES' : 'NO'}`
+      : 'LOCOMOTION: - | GROUNDED: - | JUMP_PENDING: -'
+    const groundProbeLine = jumpDebug
+      ? `GROUND PROBE: hit=${jumpDebug.groundProbe.hit ? 'YES' : 'NO'} fromY=${jumpDebug.groundProbe.fromY.toFixed(2)} toY=${jumpDebug.groundProbe.toY.toFixed(2)} at=(${jumpDebug.groundProbe.x.toFixed(2)}, ${jumpDebug.groundProbe.y.toFixed(2)}, ${jumpDebug.groundProbe.z.toFixed(2)})`
+      : 'GROUND PROBE: -'
+
     hudElement.innerHTML = `
       <div>ROOM: ${roomCode ?? '…'}</div>
       <div>POSITION: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}</div>
       <div>ROTATION: ${((euler.y * 180) / Math.PI).toFixed(0)}°, ${((euler.x * 180) / Math.PI).toFixed(0)}°</div>
       <div>MOUSE LOCKED: ${player.input.mouse.isLocked ? 'YES' : 'NO'}</div>
       <div>ROLE: ${player.networkIdentity?.role ?? 'spectator'}</div>
+      <div>JUMP: ${jumpStateLine}</div>
+      <div>${groundProbeLine}</div>
       <div>PHASE: ${matchState?.phase ?? 'waiting'} | TIME: ${matchState?.timeLeftSec ?? 0}s | FRAG LIMIT: ${matchState?.fragLimit ?? 0}</div>
       <div>MAX PLAYERS: ${matchState?.maxPlayers ?? '-'}</div>
       <div>WINNER: ${winner}</div>

@@ -103,6 +103,7 @@ export class NetworkContext {
           backwards_right_d: setup.backwardsRightDClip,
           left: setup.left,
           right: setup.right,
+          jump_up: setup.jumpUpClip,
         }),
       )
     }
