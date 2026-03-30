@@ -488,14 +488,19 @@ export class Game {
     return this.options?.transport?.getRoomCode() ?? null;
   }
 
-  public enableHud(elements: { debugHudElement: HTMLElement; gameHudElement: HTMLElement }, updateHz = 10, debugEnabled = false): void {
+  public enableHud(
+    elements: { debugHudRootElement: HTMLElement; debugHudContentElement: HTMLElement; gameHudElement: HTMLElement },
+    updateHz = 10,
+    debugEnabled = false,
+  ): void {
     if (this.hudSystemAttached) return;
     this.hudSystemAttached = true;
     this.systems.push(
       createHudSystem(this.world, {
         updateHz,
         debugEnabled,
-        debugHudElement: elements.debugHudElement,
+        debugHudRootElement: elements.debugHudRootElement,
+        debugHudContentElement: elements.debugHudContentElement,
         gameHudElement: elements.gameHudElement,
         getRoomCode: () => this.getRoomCode(),
         getLastNetworkError: () => this.getLastNetworkError(),

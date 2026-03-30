@@ -56,7 +56,8 @@ async function startGame(options: StartOptions): Promise<void> {
   })
   game.enableHud(
     {
-      debugHudElement,
+      debugHudRootElement: debugHudElement,
+      debugHudContentElement,
       gameHudElement,
     },
     10,
@@ -73,6 +74,7 @@ async function startGame(options: StartOptions): Promise<void> {
     console.error('Failed to load game:', error)
   } finally {
     game.start()
+    matchControls.style.display = DEBUG_HUD ? 'flex' : 'none'
     game.setLocalRole(options.startAsPlayer ? 'player' : 'spectator')
     if (options.startAsPlayer) {
       game.requestSpawn()
@@ -202,8 +204,11 @@ debugHudElement.style.cssText = `
   z-index: 1000;
   font-size: 12px;
   line-height: 1.5;
+  display: none;
 `
 document.body.appendChild(debugHudElement)
+const debugHudContentElement = document.createElement('div')
+debugHudElement.appendChild(debugHudContentElement)
 
 // Игровой HUD (всегда включён): здоровье внизу экрана
 const gameHudElement = document.createElement('div')
@@ -223,24 +228,22 @@ gameHudElement.style.cssText = `
   border: 1px solid rgba(255, 255, 255, 0.25);
   z-index: 1000;
   pointer-events: none;
+  display: none;
 `
 gameHudElement.textContent = '❤ 100/100'
 document.body.appendChild(gameHudElement)
 
 const matchControls = document.createElement('div')
 matchControls.style.cssText = `
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  display: flex;
+  margin-top: 8px;
+  display: none;
   gap: 8px;
-  z-index: 1000;
 `
 matchControls.innerHTML = `
   <button id="btnSpectator">Spectator</button>
   <button id="btnEnterMatch">Enter Match</button>
 `
-document.body.appendChild(matchControls)
+debugHudElement.appendChild(matchControls)
 
 ;(matchControls.querySelector('#btnSpectator') as HTMLButtonElement).addEventListener('click', () => {
   game?.setLocalRole('spectator')

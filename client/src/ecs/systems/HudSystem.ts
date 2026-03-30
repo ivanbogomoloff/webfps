@@ -23,7 +23,8 @@ type HudScoreEntry = {
 type HudSystemOptions = {
   updateHz?: number;
   debugEnabled?: boolean;
-  debugHudElement: HTMLElement;
+  debugHudRootElement: HTMLElement;
+  debugHudContentElement: HTMLElement;
   gameHudElement: HTMLElement;
   getRoomCode: () => string | null;
   getLastNetworkError: () => string | null;
@@ -77,7 +78,13 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     accumulator = 0;
 
     const local = findLocalHudEntity(world);
-    if (!local) return;
+    if (!local) {
+      options.gameHudElement.style.display = 'none';
+      if (!debugEnabled) {
+        options.debugHudRootElement.style.display = 'none';
+      }
+      return;
+    }
 
     const matchState = readMatchState(world);
     const scoreboard = readScoreboard(world);
@@ -90,16 +97,21 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       console.log(`[main] room code: ${roomCode}`);
     }
 
-    const healthCurrent = Math.max(0, Math.round(local.health.current));
-    const healthMax = Math.max(1, Math.round(local.health.max));
-    options.gameHudElement.innerHTML = `❤ ${healthCurrent}/${healthMax}`;
+    if (local.networkIdentity.role === 'player') {
+      const healthCurrent = Math.max(0, Math.round(local.health.current));
+      const healthMax = Math.max(1, Math.round(local.health.max));
+      options.gameHudElement.style.display = 'block';
+      options.gameHudElement.innerHTML = `❤ ${healthCurrent}/${healthMax}`;
+    } else {
+      options.gameHudElement.style.display = 'none';
+    }
 
     if (!debugEnabled) {
-      options.debugHudElement.style.display = 'none';
+      options.debugHudRootElement.style.display = 'none';
       return;
     }
 
-    options.debugHudElement.style.display = 'block';
+    options.debugHudRootElement.style.display = 'block';
     const pos = local.object3d.position;
     const euler = new THREE.Euler().setFromQuaternion(local.camera.quaternion, 'YXZ');
     const scoreboardLines = scoreboard
@@ -118,7 +130,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       ? `GROUND PROBE: hit=${jumpDebug.groundProbe.hit ? 'YES' : 'NO'} fromY=${jumpDebug.groundProbe.fromY.toFixed(2)} toY=${jumpDebug.groundProbe.toY.toFixed(2)} at=(${jumpDebug.groundProbe.x.toFixed(2)}, ${jumpDebug.groundProbe.y.toFixed(2)}, ${jumpDebug.groundProbe.z.toFixed(2)})`
       : 'GROUND PROBE: -';
 
-    options.debugHudElement.innerHTML = `
+    options.debugHudContentElement.innerHTML = `
       <div>ROOM: ${roomCode ?? '…'}</div>
       <div>POSITION: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}</div>
       <div>ROTATION: ${((euler.y * 180) / Math.PI).toFixed(0)}°, ${((euler.x * 180) / Math.PI).toFixed(0)}°</div>
