@@ -3,6 +3,7 @@ import Stats from 'stats.js';
 import { World } from 'miniplex';
 
 import {
+  createAmmoBody,
   createCamera,
   createInput,
   createHealth,
@@ -11,6 +12,7 @@ import {
   createNetworkTransform,
   createPlayerController,
   createPlayerAnimation,
+  createPlayerPhysicsState,
   createPlayerStats,
 } from '../ecs/components';
 import {
@@ -26,6 +28,15 @@ import {
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
 } from '../ecs/systems';
+import type {
+  AmmoBody,
+  AmmoApi,
+  AmmoTransform,
+  AmmoWorld,
+  NetworkIdentity,
+  PlayerController,
+  PlayerPhysicsState,
+} from '../ecs/components';
 import type { AmmoPhysicsContext, GroundProbeDebugState } from '../ecs/systems/PhysicsSystem';
 import type { GameTransport } from '../net/GameTransport';
 import { NetworkContext } from '../net/NetworkContext';
@@ -42,6 +53,17 @@ import {
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
 
+type LocalPlayerEntity = {
+  id: number;
+  input: ReturnType<typeof createInput>;
+  camera: THREE.PerspectiveCamera;
+  object3d: THREE.Object3D;
+  networkIdentity: NetworkIdentity;
+  playerController: PlayerController;
+  playerPhysicsState: PlayerPhysicsState;
+  ammoBody?: AmmoBody;
+};
+
 export class Game {
   private world: World;
   private scene: THREE.Scene;
@@ -56,16 +78,16 @@ export class Game {
   /** Группа с wireframe-боксами границ физических тел карты (только при VITE_DEBUG_PHYSICS=true) */
   private physicsDebugRoot: THREE.Group | null = null;
   private statsJs: Stats;
-  private ammo: any | null = null;
-  private physicsWorld: any | null = null;
-  private ammoCollisionConfig: any;
-  private ammoDispatcher: any;
-  private ammoBroadphase: any;
-  private ammoSolver: any;
+  private ammo: AmmoApi | null = null;
+  private physicsWorld: AmmoWorld | null = null;
+  private ammoCollisionConfig: unknown;
+  private ammoDispatcher: unknown;
+  private ammoBroadphase: unknown;
+  private ammoSolver: unknown;
   private physicsReady: Promise<void>;
   private physicsContext: AmmoPhysicsContext = createAmmoPhysicsContext();
-  private localPlayerEntity: any | null = null;
-  private matchEntity: any | null = null;
+  private localPlayerEntity: LocalPlayerEntity | null = null;
+  private matchEntity: { id: number; matchState: ReturnType<typeof createMatchState>; scoreboard: ScoreboardPlayer[] } | null = null;
   private networkContext: NetworkContext | null = null;
 
   constructor(
@@ -164,32 +186,32 @@ export class Game {
       console.error('AmmoPhysics: Ammo.js not loaded. Include ammo.wasm.js script before the app.');
       return;
     }
-    this.ammo = await AmmoGlobal.Ammo();
+    const ammo = (await AmmoGlobal.Ammo()) as AmmoApi;
+    this.ammo = ammo;
 
-    this.ammoCollisionConfig = new this.ammo.btDefaultCollisionConfiguration();
-    this.ammoDispatcher = new this.ammo.btCollisionDispatcher(this.ammoCollisionConfig);
-    this.ammoBroadphase = new this.ammo.btDbvtBroadphase();
-    this.ammoSolver = new this.ammo.btSequentialImpulseConstraintSolver();
-    this.physicsWorld = new this.ammo.btDiscreteDynamicsWorld(
+    this.ammoCollisionConfig = new ammo.btDefaultCollisionConfiguration();
+    this.ammoDispatcher = new ammo.btCollisionDispatcher(this.ammoCollisionConfig);
+    this.ammoBroadphase = new ammo.btDbvtBroadphase();
+    this.ammoSolver = new ammo.btSequentialImpulseConstraintSolver();
+    this.physicsWorld = new ammo.btDiscreteDynamicsWorld(
       this.ammoDispatcher,
       this.ammoBroadphase,
       this.ammoSolver,
       this.ammoCollisionConfig
     );
-    this.physicsWorld.setGravity(new this.ammo.btVector3(0, -9.8, 0));
+    this.physicsWorld.setGravity(new ammo.btVector3(0, -9.8, 0));
     attachAmmoRuntimeToPhysicsContext(
       this.physicsContext,
-      this.ammo,
+      ammo,
       this.physicsWorld,
     );
   }
 
-  public createEntity(components: Record<string, any>) {
-    const entity: any = { id: Math.random() };
-    Object.assign(entity, components);
+  public createEntity<T extends Record<string, unknown>>(components: T): T & { id: number } {
+    const entity: T & { id: number } = { id: Math.random(), ...components };
     this.world.add(entity);
 
-    if(entity.object3d) {
+    if ('object3d' in entity && entity.object3d instanceof THREE.Object3D) {
       this.scene.add(entity.object3d);
     }
 
@@ -232,9 +254,7 @@ export class Game {
       ),
       playerStats: createPlayerStats(),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
-      moveDirection: new THREE.Vector3(0, 0, 0), // задаётся PlayerControllerSystem, читается в PhysicsSystem
-      isGrounded: true,
-      jumpPending: false,
+      playerPhysicsState: createPlayerPhysicsState(),
     });
 
     this.physicsContext.playerRadius = playerRadius;
@@ -285,7 +305,7 @@ export class Game {
       const body = new this.ammo.btRigidBody(rbInfo);
 
       this.physicsWorld.addRigidBody(body);
-      (entity as any).physicBody = body;
+      this.world.addComponent(entity as unknown as object, 'ammoBody', createAmmoBody(body));
     })();
   }
 
@@ -326,12 +346,10 @@ export class Game {
       // Позиционируем игрока на одной из точек респауна
       const respawns = map.getRespawns();
       const playerRadius = 0.5;
-      const local = this.localPlayerEntity as
-        | { physicBody?: any; object3d?: THREE.Object3D; isGrounded?: boolean; jumpPending?: boolean }
-        | null;
-      const playerBody = local?.physicBody ?? null;
+      const local = this.localPlayerEntity;
+      const playerBody = local?.ammoBody?.body ?? null;
       const playerObject3D = local?.object3d ?? null;
-      const physicsTransform = this.physicsContext.ammoTransform;
+      const physicsTransform = this.physicsContext.ammoTransform as AmmoTransform | null;
       if (respawns.length > 0 && playerBody && playerObject3D && physicsTransform) {
         const point = respawns[Math.floor(Math.random() * respawns.length)];
         const spawnY = point.center.y + point.size.y / 2 + playerRadius;
@@ -347,8 +365,8 @@ export class Game {
         this.ammo!.destroy(zeroVel);
         this.ammo!.destroy(originVec);
         if (local) {
-          local.isGrounded = true;
-          local.jumpPending = false;
+          local.playerPhysicsState.isGrounded = true;
+          local.playerPhysicsState.jumpPending = false;
         }
       }
 
@@ -474,13 +492,11 @@ export class Game {
     locomotion: string;
     groundProbe: GroundProbeDebugState;
   } | null {
-    const local = this.localPlayerEntity as
-      | { jumpPending?: boolean; isGrounded?: boolean; playerController?: { locomotion?: string } }
-      | null;
+    const local = this.localPlayerEntity;
     if (!local) return null;
     return {
-      jumpPending: !!local.jumpPending,
-      isGrounded: local.isGrounded !== false,
+      jumpPending: local.playerPhysicsState.jumpPending,
+      isGrounded: local.playerPhysicsState.isGrounded,
       locomotion: local.playerController?.locomotion ?? 'idle',
       groundProbe: this.physicsContext.lastGroundProbe as GroundProbeDebugState,
     };

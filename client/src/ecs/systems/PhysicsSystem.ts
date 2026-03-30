@@ -1,5 +1,15 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
+import type {
+  AmmoApi,
+  AmmoRayCallback,
+  AmmoRigidBody,
+  AmmoTransform,
+  AmmoVector3,
+  AmmoWorld,
+  AmmoBody,
+} from '../components/AmmoBody';
+import type { NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
 
 export type GroundProbeDebugState = {
   x: number;
@@ -11,12 +21,12 @@ export type GroundProbeDebugState = {
 };
 
 export type AmmoPhysicsContext = {
-  ammo: any | null;
-  physicsWorld: any | null;
-  ammoTransform: any | null;
-  groundRayFrom: any | null;
-  groundRayTo: any | null;
-  groundRayCallback: any | null;
+  ammo: AmmoApi | null;
+  physicsWorld: AmmoWorld | null;
+  ammoTransform: AmmoTransform | null;
+  groundRayFrom: AmmoVector3 | null;
+  groundRayTo: AmmoVector3 | null;
+  groundRayCallback: AmmoRayCallback | null;
   playerRadius: number;
   jumpSpeed: number;
   groundRayMargin: number;
@@ -49,8 +59,8 @@ export function createAmmoPhysicsContext(): AmmoPhysicsContext {
 
 export function attachAmmoRuntimeToPhysicsContext(
   context: AmmoPhysicsContext,
-  ammo: any,
-  physicsWorld: any,
+  ammo: AmmoApi,
+  physicsWorld: AmmoWorld,
 ): void {
   context.ammo = ammo;
   context.physicsWorld = physicsWorld;
@@ -97,9 +107,9 @@ function probeGrounded(
   return hit;
 }
 
-function isBodyGroundedByContacts(context: AmmoPhysicsContext, playerBody: any): boolean {
+function isBodyGroundedByContacts(context: AmmoPhysicsContext, playerBody: AmmoRigidBody): boolean {
   if (!context.physicsWorld || !playerBody) return false;
-  const dispatcher = context.physicsWorld.getDispatcher?.();
+  const dispatcher = context.physicsWorld.getDispatcher();
   if (!dispatcher) return false;
 
   const playerPtr = (playerBody as { hy?: number }).hy;
@@ -107,7 +117,7 @@ function isBodyGroundedByContacts(context: AmmoPhysicsContext, playerBody: any):
 
   const manifolds = dispatcher.getNumManifolds?.() ?? 0;
   for (let i = 0; i < manifolds; i += 1) {
-    const manifold = dispatcher.getManifoldByIndexInternal?.(i);
+    const manifold = dispatcher.getManifoldByIndexInternal(i);
     if (!manifold) continue;
     const body0 = manifold.getBody0?.();
     const body1 = manifold.getBody1?.();
@@ -133,17 +143,15 @@ function isBodyGroundedByContacts(context: AmmoPhysicsContext, playerBody: any):
 }
 
 type LocalPhysicsEntity = {
-  physicBody?: any;
+  ammoBody?: AmmoBody;
+  playerPhysicsState?: PlayerPhysicsState;
   object3d?: THREE.Object3D;
-  moveDirection?: THREE.Vector3;
-  playerController?: { speed?: number };
-  jumpPending?: boolean;
-  isGrounded?: boolean;
-  networkIdentity?: { isLocal?: boolean };
+  playerController?: PlayerController;
+  networkIdentity?: NetworkIdentity;
 };
 
 function pickLocalBodyEntity(world: World): LocalPhysicsEntity | null {
-  for (const entity of world.with('physicBody', 'object3d', 'networkIdentity')) {
+  for (const entity of world.with('ammoBody', 'playerPhysicsState', 'object3d', 'networkIdentity')) {
     const ni = (entity as LocalPhysicsEntity).networkIdentity;
     if (ni?.isLocal) return entity as LocalPhysicsEntity;
   }
@@ -156,10 +164,11 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
 
     const local = pickLocalBodyEntity(world);
 
-    if (local?.physicBody) {
+    if (local?.ammoBody && local.playerPhysicsState) {
       let vx = 0;
       let vz = 0;
-      const body = local.physicBody;
+      const body = local.ammoBody.body;
+      const physicsState = local.playerPhysicsState;
 
       const motionState = body.getMotionState?.();
       let px = 0;
@@ -176,8 +185,8 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
       probeGrounded(context, px, py, pz);
       const groundedForJump = isBodyGroundedByContacts(context, body);
 
-      if (local.moveDirection && local.playerController) {
-        const dir = local.moveDirection;
+      if (physicsState.moveDirection && local.playerController) {
+        const dir = physicsState.moveDirection;
         const speed = local.playerController.speed ?? 5;
         vx = dir.x * speed;
         vz = dir.z * speed;
@@ -185,10 +194,10 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
 
       const currentVel = body.getLinearVelocity();
       let vy = currentVel.y();
-      if (local.jumpPending && groundedForJump) {
+      if (physicsState.jumpPending && groundedForJump) {
         vy = context.jumpSpeed;
       }
-      local.jumpPending = false;
+      physicsState.jumpPending = false;
 
       body.activate?.(true);
       const newVel = new context.ammo.btVector3(vx, vy, vz);
@@ -198,14 +207,15 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
 
     context.physicsWorld.stepSimulation(deltaTime, 10);
 
-    if (local?.physicBody && local.object3d) {
-      const motionState = local.physicBody.getMotionState?.();
+    if (local?.ammoBody && local.playerPhysicsState && local.object3d) {
+      const body = local.ammoBody.body;
+      const motionState = body.getMotionState?.();
       if (motionState) {
         motionState.getWorldTransform(context.ammoTransform);
         const origin = context.ammoTransform.getOrigin();
         local.object3d.position.set(origin.x(), origin.y(), origin.z());
         probeGrounded(context, origin.x(), origin.y(), origin.z());
-        local.isGrounded = isBodyGroundedByContacts(context, local.physicBody);
+        local.playerPhysicsState.isGrounded = isBodyGroundedByContacts(context, body);
       }
     }
   };

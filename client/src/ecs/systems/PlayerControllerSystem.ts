@@ -1,6 +1,7 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
 import { locomotionFromStrafeAxes } from '../../game/playerLocomotionLogic';
+import type { Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
 
 export function createPlayerControllerSystem(
   world: World,
@@ -16,7 +17,8 @@ export function createPlayerControllerSystem(
     document.addEventListener('pointerlockchange', () => {
       const isLocked = document.pointerLockElement === canvas;
       for (const entity of world.with('playerController')) {
-        if ((entity as any).networkIdentity && !(entity as any).networkIdentity.isLocal) {
+        const ni = (entity as { networkIdentity?: NetworkIdentity }).networkIdentity;
+        if (ni && !ni.isLocal) {
           continue;
         }
         entity.input.mouse.isLocked = isLocked;
@@ -27,21 +29,20 @@ export function createPlayerControllerSystem(
   setupPointerLock();
 
   // Состояние камеры для отслеживания углов
-  const cameraState = new Map<any, { pitch: number; yaw: number }>();
-  const prevSpaceDown = new Map<any, boolean>();
+  const cameraState = new Map<object, { pitch: number; yaw: number }>();
+  const prevSpaceDown = new Map<object, boolean>();
 
   return (_deltaTime: number) => {
-    for (const entity of world.with('playerController', 'object3d', 'input', 'camera')) {
-      const networkIdentity = (entity as any).networkIdentity as
-        | { isLocal: boolean; role: 'spectator' | 'player' }
-        | undefined;
+    for (const entity of world.with('playerController', 'playerPhysicsState', 'object3d', 'input', 'camera')) {
+      const networkIdentity = (entity as { networkIdentity?: NetworkIdentity }).networkIdentity;
       if (networkIdentity && !networkIdentity.isLocal) {
         continue;
       }
 
-      const controller = entity.playerController as any;
+      const controller = entity.playerController as PlayerController;
+      const physicsState = entity.playerPhysicsState as PlayerPhysicsState;
       const object3d = entity.object3d as THREE.Object3D;
-      const input = entity.input as any;
+      const input = entity.input as Input;
       const camera = entity.camera as THREE.PerspectiveCamera;
 
       // Инициализируем состояние камеры если его ещё нет
@@ -102,12 +103,12 @@ export function createPlayerControllerSystem(
         !!input.keys.get('space');
       const wasSpace = prevSpaceDown.get(entity) ?? false;
       if (networkIdentity?.role === 'player' && spaceDown && !wasSpace) {
-        (entity as any).jumpPending = true;
+        physicsState.jumpPending = true;
       }
       prevSpaceDown.set(entity, spaceDown);
 
-      const isGrounded = (entity as any).isGrounded !== false;
-      const jumpPending = !!(entity as any).jumpPending;
+      const isGrounded = physicsState.isGrounded;
+      const jumpPending = physicsState.jumpPending;
       if (!isGrounded || jumpPending) {
         controller.locomotion = 'jump_up';
       } else {
@@ -126,14 +127,9 @@ export function createPlayerControllerSystem(
         const rotatedZ = -direction.x * sin + direction.z * cos;
 
         // Сохраняем желаемое направление движения для физики
-        let moveDir = entity.moveDirection as THREE.Vector3 | undefined;
-        if (!moveDir) {
-          moveDir = new THREE.Vector3();
-          entity.moveDirection = moveDir;
-        }
-        moveDir.set(rotatedX, 0, rotatedZ);
-      } else if (entity.moveDirection) {
-        (entity.moveDirection as THREE.Vector3).set(0, 0, 0);
+        physicsState.moveDirection.set(rotatedX, 0, rotatedZ);
+      } else {
+        physicsState.moveDirection.set(0, 0, 0);
       }
 
       // Обновляем позицию камеры чтобы она следила за игроком
