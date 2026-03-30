@@ -24,6 +24,7 @@ import {
   createPhysicsSystem,
   createRenderSystem,
   createRemoteInterpolationSystem,
+  createHudSystem,
   createInputSystem,
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
@@ -89,6 +90,7 @@ export class Game {
   private localPlayerEntity: LocalPlayerEntity | null = null;
   private matchEntity: { id: number; matchState: ReturnType<typeof createMatchState>; scoreboard: ScoreboardPlayer[] } | null = null;
   private networkContext: NetworkContext | null = null;
+  private hudSystemAttached = false;
 
   constructor(
     private readonly options?: {
@@ -484,6 +486,22 @@ export class Game {
 
   public getRoomCode(): string | null {
     return this.options?.transport?.getRoomCode() ?? null;
+  }
+
+  public enableHud(elements: { debugHudElement: HTMLElement; gameHudElement: HTMLElement }, updateHz = 10, debugEnabled = false): void {
+    if (this.hudSystemAttached) return;
+    this.hudSystemAttached = true;
+    this.systems.push(
+      createHudSystem(this.world, {
+        updateHz,
+        debugEnabled,
+        debugHudElement: elements.debugHudElement,
+        gameHudElement: elements.gameHudElement,
+        getRoomCode: () => this.getRoomCode(),
+        getLastNetworkError: () => this.getLastNetworkError(),
+        getJumpDebugState: () => this.getJumpDebugState(),
+      }),
+    );
   }
 
   public getJumpDebugState(): {

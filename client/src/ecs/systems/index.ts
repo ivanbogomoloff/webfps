@@ -7,6 +7,7 @@ export {
 export { createInputSystem } from './InputSystem';
 export { createPlayerControllerSystem } from './PlayerControllerSystem';
 export { createPlayerAnimationSystem } from './PlayerAnimationSystem';
+export { createHudSystem } from './HudSystem';
 export { createNetworkSendSystem } from './NetworkSendSystem';
 export { createNetworkReceiveSystem } from './NetworkReceiveSystem';
 export { createRemoteInterpolationSystem } from './RemoteInterpolationSystem';

@@ -1,5 +1,4 @@
 import './main.css'
-import * as THREE from 'three'
 import { Game } from './game/Game'
 import { loadSupportedPlayerModelTemplates } from './game/playerModelTemplates'
 import { clonePlayerVisualSetup, DEFAULT_PLAYER_RADIUS } from './game/playerModelPrep'
@@ -9,6 +8,9 @@ import type { GameTransport, TransportConnectParams } from './net/GameTransport'
 import { WsTransport } from './net/WsTransport'
 
 const DEFAULT_WS_URL = 'ws://localhost:8080/ws'
+const DEBUG_HUD =
+  typeof import.meta !== 'undefined' &&
+  (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_DEBUG_HUD === 'true'
 
 type Mode = 'offline' | 'online'
 type StartOptions = {
@@ -24,7 +26,6 @@ type StartOptions = {
 }
 
 let game: Game | null = null
-let lastLoggedRoomCode: string | null = null
 
 async function startGame(options: StartOptions): Promise<void> {
   const templates = await loadSupportedPlayerModelTemplates()
@@ -53,6 +54,14 @@ async function startGame(options: StartOptions): Promise<void> {
     localModelId: connectParams.modelId,
     playerModelTemplates: templates,
   })
+  game.enableHud(
+    {
+      debugHudElement,
+      gameHudElement,
+    },
+    10,
+    DEBUG_HUD,
+  )
   game.createPlayer(localVisual, DEFAULT_PLAYER_RADIUS)
 
   try {
@@ -178,10 +187,10 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
 
 createLobbyUI((options) => startGame(options))
 
-// Создаём HUD для отладки
-const hudElement = document.createElement('div')
-hudElement.id = 'hud'
-hudElement.style.cssText = `
+// Отладочный HUD (показывается только при VITE_DEBUG_HUD=true)
+const debugHudElement = document.createElement('div')
+debugHudElement.id = 'hud-debug'
+debugHudElement.style.cssText = `
   position: fixed;
   top: 10px;
   left: 10px;
@@ -194,7 +203,29 @@ hudElement.style.cssText = `
   font-size: 12px;
   line-height: 1.5;
 `
-document.body.appendChild(hudElement)
+document.body.appendChild(debugHudElement)
+
+// Игровой HUD (всегда включён): здоровье внизу экрана
+const gameHudElement = document.createElement('div')
+gameHudElement.id = 'hud-game'
+gameHudElement.style.cssText = `
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  font-size: 22px;
+  line-height: 1;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  z-index: 1000;
+  pointer-events: none;
+`
+gameHudElement.textContent = '❤ 100/100'
+document.body.appendChild(gameHudElement)
 
 const matchControls = document.createElement('div')
 matchControls.style.cssText = `
@@ -218,67 +249,6 @@ document.body.appendChild(matchControls)
   game?.setLocalRole('player')
   game?.requestSpawn()
 })
-
-// Обновляем HUD каждый кадр
-const updateHUD = () => {
-  if (!game) {
-    requestAnimationFrame(updateHUD)
-    return
-  }
-  const world = game.getWorld()
-  const player = Array.from(world.entities).find((e: any) => e.playerController && e.networkIdentity?.isLocal)
-  const matchState = game.getMatchState()
-  const scoreboard = game.getScoreboard()
-  const networkError = game.getLastNetworkError()
-
-  if (player) {
-    const pos = player.object3d.position
-    const camera = player.camera
-    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ')
-    const jumpDebug = game.getJumpDebugState()
-    const scoreboardLines = scoreboard
-      .slice(0, 5)
-      .map((entry, index) => `${index + 1}. ${entry.nickname} — ${entry.frags}/${entry.deaths}`)
-      .join('<br/>')
-    const winner =
-      matchState?.phase === 'ended' && matchState.winnerPlayerId
-        ? scoreboard.find((entry) => entry.playerId === matchState.winnerPlayerId)?.nickname ?? matchState.winnerPlayerId
-        : '-'
-
-    const roomCode = game.getRoomCode()
-    if (roomCode && roomCode !== lastLoggedRoomCode) {
-      lastLoggedRoomCode = roomCode
-      console.log(`[main] room code: ${roomCode}`)
-    }
-
-    const jumpStateLine = jumpDebug
-      ? `LOCOMOTION: ${jumpDebug.locomotion} | GROUNDED: ${jumpDebug.isGrounded ? 'YES' : 'NO'} | JUMP_PENDING: ${jumpDebug.jumpPending ? 'YES' : 'NO'}`
-      : 'LOCOMOTION: - | GROUNDED: - | JUMP_PENDING: -'
-    const groundProbeLine = jumpDebug
-      ? `GROUND PROBE: hit=${jumpDebug.groundProbe.hit ? 'YES' : 'NO'} fromY=${jumpDebug.groundProbe.fromY.toFixed(2)} toY=${jumpDebug.groundProbe.toY.toFixed(2)} at=(${jumpDebug.groundProbe.x.toFixed(2)}, ${jumpDebug.groundProbe.y.toFixed(2)}, ${jumpDebug.groundProbe.z.toFixed(2)})`
-      : 'GROUND PROBE: -'
-
-    hudElement.innerHTML = `
-      <div>ROOM: ${roomCode ?? '…'}</div>
-      <div>POSITION: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}</div>
-      <div>ROTATION: ${((euler.y * 180) / Math.PI).toFixed(0)}°, ${((euler.x * 180) / Math.PI).toFixed(0)}°</div>
-      <div>MOUSE LOCKED: ${player.input.mouse.isLocked ? 'YES' : 'NO'}</div>
-      <div>ROLE: ${player.networkIdentity?.role ?? 'spectator'}</div>
-      <div>JUMP: ${jumpStateLine}</div>
-      <div>${groundProbeLine}</div>
-      <div>PHASE: ${matchState?.phase ?? 'waiting'} | TIME: ${matchState?.timeLeftSec ?? 0}s | FRAG LIMIT: ${matchState?.fragLimit ?? 0}</div>
-      <div>MAX PLAYERS: ${matchState?.maxPlayers ?? '-'}</div>
-      <div>WINNER: ${winner}</div>
-      <div style="margin-top: 6px; color: #9df;">SCOREBOARD</div>
-      <div>${scoreboardLines || '-'}</div>
-      ${networkError ? `<div style="margin-top: 6px; color: #f88;">NET: ${networkError}</div>` : ''}
-      <div style="margin-top: 5px; color: #0f8;">WASD - Move, Mouse - Look, UI buttons - role switch</div>
-    `
-  }
-
-  requestAnimationFrame(updateHUD)
-}
-updateHUD()
 
 // Очищаем ресурсы при закрытии вкладки
 window.addEventListener('beforeunload', () => {
