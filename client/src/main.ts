@@ -59,6 +59,7 @@ async function startGame(options: StartOptions): Promise<void> {
       debugHudRootElement: debugHudElement,
       debugHudContentElement,
       gameHudElement,
+      scoreboardHudElement,
     },
     10,
     DEBUG_HUD,
@@ -232,6 +233,31 @@ gameHudElement.style.cssText = `
 `
 gameHudElement.textContent = '❤ 100/100'
 document.body.appendChild(gameHudElement)
+
+// Scoreboard HUD (на зажатие Tab)
+const scoreboardHudElement = document.createElement('div')
+scoreboardHudElement.id = 'hud-scoreboard'
+scoreboardHudElement.style.cssText = `
+  position: fixed;
+  left: 50%;
+  top: 80px;
+  transform: translateX(-50%);
+  min-width: 320px;
+  max-width: min(560px, calc(100vw - 24px));
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(157, 221, 255, 0.5);
+  z-index: 1200;
+  pointer-events: none;
+  display: none;
+  white-space: pre-wrap;
+`
+document.body.appendChild(scoreboardHudElement)
 
 const matchControls = document.createElement('div')
 matchControls.style.cssText = `

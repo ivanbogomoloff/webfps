@@ -523,7 +523,7 @@ export class Game {
   }
 
   public enableHud(
-    elements: { debugHudRootElement: HTMLElement; debugHudContentElement: HTMLElement; gameHudElement: HTMLElement },
+    elements: { debugHudRootElement: HTMLElement; debugHudContentElement: HTMLElement; gameHudElement: HTMLElement; scoreboardHudElement: HTMLElement },
     updateHz = 10,
     debugEnabled = false,
   ): void {
@@ -536,6 +536,7 @@ export class Game {
         debugHudRootElement: elements.debugHudRootElement,
         debugHudContentElement: elements.debugHudContentElement,
         gameHudElement: elements.gameHudElement,
+        scoreboardHudElement: elements.scoreboardHudElement,
         getRoomCode: () => this.getRoomCode(),
         getLastNetworkError: () => this.getLastNetworkError(),
         getJumpDebugState: () => this.getJumpDebugState(),

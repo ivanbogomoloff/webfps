@@ -12,9 +12,15 @@ export function createInputSystem(world: World) {
   let ignoreKeyUpUntil = 0;
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+    }
     globalKeys.set(e.key.toLowerCase(), true);
   };
   const onKeyUp = (e: KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+    }
     if (Date.now() < ignoreKeyUpUntil) return;
     globalKeys.set(e.key.toLowerCase(), false);
   };

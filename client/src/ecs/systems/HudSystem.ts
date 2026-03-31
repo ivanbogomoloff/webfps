@@ -26,6 +26,7 @@ type HudSystemOptions = {
   debugHudRootElement: HTMLElement;
   debugHudContentElement: HTMLElement;
   gameHudElement: HTMLElement;
+  scoreboardHudElement: HTMLElement;
   getRoomCode: () => string | null;
   getLastNetworkError: () => string | null;
   getJumpDebugState: () => {
@@ -81,6 +82,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     const local = findLocalHudEntity(world);
     if (!local) {
       options.gameHudElement.style.display = 'none';
+      options.scoreboardHudElement.style.display = 'none';
       if (!debugEnabled) {
         options.debugHudRootElement.style.display = 'none';
       }
@@ -105,6 +107,26 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       options.gameHudElement.innerHTML = `❤ ${healthCurrent}/${healthMax}`;
     } else {
       options.gameHudElement.style.display = 'none';
+    }
+
+    const showScoreboard = !!local.input.keys.get('tab');
+    if (showScoreboard) {
+      const rows = scoreboard
+        .slice(0, 12)
+        .map((entry, index) => {
+          const place = String(index + 1).padStart(2, ' ');
+          return `${place}. ${entry.nickname} - ${entry.frags}/${entry.deaths}`;
+        })
+        .join('<br/>');
+      options.scoreboardHudElement.style.display = 'block';
+      options.scoreboardHudElement.innerHTML = `
+        <div style="font-size: 13px; color: #9df; margin-bottom: 6px;">SCOREBOARD</div>
+        <div style="margin-bottom: 4px;">PHASE: ${matchState?.phase ?? 'waiting'} | TIME: ${matchState?.timeLeftSec ?? 0}s</div>
+        <div>FRAG LIMIT: ${matchState?.fragLimit ?? 0}</div>
+        <div style="margin-top: 8px;">${rows || '-'}</div>
+      `;
+    } else {
+      options.scoreboardHudElement.style.display = 'none';
     }
 
     if (!debugEnabled) {
