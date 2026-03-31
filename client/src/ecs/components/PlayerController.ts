@@ -18,6 +18,14 @@ export type PlayerLocomotion =
   | 'backwards_crouch_right_d'
   | 'left_crouch'
   | 'right_crouch'
+  | 'run_forward'
+  | 'run_backward'
+  | 'run_left'
+  | 'run_right'
+  | 'run_left_d'
+  | 'run_right_d'
+  | 'run_backward_left_d'
+  | 'run_backward_right_d'
   | 'jump_up';
 
 export type PlayerMovementMode = 'walk' | 'crouch' | 'run';

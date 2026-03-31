@@ -24,6 +24,14 @@ export type PlayerVisualSetup = {
   backwardsCrouchRightDClip: THREE.AnimationClip | null;
   leftCrouchClip: THREE.AnimationClip | null;
   rightCrouchClip: THREE.AnimationClip | null;
+  runForwardClip: THREE.AnimationClip | null;
+  runBackwardClip: THREE.AnimationClip | null;
+  runLeftClip: THREE.AnimationClip | null;
+  runRightClip: THREE.AnimationClip | null;
+  runLeftDClip: THREE.AnimationClip | null;
+  runRightDClip: THREE.AnimationClip | null;
+  runBackwardLeftDClip: THREE.AnimationClip | null;
+  runBackwardRightDClip: THREE.AnimationClip | null;
   jumpUpClip: THREE.AnimationClip | null;
 };
 
@@ -132,6 +140,22 @@ export function preparePlayerVisualFromGltf(
     findAnimationClip(gltf.animations, 'left_crouch', 'exact') ?? null;
   const rightCrouchClip =
     findAnimationClip(gltf.animations, 'right_crouch', 'exact') ?? null;
+  const runForwardClip =
+    findAnimationClip(gltf.animations, 'run_forward', 'exact') ?? null;
+  const runBackwardClip =
+    findAnimationClip(gltf.animations, 'run_backward', 'exact') ?? null;
+  const runLeftClip =
+    findAnimationClip(gltf.animations, 'run_left', 'exact') ?? null;
+  const runRightClip =
+    findAnimationClip(gltf.animations, 'run_right', 'exact') ?? null;
+  const runLeftDClip =
+    findAnimationClip(gltf.animations, 'run_left_d', 'exact') ?? null;
+  const runRightDClip =
+    findAnimationClip(gltf.animations, 'run_right_d', 'exact') ?? null;
+  const runBackwardLeftDClip =
+    findAnimationClip(gltf.animations, 'run_backward_left_d', 'exact') ?? null;
+  const runBackwardRightDClip =
+    findAnimationClip(gltf.animations, 'run_backward_right_d', 'exact') ?? null;
 
   if (!idleClip || !walkClip) {
     console.warn(
@@ -160,6 +184,14 @@ export function preparePlayerVisualFromGltf(
     backwardsCrouchRightDClip,
     leftCrouchClip,
     rightCrouchClip,
+    runForwardClip,
+    runBackwardClip,
+    runLeftClip,
+    runRightClip,
+    runLeftDClip,
+    runRightDClip,
+    runBackwardLeftDClip,
+    runBackwardRightDClip,
     jumpUpClip,
   };
 }
@@ -186,6 +218,14 @@ export function clonePlayerVisualSetup(template: PlayerVisualSetup): PlayerVisua
     backwardsCrouchRightDClip: template.backwardsCrouchRightDClip,
     leftCrouchClip: template.leftCrouchClip,
     rightCrouchClip: template.rightCrouchClip,
+    runForwardClip: template.runForwardClip,
+    runBackwardClip: template.runBackwardClip,
+    runLeftClip: template.runLeftClip,
+    runRightClip: template.runRightClip,
+    runLeftDClip: template.runLeftDClip,
+    runRightDClip: template.runRightDClip,
+    runBackwardLeftDClip: template.runBackwardLeftDClip,
+    runBackwardRightDClip: template.runBackwardRightDClip,
     jumpUpClip: template.jumpUpClip,
   };
 }

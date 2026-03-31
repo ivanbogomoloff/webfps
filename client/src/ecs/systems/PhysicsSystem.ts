@@ -150,6 +150,8 @@ type LocalPhysicsEntity = {
   networkIdentity?: NetworkIdentity;
 };
 
+const RUN_SPEED_MULTIPLIER = 1.2;
+
 function pickLocalBodyEntity(world: World): LocalPhysicsEntity | null {
   for (const entity of world.with('ammoBody', 'playerPhysicsState', 'object3d', 'networkIdentity')) {
     const ni = (entity as LocalPhysicsEntity).networkIdentity;
@@ -187,7 +189,11 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
 
       if (physicsState.moveDirection && local.playerController) {
         const dir = physicsState.moveDirection;
-        const speed = local.playerController.speed ?? 5;
+        const baseSpeed = local.playerController.speed ?? 5;
+        const speed =
+          local.playerController.movementMode === 'run'
+            ? baseSpeed * RUN_SPEED_MULTIPLIER
+            : baseSpeed;
         vx = dir.x * speed;
         vz = dir.z * speed;
       }

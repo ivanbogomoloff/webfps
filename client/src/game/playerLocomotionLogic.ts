@@ -19,6 +19,14 @@ export const PLAYER_LOCOMOTION_IDS = [
   'backwards_crouch_right_d',
   'left_crouch',
   'right_crouch',
+  'run_forward',
+  'run_backward',
+  'run_left',
+  'run_right',
+  'run_left_d',
+  'run_right_d',
+  'run_backward_left_d',
+  'run_backward_right_d',
   'jump_up',
 ] as const satisfies readonly PlayerLocomotion[];
 
@@ -59,11 +67,53 @@ const CROUCH_LOCOMOTION_BY_WALK: Record<PlayerLocomotion, PlayerLocomotion> = {
   backwards_crouch_right_d: 'backwards_crouch_right_d',
   left_crouch: 'left_crouch',
   right_crouch: 'right_crouch',
+  run_forward: 'run_forward',
+  run_backward: 'run_backward',
+  run_left: 'run_left',
+  run_right: 'run_right',
+  run_left_d: 'run_left_d',
+  run_right_d: 'run_right_d',
+  run_backward_left_d: 'run_backward_left_d',
+  run_backward_right_d: 'run_backward_right_d',
   jump_up: 'jump_up',
 };
 
 export function toCrouchLocomotion(locomotion: PlayerLocomotion): PlayerLocomotion {
   return CROUCH_LOCOMOTION_BY_WALK[locomotion] ?? 'idle_crouch';
+}
+
+const RUN_LOCOMOTION_BY_WALK: Record<PlayerLocomotion, PlayerLocomotion> = {
+  idle: 'idle',
+  walk: 'run_forward',
+  walk_left_d: 'run_left_d',
+  walk_right_d: 'run_right_d',
+  backwards: 'run_backward',
+  backwards_left_d: 'run_backward_left_d',
+  backwards_right_d: 'run_backward_right_d',
+  left: 'run_left',
+  right: 'run_right',
+  idle_crouch: 'idle',
+  walk_crouch: 'run_forward',
+  walk_crouch_left_d: 'run_left_d',
+  walk_crouch_right_d: 'run_right_d',
+  backwards_crouch: 'run_backward',
+  backwards_crouch_left_d: 'run_backward_left_d',
+  backwards_crouch_right_d: 'run_backward_right_d',
+  left_crouch: 'run_left',
+  right_crouch: 'run_right',
+  run_forward: 'run_forward',
+  run_backward: 'run_backward',
+  run_left: 'run_left',
+  run_right: 'run_right',
+  run_left_d: 'run_left_d',
+  run_right_d: 'run_right_d',
+  run_backward_left_d: 'run_backward_left_d',
+  run_backward_right_d: 'run_backward_right_d',
+  jump_up: 'jump_up',
+};
+
+export function toRunLocomotion(locomotion: PlayerLocomotion): PlayerLocomotion {
+  return RUN_LOCOMOTION_BY_WALK[locomotion] ?? 'idle';
 }
 
 /**
