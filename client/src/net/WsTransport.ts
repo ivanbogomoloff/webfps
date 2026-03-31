@@ -70,6 +70,7 @@ export class WsTransport implements GameTransport {
         frags: update.frags,
         deaths: update.deaths,
         locomotion: update.locomotion,
+        weaponId: update.weaponId,
       },
     })
   }

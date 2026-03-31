@@ -4,6 +4,7 @@ export interface NetworkIdentity {
   playerId: string
   nickname: string
   modelId: string
+  weaponId: string
   isLocal: boolean
   role: PlayerRole
 }
@@ -12,6 +13,7 @@ export function createNetworkIdentity(
   playerId: string,
   nickname: string,
   modelId: string,
+  weaponId: string,
   isLocal: boolean,
   role: PlayerRole
 ): NetworkIdentity {
@@ -19,6 +21,7 @@ export function createNetworkIdentity(
     playerId,
     nickname,
     modelId,
+    weaponId,
     isLocal,
     role,
   }

@@ -1,14 +1,18 @@
 import type { World } from 'miniplex'
 import * as THREE from 'three'
 import {
+  applyWeaponDefinition,
   createHealth,
   createNetworkIdentity,
   createNetworkTransform,
   createPlayerAnimation,
   createPlayerController,
   createPlayerStats,
+  createWeaponState,
 } from '../ecs/components'
 import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/playerModelPrep'
+import { replaceWeaponVisual } from '../game/weaponVisualAttach'
+import { resolveWeaponId } from '../game/supportedWeaponModels'
 import type { IncomingMessage, PlayerRole, ScoreboardPlayer } from './protocol'
 import type { GameTransport, LocalStateUpdate } from './GameTransport'
 
@@ -16,6 +20,7 @@ type AnyEntity = Record<string, any>
 
 export type NetworkContextVisualOptions = {
   getPlayerVisualTemplate(modelId: string): PlayerVisualSetup | undefined
+  getWeaponVisualTemplate(weaponId: string): THREE.Object3D | undefined
 }
 
 export class NetworkContext {
@@ -59,9 +64,20 @@ export class NetworkContext {
     return current
   }
 
-  getOrCreateRemoteEntity(world: World, scene: THREE.Scene, playerId: string, nickname: string, modelId: string, role: PlayerRole): AnyEntity {
+  getOrCreateRemoteEntity(
+    world: World,
+    scene: THREE.Scene,
+    playerId: string,
+    nickname: string,
+    modelId: string,
+    weaponId: string,
+    role: PlayerRole,
+  ): AnyEntity {
     const existing = this.playerEntityById.get(playerId)
-    if (existing) return existing
+    if (existing) {
+      this.setEntityWeapon(existing, weaponId)
+      return existing
+    }
 
     const remoteRoot = new THREE.Group()
     const template = this.visualOptions?.getPlayerVisualTemplate(modelId)
@@ -83,9 +99,13 @@ export class NetworkContext {
       id: Math.random(),
       object3d: remoteRoot,
       health: createHealth(100),
-      networkIdentity: createNetworkIdentity(playerId, nickname, modelId, false, role),
+      networkIdentity: createNetworkIdentity(playerId, nickname, modelId, resolveWeaponId(weaponId), false, role),
       networkTransform: createNetworkTransform(),
       playerStats: createPlayerStats(),
+      weaponState: createWeaponState(weaponId),
+      weaponVisualRoot: setup?.visualModel ?? remoteRoot,
+      weaponVisualObject: null,
+      weaponVisualWeaponId: '',
     }
 
     if (setup) {
@@ -126,8 +146,31 @@ export class NetworkContext {
     }
 
     world.add(entity)
+    this.setEntityWeapon(entity, weaponId)
     this.playerEntityById.set(playerId, entity)
     return entity
+  }
+
+  setEntityWeapon(entity: AnyEntity, weaponId: string): void {
+    if (!entity.weaponState) {
+      entity.weaponState = createWeaponState(weaponId)
+    } else {
+      applyWeaponDefinition(entity.weaponState, weaponId)
+    }
+    if (entity.networkIdentity) {
+      entity.networkIdentity.weaponId = entity.weaponState.weaponId
+    }
+    const template = this.visualOptions?.getWeaponVisualTemplate(entity.weaponState.weaponId)
+    const visualRoot = (entity.weaponVisualRoot as THREE.Object3D | undefined) ?? entity.object3d
+    if (entity.weaponVisualWeaponId === entity.weaponState.weaponId && entity.weaponVisualObject) {
+      return
+    }
+    entity.weaponVisualObject = replaceWeaponVisual(
+      visualRoot,
+      entity.weaponVisualObject as THREE.Object3D | null | undefined,
+      template,
+    )
+    entity.weaponVisualWeaponId = entity.weaponState.weaponId
   }
 
   registerPlayerEntity(playerId: string, entity: AnyEntity): void {

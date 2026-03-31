@@ -1,8 +1,10 @@
 import './main.css'
 import { Game } from './game/Game'
 import { loadSupportedPlayerModelTemplates } from './game/playerModelTemplates'
+import { loadSupportedWeaponModelTemplates } from './game/weaponModelTemplates'
 import { clonePlayerVisualSetup, DEFAULT_PLAYER_RADIUS } from './game/playerModelPrep'
 import { DEFAULT_PLAYER_MODEL_ID, resolvePlayerModelId } from './game/supportedPlayerModels'
+import { DEFAULT_WEAPON_ID, resolveWeaponId, SUPPORTED_WEAPON_IDS } from './game/supportedWeaponModels'
 import { OfflineLoopbackTransport } from './net/OfflineLoopbackTransport'
 import type { GameTransport, TransportConnectParams } from './net/GameTransport'
 import { WsTransport } from './net/WsTransport'
@@ -19,6 +21,7 @@ type StartOptions = {
   roomCode: string
   nickname: string
   modelId: string
+  weaponId: string
   mapId: string
   timeLimitSec: number
   fragLimit: number
@@ -29,7 +32,9 @@ let game: Game | null = null
 
 async function startGame(options: StartOptions): Promise<void> {
   const templates = await loadSupportedPlayerModelTemplates()
+  const weaponTemplates = await loadSupportedWeaponModelTemplates()
   const resolvedModelId = resolvePlayerModelId(options.modelId.trim() || DEFAULT_PLAYER_MODEL_ID)
+  const resolvedWeaponId = resolveWeaponId(options.weaponId.trim() || DEFAULT_WEAPON_ID)
   const transport: GameTransport =
     options.mode === 'online'
       ? new WsTransport(options.wsUrl)
@@ -38,6 +43,7 @@ async function startGame(options: StartOptions): Promise<void> {
     roomCode: options.roomCode.trim(),
     nickname: options.nickname.trim() || 'Player',
     modelId: resolvedModelId,
+    weaponId: resolvedWeaponId,
     mapId: options.mapId.trim() || 'test2',
     timeLimitSec: options.timeLimitSec,
     fragLimit: options.fragLimit,
@@ -52,7 +58,9 @@ async function startGame(options: StartOptions): Promise<void> {
     transport,
     localNickname: connectParams.nickname,
     localModelId: connectParams.modelId,
+    localWeaponId: connectParams.weaponId,
     playerModelTemplates: templates,
+    weaponModelTemplates: weaponTemplates,
   })
   game.enableHud(
     {
@@ -118,6 +126,9 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
       <label style="display:block; margin-bottom:8px;">Model ID
         <input id="modelId" value="player1" style="width:100%; margin-top:4px;" />
       </label>
+      <label style="display:block; margin-bottom:8px;">Weapon ID
+        <input id="weaponId" value="${DEFAULT_WEAPON_ID}" style="width:100%; margin-top:4px;" />
+      </label>
       <label style="display:block; margin-bottom:8px;">Map ID
         <input id="mapId" value="test2" style="width:100%; margin-top:4px;" />
       </label>
@@ -144,6 +155,7 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
   const roomCode = getEl<HTMLInputElement>('roomCode')
   const nickname = getEl<HTMLInputElement>('nickname')
   const modelId = getEl<HTMLInputElement>('modelId')
+  const weaponId = getEl<HTMLInputElement>('weaponId')
   const mapId = getEl<HTMLInputElement>('mapId')
   const timeLimit = getEl<HTMLInputElement>('timeLimit')
   const fragLimit = getEl<HTMLInputElement>('fragLimit')
@@ -164,6 +176,7 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
         roomCode: roomCode.value.trim(),
         nickname: nickname.value.trim(),
         modelId: modelId.value.trim(),
+        weaponId: weaponId.value.trim(),
         mapId: mapId.value.trim(),
         timeLimitSec: Number(timeLimit.value) || 600,
         fragLimit: Number(fragLimit.value) || 25,
@@ -278,6 +291,15 @@ debugHudElement.appendChild(matchControls)
   game?.setLocalRole('player')
   game?.requestSpawn()
 })
+
+const weaponHotkeysHint = document.createElement('div')
+weaponHotkeysHint.style.cssText = `
+  margin-top: 6px;
+  color: #9df;
+  font-size: 11px;
+`
+weaponHotkeysHint.textContent = `Weapon hotkeys: ${SUPPORTED_WEAPON_IDS.map((id, i) => `${i + 1}:${id}`).join(' | ')}`
+debugHudElement.appendChild(weaponHotkeysHint)
 
 // Очищаем ресурсы при закрытии вкладки
 window.addEventListener('beforeunload', () => {

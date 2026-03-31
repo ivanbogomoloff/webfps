@@ -7,6 +7,7 @@ export interface JoinRoomPayload {
   roomCode: string
   nickname: string
   modelId: string
+  weaponId: string
   mapId: string
   timeLimitSec: number
   fragLimit: number
@@ -16,6 +17,7 @@ export interface PlayerStateMessage {
   playerId: string
   /** Совпадает с `room_state` / `player_joined`; нужен, если батч приходит раньше полного room_state. */
   modelId: string
+  weaponId: string
   /** Локомоция с отправителя state_update (если нет в JSON — на клиенте считается idle). */
   locomotion?: PlayerLocomotion
   x: number
@@ -38,6 +40,7 @@ export interface RoomPlayer {
   playerId: string
   nickname: string
   modelId: string
+  weaponId: string
   role: PlayerRole
   frags: number
   deaths: number
@@ -60,7 +63,7 @@ export type IncomingMessage =
     }
   | {
       type: 'player_joined'
-      payload: { playerId: string; nickname: string; modelId: string; role: PlayerRole }
+      payload: { playerId: string; nickname: string; modelId: string; weaponId: string; role: PlayerRole }
     }
   | { type: 'player_left'; payload: { playerId: string } }
   | { type: 'match_started'; payload: { startedAtUnixMs: number; timeLimitSec: number; fragLimit: number } }
@@ -85,6 +88,7 @@ export type OutgoingMessage =
         frags: number
         deaths: number
         locomotion: PlayerLocomotion
+        weaponId: string
       }
     }
   | { type: 'report_kill'; payload: { victimPlayerId: string } }

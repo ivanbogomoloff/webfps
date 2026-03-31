@@ -12,6 +12,7 @@ export interface LocalStateUpdate {
   frags: number
   deaths: number
   locomotion: PlayerLocomotion
+  weaponId: string
 }
 
 export type TransportHandler = (message: IncomingMessage) => void

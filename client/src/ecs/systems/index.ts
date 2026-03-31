@@ -12,3 +12,4 @@ export { createNetworkSendSystem } from './NetworkSendSystem';
 export { createNetworkReceiveSystem } from './NetworkReceiveSystem';
 export { createRemoteInterpolationSystem } from './RemoteInterpolationSystem';
 export { createMatchRulesClientSystem } from './MatchRulesClientSystem';
+export { createWeaponLoadoutSystem } from './WeaponLoadoutSystem';

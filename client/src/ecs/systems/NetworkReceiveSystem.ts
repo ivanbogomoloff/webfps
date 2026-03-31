@@ -26,6 +26,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
               message.payload.localPlayerId,
               localEntity.networkIdentity?.nickname ?? 'Player',
               localEntity.networkIdentity?.modelId ?? 'player1',
+              localEntity.networkIdentity?.weaponId ?? 'pistol',
               true,
               localEntity.networkIdentity?.role ?? 'spectator'
             )
@@ -43,6 +44,9 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
           for (const player of message.payload.players) {
             if (player.playerId === networkContext.getLocalPlayerId()) {
               if (localEntity?.networkIdentity) localEntity.networkIdentity.role = player.role
+              if (localEntity) {
+                networkContext.setEntityWeapon(localEntity, player.weaponId || 'pistol')
+              }
               if (localEntity?.playerStats) {
                 localEntity.playerStats.frags = player.frags
                 localEntity.playerStats.deaths = player.deaths
@@ -55,6 +59,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
               player.playerId,
               player.nickname,
               player.modelId,
+              player.weaponId,
               player.role
             )
             remote.networkIdentity.role = player.role
@@ -71,6 +76,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             message.payload.playerId,
             message.payload.nickname,
             message.payload.modelId,
+            message.payload.weaponId,
             message.payload.role
           )
           break
@@ -90,6 +96,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
                 state.playerId,
                 'Remote',
                 state.modelId || 'player1',
+                state.weaponId || 'pistol',
                 state.role,
               )
             }
@@ -99,6 +106,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             entity.networkTransform.rotY = state.rotY
             entity.networkTransform.updatedAtMs = performance.now()
             entity.networkIdentity.role = state.role
+            networkContext.setEntityWeapon(entity, state.weaponId || 'pistol')
             entity.playerStats.frags = state.frags
             entity.playerStats.deaths = state.deaths
             const pc = (entity as any).playerController as { locomotion?: string } | undefined

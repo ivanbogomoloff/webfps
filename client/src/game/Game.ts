@@ -3,6 +3,7 @@ import Stats from 'stats.js';
 import { World } from 'miniplex';
 
 import {
+  applyWeaponDefinition,
   createAmmoBody,
   createCamera,
   createInput,
@@ -14,6 +15,7 @@ import {
   createPlayerAnimation,
   createPlayerPhysicsState,
   createPlayerStats,
+  createWeaponState,
 } from '../ecs/components';
 import {
   attachAmmoRuntimeToPhysicsContext,
@@ -28,6 +30,7 @@ import {
   createInputSystem,
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
+  createWeaponLoadoutSystem,
 } from '../ecs/systems';
 import type {
   AmmoBody,
@@ -37,6 +40,7 @@ import type {
   NetworkIdentity,
   PlayerController,
   PlayerPhysicsState,
+  WeaponState,
 } from '../ecs/components';
 import type { AmmoPhysicsContext, GroundProbeDebugState } from '../ecs/systems/PhysicsSystem';
 import type { GameTransport } from '../net/GameTransport';
@@ -45,11 +49,17 @@ import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
 import type { PlayerVisualSetup } from './playerModelPrep';
+import { replaceWeaponVisual } from './weaponVisualAttach';
 import {
   DEFAULT_PLAYER_MODEL_ID,
   resolvePlayerModelId,
   type SupportedPlayerModelId,
 } from './supportedPlayerModels';
+import {
+  DEFAULT_WEAPON_ID,
+  resolveWeaponId,
+  type SupportedWeaponId,
+} from './supportedWeaponModels';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
@@ -62,6 +72,10 @@ type LocalPlayerEntity = {
   networkIdentity: NetworkIdentity;
   playerController: PlayerController;
   playerPhysicsState: PlayerPhysicsState;
+  weaponState: WeaponState;
+  weaponVisualRoot?: THREE.Object3D;
+  weaponVisualObject?: THREE.Object3D | null;
+  weaponVisualWeaponId?: string;
   ammoBody?: AmmoBody;
 };
 
@@ -97,8 +111,11 @@ export class Game {
       transport?: GameTransport;
       localNickname?: string;
       localModelId?: string;
+      localWeaponId?: string;
       /** Шаблоны GLB по `SupportedPlayerModelId` — для визуала удалённых игроков. */
       playerModelTemplates?: Map<SupportedPlayerModelId, PlayerVisualSetup>;
+      /** Шаблоны GLB по `SupportedWeaponId` — для визуала оружия. */
+      weaponModelTemplates?: Map<SupportedWeaponId, THREE.Object3D>;
     }
   ) {
     this.statsJs = new Stats();
@@ -149,12 +166,14 @@ export class Game {
         this.renderer.domElement,
       )
     ); // Потом обрабатываем управление
+    this.systems.push(createWeaponLoadoutSystem(this.world));
     this.matchEntity = this.createEntity({
       matchState: createMatchState(),
       scoreboard: [] as ScoreboardPlayer[],
     });
     if (this.options?.transport) {
       const templateMap = this.options.playerModelTemplates;
+      const weaponTemplateMap = this.options.weaponModelTemplates;
       this.networkContext = new NetworkContext(
         this.options.transport,
         templateMap?.size
@@ -162,6 +181,11 @@ export class Game {
               getPlayerVisualTemplate: (modelId: string) => {
                 const id = resolvePlayerModelId(modelId);
                 return templateMap.get(id) ?? templateMap.get(DEFAULT_PLAYER_MODEL_ID);
+              },
+              getWeaponVisualTemplate: (weaponId: string) => {
+                if (!weaponTemplateMap?.size) return undefined;
+                const id = resolveWeaponId(weaponId);
+                return weaponTemplateMap.get(id) ?? weaponTemplateMap.get(DEFAULT_WEAPON_ID);
               },
             }
           : undefined,
@@ -257,6 +281,7 @@ export class Game {
     const playerRoot = new THREE.Group();
     playerRoot.position.set(0, 6, 0);
     playerRoot.add(visualModel);
+    const initialWeaponId = resolveWeaponId(this.options?.localWeaponId ?? DEFAULT_WEAPON_ID);
 
     const entity = this.createEntity({
       input: createInput(),
@@ -268,15 +293,21 @@ export class Game {
         'pending-local',
         this.options?.localNickname ?? 'Player',
         this.options?.localModelId ?? 'player1',
+        initialWeaponId,
         true,
         'spectator'
       ),
       playerStats: createPlayerStats(),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
       playerPhysicsState: createPlayerPhysicsState(),
+      weaponState: createWeaponState(initialWeaponId),
+      weaponVisualRoot: visualModel,
+      weaponVisualObject: null as THREE.Object3D | null,
+      weaponVisualWeaponId: '' as string,
     });
 
     this.physicsContext.playerRadius = playerRadius;
+    this.syncEntityWeaponVisual(entity);
     this.localPlayerEntity = entity;
     this.networkContext?.setLocalPlayerEntity(entity);
 
@@ -438,6 +469,9 @@ export class Game {
     for (const system of this.systems) {
       system(deltaTime);
     }
+    if (this.localPlayerEntity) {
+      this.syncEntityWeaponVisual(this.localPlayerEntity);
+    }
 
     // Рендерим сцену
     this.renderer.render(this.scene, this.camera);
@@ -498,6 +532,13 @@ export class Game {
     this.networkContext?.reportKill(victimPlayerId);
   }
 
+  public setLocalWeaponId(weaponId: string): void {
+    if (!this.localPlayerEntity) return;
+    applyWeaponDefinition(this.localPlayerEntity.weaponState, weaponId);
+    this.localPlayerEntity.networkIdentity.weaponId = this.localPlayerEntity.weaponState.weaponId;
+    this.syncEntityWeaponVisual(this.localPlayerEntity);
+  }
+
   public getScoreboard(): ScoreboardPlayer[] {
     return this.networkContext?.scoreboard ?? [];
   }
@@ -520,6 +561,35 @@ export class Game {
 
   public getRoomCode(): string | null {
     return this.options?.transport?.getRoomCode() ?? null;
+  }
+
+  private syncEntityWeaponVisual(entity: {
+    weaponState?: WeaponState;
+    networkIdentity?: NetworkIdentity;
+    weaponVisualRoot?: THREE.Object3D;
+    weaponVisualObject?: THREE.Object3D | null;
+    weaponVisualWeaponId?: string;
+  }): void {
+    if (!entity.weaponState) return;
+    const map = this.options?.weaponModelTemplates;
+    if (!map?.size) return;
+    const resolvedId = resolveWeaponId(entity.weaponState.weaponId);
+    if (entity.weaponState.weaponId !== resolvedId) {
+      applyWeaponDefinition(entity.weaponState, resolvedId);
+    }
+    if (entity.networkIdentity) {
+      entity.networkIdentity.weaponId = entity.weaponState.weaponId;
+    }
+    if (entity.weaponVisualWeaponId === resolvedId && entity.weaponVisualObject) {
+      return;
+    }
+    const template = map.get(resolvedId) ?? map.get(DEFAULT_WEAPON_ID);
+    entity.weaponVisualObject = replaceWeaponVisual(
+      entity.weaponVisualRoot ?? (this.localPlayerEntity?.object3d ?? this.scene),
+      entity.weaponVisualObject,
+      template,
+    );
+    entity.weaponVisualWeaponId = resolvedId;
   }
 
   public enableHud(

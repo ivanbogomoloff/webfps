@@ -12,6 +12,7 @@ type SimPlayer = {
   playerId: string
   nickname: string
   modelId: string
+  weaponId: string
   role: PlayerRole
   locomotion: PlayerLocomotion
   x: number
@@ -52,6 +53,7 @@ export class OfflineLoopbackTransport implements GameTransport {
       playerId: this.localPlayerId,
       nickname: params.nickname || 'Player',
       modelId: params.modelId || 'player1',
+      weaponId: params.weaponId || 'pistol',
       role: 'spectator',
       locomotion: 'idle',
       x: 0,
@@ -65,6 +67,7 @@ export class OfflineLoopbackTransport implements GameTransport {
       playerId: this.botId,
       nickname: 'Bot',
       modelId: pickRandomBotModelId(),
+      weaponId: 'rifle',
       role: 'player',
       locomotion: 'idle',
       x: 4,
@@ -138,6 +141,7 @@ export class OfflineLoopbackTransport implements GameTransport {
     local.frags = update.frags
     local.deaths = update.deaths
     local.locomotion = update.locomotion
+    local.weaponId = update.weaponId
   }
 
   reportKill(victimPlayerId: string): void {
@@ -237,6 +241,7 @@ export class OfflineLoopbackTransport implements GameTransport {
           playerId: player.playerId,
           nickname: player.nickname,
           modelId: player.modelId,
+          weaponId: player.weaponId,
           role: player.role,
           frags: player.frags,
           deaths: player.deaths,
@@ -253,6 +258,7 @@ export class OfflineLoopbackTransport implements GameTransport {
         states: Array.from(this.players.values()).map((player) => ({
           playerId: player.playerId,
           modelId: player.modelId,
+          weaponId: player.weaponId,
           locomotion: player.locomotion,
           x: player.x,
           y: player.y,

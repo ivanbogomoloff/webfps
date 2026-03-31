@@ -33,6 +33,7 @@ type JoinRoomPayload struct {
 	RoomCode     string `json:"roomCode"`
 	Nickname     string `json:"nickname"`
 	ModelID      string `json:"modelId"`
+	WeaponID     string `json:"weaponId"`
 	MapID        string `json:"mapId"`
 	TimeLimitSec int    `json:"timeLimitSec"`
 	FragLimit    int    `json:"fragLimit"`
@@ -90,6 +91,7 @@ type StateUpdatePayload struct {
 	Frags      int     `json:"frags"`
 	Deaths     int     `json:"deaths"`
 	Locomotion string  `json:"locomotion"`
+	WeaponID   string  `json:"weaponId"`
 }
 
 type ReportKillPayload struct {

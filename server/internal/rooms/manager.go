@@ -31,6 +31,7 @@ type playerState struct {
 	PlayerID    string  `json:"playerId"`
 	Nickname    string  `json:"nickname"`
 	ModelID     string  `json:"modelId"`
+	WeaponID    string  `json:"weaponId"`
 	Role        string  `json:"role"`
 	Locomotion  string  `json:"locomotion"`
 	X           float64 `json:"x"`
@@ -142,11 +143,16 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 	if modelID == "" {
 		modelID = "player1"
 	}
+	weaponID := payload.WeaponID
+	if weaponID == "" {
+		weaponID = "pistol"
+	}
 
 	room.Players[playerID] = &playerState{
 		PlayerID:   playerID,
 		Nickname:   nickname,
 		ModelID:    modelID,
+		WeaponID:   weaponID,
 		Role:       "spectator",
 		Locomotion: "idle",
 	}
@@ -178,6 +184,7 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 			"playerId": playerID,
 			"nickname": nickname,
 			"modelId":  modelID,
+			"weaponId": weaponID,
 			"role":     "spectator",
 		},
 	})
@@ -244,6 +251,9 @@ func (m *Manager) UpdateState(clientID string, payload protocol.StateUpdatePaylo
 	player.RotY = payload.RotY
 	if payload.Role == "player" || payload.Role == "spectator" {
 		player.Role = payload.Role
+	}
+	if payload.WeaponID != "" {
+		player.WeaponID = payload.WeaponID
 	}
 	player.Locomotion = protocol.NormalizePlayerLocomotion(payload.Locomotion)
 
@@ -369,6 +379,7 @@ func (m *Manager) broadcastRoomStateLocked(room *roomState) {
 			"playerId": p.PlayerID,
 			"nickname": p.Nickname,
 			"modelId":  p.ModelID,
+			"weaponId": p.WeaponID,
 			"role":     p.Role,
 			"frags":    p.Frags,
 			"deaths":   p.Deaths,
@@ -394,6 +405,7 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 		states = append(states, map[string]any{
 			"playerId":   p.PlayerID,
 			"modelId":    p.ModelID,
+			"weaponId":   p.WeaponID,
 			"locomotion": protocol.NormalizePlayerLocomotion(p.Locomotion),
 			"x":          p.X,
 			"y":          p.Y,
