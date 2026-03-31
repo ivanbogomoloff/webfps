@@ -13,6 +13,15 @@ export interface PlayerAnimationActions {
   backwards_right_d: THREE.AnimationAction | null;
   left: THREE.AnimationAction | null;
   right: THREE.AnimationAction | null;
+  idle_crouch: THREE.AnimationAction | null;
+  walk_crouch: THREE.AnimationAction | null;
+  walk_crouch_left_d: THREE.AnimationAction | null;
+  walk_crouch_right_d: THREE.AnimationAction | null;
+  backwards_crouch: THREE.AnimationAction | null;
+  backwards_crouch_left_d: THREE.AnimationAction | null;
+  backwards_crouch_right_d: THREE.AnimationAction | null;
+  left_crouch: THREE.AnimationAction | null;
+  right_crouch: THREE.AnimationAction | null;
   jump_up: THREE.AnimationAction | null;
 }
 
@@ -33,6 +42,15 @@ export type PlayerAnimationClips = {
   backwards_right_d?: THREE.AnimationClip | null;
   left?: THREE.AnimationClip | null;
   right?: THREE.AnimationClip | null;
+  idle_crouch?: THREE.AnimationClip | null;
+  walk_crouch?: THREE.AnimationClip | null;
+  walk_crouch_left_d?: THREE.AnimationClip | null;
+  walk_crouch_right_d?: THREE.AnimationClip | null;
+  backwards_crouch?: THREE.AnimationClip | null;
+  backwards_crouch_left_d?: THREE.AnimationClip | null;
+  backwards_crouch_right_d?: THREE.AnimationClip | null;
+  left_crouch?: THREE.AnimationClip | null;
+  right_crouch?: THREE.AnimationClip | null;
   jump_up?: THREE.AnimationClip | null;
 };
 
@@ -68,6 +86,36 @@ export function pickAnimationAction(
       return actions.left ?? actions.walk;
     case 'right':
       return actions.right ?? actions.walk;
+    case 'idle_crouch':
+      return actions.idle_crouch ?? actions.idle;
+    case 'walk_crouch':
+      return actions.walk_crouch ?? actions.walk;
+    case 'walk_crouch_left_d':
+      return actions.walk_crouch_left_d ?? actions.walk_crouch ?? actions.walk_left_d ?? actions.walk;
+    case 'walk_crouch_right_d':
+      return actions.walk_crouch_right_d ?? actions.walk_crouch ?? actions.walk_right_d ?? actions.walk;
+    case 'backwards_crouch':
+      return actions.backwards_crouch ?? actions.backwards ?? actions.walk;
+    case 'backwards_crouch_left_d':
+      return (
+        actions.backwards_crouch_left_d
+        ?? actions.backwards_crouch
+        ?? actions.backwards_left_d
+        ?? actions.backwards
+        ?? actions.walk
+      );
+    case 'backwards_crouch_right_d':
+      return (
+        actions.backwards_crouch_right_d
+        ?? actions.backwards_crouch
+        ?? actions.backwards_right_d
+        ?? actions.backwards
+        ?? actions.walk
+      );
+    case 'left_crouch':
+      return actions.left_crouch ?? actions.left ?? actions.walk_crouch ?? actions.walk;
+    case 'right_crouch':
+      return actions.right_crouch ?? actions.right ?? actions.walk_crouch ?? actions.walk;
     case 'jump_up':
       return actions.jump_up ?? actions.idle;
     default:
@@ -100,6 +148,15 @@ export function createPlayerAnimation(
       backwards_right_d: makeAction(mixer, clips.backwards_right_d ?? null),
       left: makeAction(mixer, clips.left ?? null),
       right: makeAction(mixer, clips.right ?? null),
+      idle_crouch: makeAction(mixer, clips.idle_crouch ?? null),
+      walk_crouch: makeAction(mixer, clips.walk_crouch ?? null),
+      walk_crouch_left_d: makeAction(mixer, clips.walk_crouch_left_d ?? null),
+      walk_crouch_right_d: makeAction(mixer, clips.walk_crouch_right_d ?? null),
+      backwards_crouch: makeAction(mixer, clips.backwards_crouch ?? null),
+      backwards_crouch_left_d: makeAction(mixer, clips.backwards_crouch_left_d ?? null),
+      backwards_crouch_right_d: makeAction(mixer, clips.backwards_crouch_right_d ?? null),
+      left_crouch: makeAction(mixer, clips.left_crouch ?? null),
+      right_crouch: makeAction(mixer, clips.right_crouch ?? null),
       jump_up: jumpUp,
     },
     current: 'idle',

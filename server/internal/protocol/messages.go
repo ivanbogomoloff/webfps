@@ -53,6 +53,15 @@ var PlayerLocomotionValues = []string{
 	"backwards_right_d",
 	"left",
 	"right",
+	"idle_crouch",
+	"walk_crouch",
+	"walk_crouch_left_d",
+	"walk_crouch_right_d",
+	"backwards_crouch",
+	"backwards_crouch_left_d",
+	"backwards_crouch_right_d",
+	"left_crouch",
+	"right_crouch",
 	"jump_up",
 }
 

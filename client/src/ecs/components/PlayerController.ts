@@ -9,12 +9,24 @@ export type PlayerLocomotion =
   | 'backwards_right_d'
   | 'left'
   | 'right'
+  | 'idle_crouch'
+  | 'walk_crouch'
+  | 'walk_crouch_left_d'
+  | 'walk_crouch_right_d'
+  | 'backwards_crouch'
+  | 'backwards_crouch_left_d'
+  | 'backwards_crouch_right_d'
+  | 'left_crouch'
+  | 'right_crouch'
   | 'jump_up';
+
+export type PlayerMovementMode = 'walk' | 'crouch' | 'run';
 
 export interface PlayerController {
   speed: number;
   sensitivity: number;
   locomotion: PlayerLocomotion;
+  movementMode: PlayerMovementMode;
 }
 
 export function createPlayerController(
@@ -25,5 +37,6 @@ export function createPlayerController(
     speed,
     sensitivity,
     locomotion: 'idle',
+    movementMode: 'walk',
   };
 }

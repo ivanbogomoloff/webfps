@@ -235,6 +235,15 @@ export class Game {
       backwardsRightDClip,
       left,
       right,
+      idleCrouchClip,
+      walkCrouchClip,
+      walkCrouchLeftDClip,
+      walkCrouchRightDClip,
+      backwardsCrouchClip,
+      backwardsCrouchLeftDClip,
+      backwardsCrouchRightDClip,
+      leftCrouchClip,
+      rightCrouchClip,
       jumpUpClip,
     } = setup;
     const playerRoot = new THREE.Group();
@@ -278,6 +287,15 @@ export class Game {
           backwards_right_d: backwardsRightDClip,
           left,
           right,
+          idle_crouch: idleCrouchClip,
+          walk_crouch: walkCrouchClip,
+          walk_crouch_left_d: walkCrouchLeftDClip,
+          walk_crouch_right_d: walkCrouchRightDClip,
+          backwards_crouch: backwardsCrouchClip,
+          backwards_crouch_left_d: backwardsCrouchLeftDClip,
+          backwards_crouch_right_d: backwardsCrouchRightDClip,
+          left_crouch: leftCrouchClip,
+          right_crouch: rightCrouchClip,
           jump_up: jumpUpClip,
         }),
       );
@@ -513,6 +531,7 @@ export class Game {
     jumpPending: boolean;
     isGrounded: boolean;
     locomotion: string;
+    movementMode: string;
     groundProbe: GroundProbeDebugState;
   } | null {
     const local = this.localPlayerEntity;
@@ -521,6 +540,7 @@ export class Game {
       jumpPending: local.playerPhysicsState.jumpPending,
       isGrounded: local.playerPhysicsState.isGrounded,
       locomotion: local.playerController?.locomotion ?? 'idle',
+      movementMode: local.playerController?.movementMode ?? 'walk',
       groundProbe: this.physicsContext.lastGroundProbe as GroundProbeDebugState,
     };
   }

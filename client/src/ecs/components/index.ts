@@ -15,7 +15,7 @@ export type { Camera } from './Camera';
 export type { Input } from './Input';
 export type { Health } from './Health';
 export type { AmmoApi, AmmoBody, AmmoRigidBody, AmmoTransform, AmmoVector3, AmmoWorld } from './AmmoBody';
-export type { PlayerController, PlayerLocomotion } from './PlayerController';
+export type { PlayerController, PlayerLocomotion, PlayerMovementMode } from './PlayerController';
 export type { PlayerAnimation } from './PlayerAnimation';
 export type { PlayerPhysicsState } from './PlayerPhysicsState';
 export type { MapData } from './MapData';

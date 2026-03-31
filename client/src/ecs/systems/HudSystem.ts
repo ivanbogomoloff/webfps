@@ -32,6 +32,7 @@ type HudSystemOptions = {
     jumpPending: boolean;
     isGrounded: boolean;
     locomotion: string;
+    movementMode: string;
     groundProbe: GroundProbeDebugState;
   } | null;
 };
@@ -124,8 +125,8 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
         : '-';
 
     const jumpStateLine = jumpDebug
-      ? `LOCOMOTION: ${jumpDebug.locomotion} | GROUNDED: ${jumpDebug.isGrounded ? 'YES' : 'NO'} | JUMP_PENDING: ${jumpDebug.jumpPending ? 'YES' : 'NO'}`
-      : 'LOCOMOTION: - | GROUNDED: - | JUMP_PENDING: -';
+      ? `MODE: ${jumpDebug.movementMode} | LOCOMOTION: ${jumpDebug.locomotion} | GROUNDED: ${jumpDebug.isGrounded ? 'YES' : 'NO'} | JUMP_PENDING: ${jumpDebug.jumpPending ? 'YES' : 'NO'}`
+      : 'MODE: - | LOCOMOTION: - | GROUNDED: - | JUMP_PENDING: -';
     const groundProbeLine = jumpDebug
       ? `GROUND PROBE: hit=${jumpDebug.groundProbe.hit ? 'YES' : 'NO'} fromY=${jumpDebug.groundProbe.fromY.toFixed(2)} toY=${jumpDebug.groundProbe.toY.toFixed(2)} at=(${jumpDebug.groundProbe.x.toFixed(2)}, ${jumpDebug.groundProbe.y.toFixed(2)}, ${jumpDebug.groundProbe.z.toFixed(2)})`
       : 'GROUND PROBE: -';
@@ -144,7 +145,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       <div style="margin-top: 6px; color: #9df;">SCOREBOARD</div>
       <div>${scoreboardLines || '-'}</div>
       ${networkError ? `<div style="margin-top: 6px; color: #f88;">NET: ${networkError}</div>` : ''}
-      <div style="margin-top: 5px; color: #0f8;">WASD - Move, Mouse - Look, UI buttons - role switch</div>
+      <div style="margin-top: 5px; color: #0f8;">WASD - Move, Ctrl - Crouch, Shift - Run mode, Mouse - Look</div>
     `;
   };
 }

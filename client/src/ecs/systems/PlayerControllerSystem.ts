@@ -1,6 +1,6 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
-import { locomotionFromStrafeAxes } from '../../game/playerLocomotionLogic';
+import { locomotionFromStrafeAxes, toCrouchLocomotion } from '../../game/playerLocomotionLogic';
 import type { Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
 
 export function createPlayerControllerSystem(
@@ -97,6 +97,19 @@ export function createPlayerControllerSystem(
       const fz = (hasW ? 1 : 0) + (hasS ? -1 : 0);
       const fx = (hasA ? 1 : 0) + (hasD ? -1 : 0);
       const baseLocomotion = locomotionFromStrafeAxes(fz, fx);
+      const crouchDown = !!input.keys.get('control') || !!input.keys.get('ctrl');
+      const runDown = !!input.keys.get('shift');
+      if (crouchDown) {
+        controller.movementMode = 'crouch';
+      } else if (runDown) {
+        controller.movementMode = 'run';
+      } else {
+        controller.movementMode = 'walk';
+      }
+      const modeLocomotion =
+        controller.movementMode === 'crouch'
+          ? toCrouchLocomotion(baseLocomotion)
+          : baseLocomotion;
 
       const spaceDown =
         !!input.keys.get(' ') ||
@@ -112,7 +125,7 @@ export function createPlayerControllerSystem(
       if (!isGrounded || jumpPending) {
         controller.locomotion = 'jump_up';
       } else {
-        controller.locomotion = baseLocomotion;
+        controller.locomotion = modeLocomotion;
       }
 
       if (direction.length() > 0) {

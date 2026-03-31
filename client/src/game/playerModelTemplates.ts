@@ -24,6 +24,15 @@ function emptyPlayerVisualSetup(): PlayerVisualSetup {
     backwardsRightDClip: null,
     left: null,
     right: null,
+    idleCrouchClip: null,
+    walkCrouchClip: null,
+    walkCrouchLeftDClip: null,
+    walkCrouchRightDClip: null,
+    backwardsCrouchClip: null,
+    backwardsCrouchLeftDClip: null,
+    backwardsCrouchRightDClip: null,
+    leftCrouchClip: null,
+    rightCrouchClip: null,
     jumpUpClip: null,
   };
 }

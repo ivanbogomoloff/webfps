@@ -10,6 +10,15 @@ export const PLAYER_LOCOMOTION_IDS = [
   'backwards_right_d',
   'left',
   'right',
+  'idle_crouch',
+  'walk_crouch',
+  'walk_crouch_left_d',
+  'walk_crouch_right_d',
+  'backwards_crouch',
+  'backwards_crouch_left_d',
+  'backwards_crouch_right_d',
+  'left_crouch',
+  'right_crouch',
   'jump_up',
 ] as const satisfies readonly PlayerLocomotion[];
 
@@ -29,6 +38,32 @@ export function locomotionFromStrafeAxes(fz: number, fx: number): PlayerLocomoti
   if (fz < 0 && fx !== 0) return fx > 0 ? 'backwards_left_d' : 'backwards_right_d';
   if (Math.abs(fz) >= Math.abs(fx)) return fz > 0 ? 'walk' : 'backwards';
   return fx > 0 ? 'left' : 'right';
+}
+
+const CROUCH_LOCOMOTION_BY_WALK: Record<PlayerLocomotion, PlayerLocomotion> = {
+  idle: 'idle_crouch',
+  walk: 'walk_crouch',
+  walk_left_d: 'walk_crouch_left_d',
+  walk_right_d: 'walk_crouch_right_d',
+  backwards: 'backwards_crouch',
+  backwards_left_d: 'backwards_crouch_left_d',
+  backwards_right_d: 'backwards_crouch_right_d',
+  left: 'left_crouch',
+  right: 'right_crouch',
+  idle_crouch: 'idle_crouch',
+  walk_crouch: 'walk_crouch',
+  walk_crouch_left_d: 'walk_crouch_left_d',
+  walk_crouch_right_d: 'walk_crouch_right_d',
+  backwards_crouch: 'backwards_crouch',
+  backwards_crouch_left_d: 'backwards_crouch_left_d',
+  backwards_crouch_right_d: 'backwards_crouch_right_d',
+  left_crouch: 'left_crouch',
+  right_crouch: 'right_crouch',
+  jump_up: 'jump_up',
+};
+
+export function toCrouchLocomotion(locomotion: PlayerLocomotion): PlayerLocomotion {
+  return CROUCH_LOCOMOTION_BY_WALK[locomotion] ?? 'idle_crouch';
 }
 
 /**
