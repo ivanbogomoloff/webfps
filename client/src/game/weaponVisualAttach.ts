@@ -42,8 +42,11 @@ export function replaceWeaponVisual(
     weaponObject.position.set(0.35, 0.95, 0.15)
     weaponObject.rotation.set(0, -Math.PI / 2, 0)
   } else {
-    weaponObject.position.set(0.15, 0.02, -0.04)
-    weaponObject.rotation.set(0, Math.PI, 0)
+    weaponObject.position.set(0.12, 0.02, -0.02)
+    // Для этого ассета локальная ось ствола направлена примерно по +X.
+    // Поворачиваем на -90° вокруг Y, чтобы ствол смотрел вперёд по направлению игрока.
+    // Дополнительно поднимаем pitch (+90° по X), чтобы убрать наклон ствола в ноги.
+    weaponObject.rotation.set(Math.PI / 2, -Math.PI / 2, 0)
   }
 
   // У некоторых ригов кости имеют масштаб ~0.01, из-за чего дочерние объекты становятся невидимо маленькими.
@@ -61,7 +64,7 @@ export function replaceWeaponVisual(
 
   mount.add(weaponObject)
   console.log(
-    `[weaponAttach] mounted '${weaponObject.name}' on '${mount.name || 'root'}' (fallback=${mountIsRootFallback}) pos=(${weaponObject.position.x.toFixed(2)},${weaponObject.position.y.toFixed(2)},${weaponObject.position.z.toFixed(2)}) scale=(${weaponObject.scale.x.toFixed(2)}) mountScale=(${mountScale.x.toFixed(3)},${mountScale.y.toFixed(3)},${mountScale.z.toFixed(3)})`,
+    `[weaponAttach] mounted '${weaponObject.name}' on '${mount.name || 'root'}' (fallback=${mountIsRootFallback}) pos=(${weaponObject.position.x.toFixed(2)},${weaponObject.position.y.toFixed(2)},${weaponObject.position.z.toFixed(2)}) rot=(${weaponObject.rotation.x.toFixed(2)},${weaponObject.rotation.y.toFixed(2)},${weaponObject.rotation.z.toFixed(2)}) scale=(${weaponObject.scale.x.toFixed(2)}) mountScale=(${mountScale.x.toFixed(3)},${mountScale.y.toFixed(3)},${mountScale.z.toFixed(3)})`,
   )
   return weaponObject
 }
