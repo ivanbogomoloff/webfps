@@ -7,13 +7,13 @@ export type WeaponDefinition = {
 
 export const WEAPON_CATALOG = {
   pistol: {
-    model: 'colt_m4a1_low-poly',
+    model: 'm16',
     fireRate: 3,
     damage: 20,
     magazineSize: 12,
   },
   rifle: {
-    model: 'colt_m4a1_low-poly',
+    model: 'shotgun-a520',
     fireRate: 8,
     damage: 12,
     magazineSize: 30,
