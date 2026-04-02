@@ -21,9 +21,9 @@ function normalizeWeaponTemplate(root: THREE.Object3D): void {
   if (longest <= 0) return
 
   const desiredLongest = 0.6
-  const scale = THREE.MathUtils.clamp(desiredLongest / longest, 0.01, 20)
-  root.scale.multiplyScalar(scale)
-  root.position.sub(center.multiplyScalar(scale))
+  //const scale = THREE.MathUtils.clamp(desiredLongest / longest, 0.01, 20)
+  //root.scale.multiplyScalar(scale)
+  //root.position.sub(center.multiplyScalar(scale))
   root.updateMatrixWorld(true)
 }
 
