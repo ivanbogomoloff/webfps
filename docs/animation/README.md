@@ -1,5 +1,22 @@
 Разберу процесс пошагово — сначала в Blender, затем в Three.js.
 
+## Эталон для Blender + glTF
+
+Чтобы оружие крепилось к сокету без дополнительного кода с оффсетами/поворотами, используйте единый стандарт:
+
+- На модели игрока сокет правой руки называется `socket_weapon_r`.
+- На модели оружия есть узел хвата `socket_grip_r` (или `weapon_root`).
+- Для обоих узлов в Blender:
+  - `+Y` направлен вдоль ствола к дулу (forward в Blender),
+  - `+Z` вверх,
+  - `+X` вправо.
+- После экспорта в glTF/Three.js это соответствует:
+  - `-Z` forward,
+  - `+Y` up,
+  - `+X` right.
+
+Важно: у Armature, меша игрока и узла оружия должны быть применены трансформации (`Ctrl + A` -> **Rotation & Scale**), чтобы в файле оставались `scale=1` и `rotation=0`.
+
 
 ## В Blender 3D
 
@@ -13,7 +30,7 @@
 **Шаг 2. Назовите объект**
 
 1. В панели **Outliner** (обычно справа) найдите созданный пустой объект.
-2. Переименуйте его в `socket` (или `weapon_socket`, если нужно несколько точек крепления).
+2. Переименуйте его в `socket_weapon_r`.
 
 **Шаг 3. Свяжите Empty с костями скелета (если модель анимирована)**
 
@@ -22,6 +39,14 @@
 1. Выделите сначала пустой объект, затем — модель игрока (чтобы она была активной, подсвечена жёлтым).
 2. Перейдите в **Pose Mode** и выберите кость, к которой хотите привязать сокет (например, кость руки).
 3. Нажмите `Ctrl + P` → **Bone**. Теперь Empty будет следовать за костью при анимации.
+4. Для сокета выставьте в Bone/Object настройки без наследования неравномерного масштаба (рекомендуется `Inherit Scale: None`), чтобы дочернее оружие не сжималось из-за масштаба рига.
+
+**Шаг 3.1 (рекомендуется). Подготовьте точку хвата в модели оружия**
+
+1. В файле оружия добавьте Empty или root-узел `socket_grip_r` (или `weapon_root`) в месте хвата рукоятки.
+2. Сделайте меш оружия дочерним к этому узлу.
+3. Выставьте оси узла по эталону выше (`+Y` в сторону дула, `+Z` вверх, `+X` вправо).
+4. Примените `Ctrl + A` → **Rotation & Scale** для оружия и узла хвата.
 
 **Шаг 4. Экспорт модели**
 
@@ -55,13 +80,13 @@ loader.load('path/to/your/model.glb', (gltf) => {
 });
 ```
 
-**Шаг 2. Найдите объект `socket`**
+**Шаг 2. Найдите объект `socket_weapon_r`**
 
 После загрузки найдите пустой объект по имени:
 
 ```javascript
 // Функция для поиска объекта по имени
-function findSocket(model, socketName = 'socket') {
+function findSocket(model, socketName = 'socket_weapon_r') {
   let socket = null;
   model.traverse((child) => {
     if (child.name === socketName) {
@@ -72,7 +97,7 @@ function findSocket(model, socketName = 'socket') {
 }
 
 // Использование
-const weaponSocket = findSocket(window.playerModel, 'socket');
+const weaponSocket = findSocket(window.playerModel, 'socket_weapon_r');
 if (!weaponSocket) {
   console.warn('Socket not found!');
   return;
@@ -87,12 +112,14 @@ if (!weaponSocket) {
 loader.load('path/to/weapon.glb', (weaponGltf) => {
   const weaponModel = weaponGltf.scene;
 
-  // Добавьте модель оружия как дочерний объект к сокету
-  weaponSocket.add(weaponModel);
+  // Если в оружии есть узел хвата socket_grip_r, крепим именно его (или weapon_root)
+  const grip = weaponModel.getObjectByName('socket_grip_r') ?? weaponModel;
+  weaponSocket.add(grip);
 
-  // При необходимости настройте положение/поворот оружия относительно сокета
-  weaponModel.position.set(0, 0, 0); // Смещение относительно точки крепления
-  weaponModel.rotation.set(0, 0, 0);
+  // При соблюдении эталона осей и применённых трансформациях
+  // дополнительные повороты/оффсеты обычно не нужны
+  grip.position.set(0, 0, 0);
+  grip.rotation.set(0, 0, 0);
 });
 ```
 
@@ -104,14 +131,14 @@ loader.load('path/to/weapon.glb', (weaponGltf) => {
 
 ## Важные нюансы
 
-* **Именование.** Убедитесь, что имя сокета в Blender (`socket`) точно совпадает с именем, которое вы ищете в Three.js.
-* **Масштабы.** Проверьте, совпадают ли масштабы модели игрока и оружия. Возможно, потребуется масштабировать оружие: `weaponModel.scale.set(0.5, 0.5, 0.5)`.
-* **Ориентация.** Оружие может быть повёрнуто не в ту сторону. Настройте `weaponModel.rotation` после добавления в сокет.
+* **Именование.** Для правой руки используйте стабильное имя `socket_weapon_r`; для оружия — `socket_grip_r`/`weapon_root`.
+* **Масштабы.** Не полагайтесь на компенсацию в коде: применяйте `Ctrl + A` (Rotation & Scale) в Blender, чтобы не получить `mountScale=0.01`.
+* **Ориентация.** Если оси `socket_weapon_r` и `socket_grip_r` совпадают по эталону, ручная докрутка `rotation` в Three.js не нужна.
 * **Формат экспорта.** GLTF/GLB предпочтительнее для Three.js: он лучше поддерживает иерархию объектов и анимации.
 * **Оптимизация.** Если точек крепления много, можно создать массив сокетов:
   ```javascript
   const sockets = {
-    rightHand: findSocket(playerModel, 'right_hand_socket'),
+    rightHand: findSocket(playerModel, 'socket_weapon_r'),
     leftHand: findSocket(playerModel, 'left_hand_socket')
   };
   ```

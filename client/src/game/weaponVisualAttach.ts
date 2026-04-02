@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { cloneWeaponVisualTemplate } from './weaponModelTemplates'
 
 const SOCKET_HINTS = [
+  'socket_weapon_r',
   'weapon_socket',
   'weaponsocket',
   'weapon',
@@ -13,15 +14,20 @@ const SOCKET_HINTS = [
 ]
 
 function findWeaponMount(root: THREE.Object3D): THREE.Object3D {
+  let exactSocket: THREE.Object3D | null = null
   const candidates: THREE.Object3D[] = []
   root.traverse((node) => {
     const name = node.name.trim().toLowerCase()
     if (!name) return
+    if (name === 'socket_weapon_r') {
+      exactSocket = node
+      return
+    }
     if (SOCKET_HINTS.some((hint) => name.includes(hint))) {
       candidates.push(node)
     }
   })
-  return candidates[0] ?? root
+  return exactSocket ?? candidates[0] ?? root
 }
 
 export function replaceWeaponVisual(
