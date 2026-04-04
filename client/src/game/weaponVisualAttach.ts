@@ -50,6 +50,9 @@ export function applyWeaponTransformValues(
   weaponObject: THREE.Object3D,
   values: WeaponTransformValues,
 ): void {
+  // Use XZY to avoid Y-axis gimbal lock at common weapon defaults (x=+90°, y=-90°),
+  // so roll (z) remains adjustable in tooling and in-game.
+  weaponObject.rotation.order = 'XZY'
   weaponObject.position.set(values.position.x, values.position.y, values.position.z)
   weaponObject.rotation.set(values.rotation.x, values.rotation.y, values.rotation.z)
   weaponObject.scale.set(values.scale.x, values.scale.y, values.scale.z)
