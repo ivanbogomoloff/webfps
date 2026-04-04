@@ -13,7 +13,7 @@ export const WEAPON_CATALOG = {
     magazineSize: 12,
   },
   rifle: {
-    model: 'colt_m4a1_low-poly',
+    model: 'm16',
     fireRate: 8,
     damage: 12,
     magazineSize: 30,

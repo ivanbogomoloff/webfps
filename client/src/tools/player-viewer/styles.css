@@ -32,3 +32,16 @@ canvas {
   white-space: pre-wrap;
   pointer-events: none;
 }
+
+.lil-gui.root {
+  --width: 420px;
+}
+
+.lil-gui .controller.function .widget {
+  width: 68%;
+}
+
+.lil-gui .controller.function button {
+  width: 100%;
+  min-height: 26px;
+}

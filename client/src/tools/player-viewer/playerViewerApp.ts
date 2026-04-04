@@ -34,6 +34,8 @@ class PlayerViewerApp {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true })
   private readonly scene = new THREE.Scene()
   private readonly camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300)
+  private readonly ambientLight = new THREE.AmbientLight(0xffffff, 0.55)
+  private readonly keyLight = new THREE.DirectionalLight(0xffffff, 1.2)
   private readonly orbit: OrbitControls
   private readonly clock = new THREE.Clock()
   private readonly loader = new GLTFLoader()
@@ -47,6 +49,7 @@ class PlayerViewerApp {
   private mixer: THREE.AnimationMixer | null = null
   private activeAction: THREE.AnimationAction | null = null
   private animationClips: THREE.AnimationClip[] = []
+  private animationActionByName = new Map<string, THREE.AnimationAction>()
   private currentMountType: WeaponMountType = 'fallback'
   private currentWeaponId = DEFAULT_WEAPON_ID
   private currentTransform: WeaponTransformValues = {
@@ -63,6 +66,7 @@ class PlayerViewerApp {
     animationName: '',
     animationSpeed: 1,
     animationPlaying: true,
+    lightingBrightness: 1,
   }
 
   constructor() {
@@ -84,14 +88,13 @@ class PlayerViewerApp {
     this.orbit.update()
 
     this.scene.background = new THREE.Color(0x0a0f17)
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.55))
+    this.scene.add(this.ambientLight)
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2)
-    keyLight.position.set(3, 4, 2)
-    keyLight.castShadow = true
-    keyLight.shadow.mapSize.width = 1024
-    keyLight.shadow.mapSize.height = 1024
-    this.scene.add(keyLight)
+    this.keyLight.position.set(3, 4, 2)
+    this.keyLight.castShadow = true
+    this.keyLight.shadow.mapSize.width = 1024
+    this.keyLight.shadow.mapSize.height = 1024
+    this.scene.add(this.keyLight)
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 18),
@@ -117,12 +120,23 @@ class PlayerViewerApp {
       },
       onAnimationChange: (animationName) => {
         this.state.animationName = animationName
+        console.log(`[player-viewer][anim] UI selected clip='${animationName}'`)
         this.playAnimation(animationName)
       },
       onAnimationPlayToggle: (isPlaying) => {
         this.state.animationPlaying = isPlaying
         if (this.activeAction) {
           this.activeAction.paused = !isPlaying
+          if (isPlaying && !this.activeAction.isRunning()) {
+            console.log(
+              `[player-viewer][anim] resume '${this.state.animationName}' (was not running, reset+play)`,
+            )
+            this.activeAction.reset().play()
+          }
+          this.updateAnimationRuntimeStatus()
+        } else if (isPlaying && this.state.animationName) {
+          console.log(`[player-viewer][anim] play toggle requested for '${this.state.animationName}'`)
+          this.playAnimation(this.state.animationName)
         }
       },
       onAnimationSpeedChange: (speed) => {
@@ -130,6 +144,10 @@ class PlayerViewerApp {
         if (this.activeAction) {
           this.activeAction.setEffectiveTimeScale(speed)
         }
+      },
+      onLightingBrightnessChange: (brightness) => {
+        this.state.lightingBrightness = brightness
+        this.updateLightingBrightness()
       },
       onWeaponTransformChange: (values) => {
         this.currentTransform = cloneWeaponTransformValues(values)
@@ -150,6 +168,8 @@ class PlayerViewerApp {
         void this.copyCurrentTransform()
       },
     })
+
+    this.updateLightingBrightness()
   }
 
   async start(): Promise<void> {
@@ -188,6 +208,7 @@ class PlayerViewerApp {
       this.weaponObject = null
       this.activeAction = null
       this.mixer = null
+      this.animationActionByName.clear()
 
       const prepared = preparePlayerVisualFromGltf(gltf)
       this.playerRoot = prepared.visualModel
@@ -196,11 +217,26 @@ class PlayerViewerApp {
 
       this.mixer = new THREE.AnimationMixer(this.playerRoot)
       this.animationClips = gltf.animations
+      console.log(
+        `[player-viewer][anim] loaded ${this.animationClips.length} clips: ${this.animationClips.map((c) => c.name).join(', ')}`,
+      )
+      this.animationActionByName = new Map(
+        this.animationClips.map((clip) => {
+          const action = this.mixer!.clipAction(clip)
+          action.enabled = true
+          action.setLoop(THREE.LoopRepeat, Infinity)
+          action.clampWhenFinished = false
+          action.setEffectiveWeight(1)
+          action.setEffectiveTimeScale(1)
+          return [clip.name, action]
+        }),
+      )
       const animationNames = this.animationClips.map((clip) => clip.name)
       const defaultAnimation = this.pickDefaultAnimation(animationNames)
       this.state.animationName = defaultAnimation
       this.ui.setAnimationOptions(animationNames, defaultAnimation)
       this.ui.setAnimationState(this.state.animationPlaying, this.state.animationSpeed)
+      this.ui.setAnimationRuntimeStatus('loading')
       this.playAnimation(defaultAnimation)
 
       await this.loadWeapon(this.state.weaponId)
@@ -246,21 +282,51 @@ class PlayerViewerApp {
   }
 
   private playAnimation(animationName: string): void {
-    if (!this.mixer || !animationName) return
-    const clip = this.animationClips.find((candidate) => candidate.name === animationName)
-    if (!clip) return
-    const nextAction = this.mixer.clipAction(clip)
+    if (!this.mixer || !animationName) {
+      console.log('[player-viewer][anim] skipped play: mixer or animationName missing', {
+        hasMixer: Boolean(this.mixer),
+        animationName,
+      })
+      this.updateAnimationRuntimeStatus()
+      return
+    }
+    const nextAction = this.animationActionByName.get(animationName)
+    if (!nextAction) {
+      console.log(
+        `[player-viewer][anim] action not found for '${animationName}'. available: ${[
+          ...this.animationActionByName.keys(),
+        ].join(', ')}`,
+      )
+      this.updateAnimationRuntimeStatus()
+      return
+    }
+    const clip = nextAction.getClip()
+    console.log(
+      `[player-viewer][anim] starting '${animationName}' duration=${clip.duration.toFixed(3)} tracks=${clip.tracks.length}`,
+    )
+    // Нормализуем состояние: все action полностью выключены, затем включаем только выбранный.
+    this.animationActionByName.forEach((action) => {
+      if (action === nextAction) return
+      action.stop()
+      action.enabled = false
+      action.paused = true
+      action.setEffectiveWeight(0)
+      action.setEffectiveTimeScale(1)
+    })
     nextAction.reset()
     nextAction.enabled = true
+    nextAction.paused = false
     nextAction.setEffectiveTimeScale(this.state.animationSpeed)
     nextAction.setEffectiveWeight(1)
-    nextAction.paused = !this.state.animationPlaying
+    if (!this.state.animationPlaying) {
+      nextAction.paused = true
+    }
     nextAction.play()
-    if (this.activeAction && this.activeAction !== nextAction) {
-      this.activeAction.fadeOut(0.12)
-      nextAction.fadeIn(0.12)
+    if (this.state.animationPlaying && !nextAction.isRunning()) {
+      console.log(`[player-viewer][anim] warning: action '${animationName}' still not running after play()`)
     }
     this.activeAction = nextAction
+    this.updateAnimationRuntimeStatus()
   }
 
   private refreshHint(): void {
@@ -270,6 +336,25 @@ class PlayerViewerApp {
       this.currentTransform,
     )
     this.hintElement.textContent = `Mount: ${this.currentMountType}\n\n${snippet}`
+  }
+
+  private updateLightingBrightness(): void {
+    const k = this.state.lightingBrightness
+    this.ambientLight.intensity = 0.55 * k
+    this.keyLight.intensity = 1.2 * k
+  }
+
+  private updateAnimationRuntimeStatus(): void {
+    if (!this.activeAction) {
+      this.ui.setAnimationRuntimeStatus('none')
+      return
+    }
+    const status = this.activeAction.paused
+      ? 'paused'
+      : this.activeAction.isRunning()
+        ? 'playing'
+        : 'stopped'
+    this.ui.setAnimationRuntimeStatus(status)
   }
 
   private async copyCurrentTransform(): Promise<void> {
