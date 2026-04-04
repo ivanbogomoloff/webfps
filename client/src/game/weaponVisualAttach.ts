@@ -13,7 +13,49 @@ const SOCKET_HINTS = [
   'mixamorigrighthand',
 ]
 
-function findWeaponMount(root: THREE.Object3D): THREE.Object3D {
+export type WeaponMountType = 'socket' | 'fallback'
+
+export type WeaponTransformValues = {
+  position: { x: number; y: number; z: number }
+  rotation: { x: number; y: number; z: number }
+  scale: { x: number; y: number; z: number }
+}
+
+const DEFAULT_WEAPON_TRANSFORM_BY_MOUNT: Record<WeaponMountType, WeaponTransformValues> = {
+  fallback: {
+    position: { x: 0.35, y: 0.95, z: 0.15 },
+    rotation: { x: 0, y: -Math.PI / 2, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+  },
+  socket: {
+    position: { x: 0.12, y: 0.02, z: -0.02 },
+    rotation: { x: Math.PI / 2, y: -Math.PI / 2, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+  },
+}
+
+function cloneTransformValues(values: WeaponTransformValues): WeaponTransformValues {
+  return {
+    position: { ...values.position },
+    rotation: { ...values.rotation },
+    scale: { ...values.scale },
+  }
+}
+
+export function getDefaultWeaponTransformValues(mountType: WeaponMountType): WeaponTransformValues {
+  return cloneTransformValues(DEFAULT_WEAPON_TRANSFORM_BY_MOUNT[mountType])
+}
+
+export function applyWeaponTransformValues(
+  weaponObject: THREE.Object3D,
+  values: WeaponTransformValues,
+): void {
+  weaponObject.position.set(values.position.x, values.position.y, values.position.z)
+  weaponObject.rotation.set(values.rotation.x, values.rotation.y, values.rotation.z)
+  weaponObject.scale.set(values.scale.x, values.scale.y, values.scale.z)
+}
+
+export function findWeaponMount(root: THREE.Object3D): THREE.Object3D {
   let exactSocket: THREE.Object3D | null = null
   const candidates: THREE.Object3D[] = []
   root.traverse((node) => {
@@ -30,6 +72,10 @@ function findWeaponMount(root: THREE.Object3D): THREE.Object3D {
   return exactSocket ?? candidates[0] ?? root
 }
 
+export function getWeaponMountType(root: THREE.Object3D, mount: THREE.Object3D): WeaponMountType {
+  return mount === root ? 'fallback' : 'socket'
+}
+
 export function replaceWeaponVisual(
   root: THREE.Object3D,
   previousWeaponObject: THREE.Object3D | null | undefined,
@@ -41,19 +87,11 @@ export function replaceWeaponVisual(
   if (!weaponTemplate) return null
 
   const mount = findWeaponMount(root)
-  const mountIsRootFallback = mount === root
+  const mountType = getWeaponMountType(root, mount)
+  const mountIsRootFallback = mountType === 'fallback'
   const weaponObject = cloneWeaponVisualTemplate(weaponTemplate)
   weaponObject.name = `WeaponVisual:${weaponObject.name || 'unnamed'}`
-  if (mountIsRootFallback) {
-    weaponObject.position.set(0.35, 0.95, 0.15)
-    weaponObject.rotation.set(0, -Math.PI / 2, 0)
-  } else {
-    weaponObject.position.set(0.12, 0.02, -0.02)
-    // Для этого ассета локальная ось ствола направлена примерно по +X.
-    // Поворачиваем на -90° вокруг Y, чтобы ствол смотрел вперёд по направлению игрока.
-    // Дополнительно поднимаем pitch (+90° по X), чтобы убрать наклон ствола в ноги.
-    weaponObject.rotation.set(Math.PI / 2, -Math.PI / 2, 0)
-  }
+  applyWeaponTransformValues(weaponObject, getDefaultWeaponTransformValues(mountType))
 
   // У некоторых ригов кости имеют масштаб ~0.01, из-за чего дочерние объекты становятся невидимо маленькими.
   // Компенсируем мировой масштаб точки крепления, чтобы weapon оставался читаемым.
