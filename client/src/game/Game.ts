@@ -30,6 +30,7 @@ import {
   createInputSystem,
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
+  createWeaponPoseByLocomotionSystem,
   createWeaponLoadoutSystem,
 } from '../ecs/systems';
 import type {
@@ -198,6 +199,7 @@ export class Game {
     }
     // После сетевого приёма: у соперников `playerController.locomotion` уже из пакета.
     this.systems.push(createPlayerAnimationSystem(this.world));
+    this.systems.push(createWeaponPoseByLocomotionSystem(this.world));
     this.systems.push(createPhysicsSystem(this.world, this.physicsContext));
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 

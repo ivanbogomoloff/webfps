@@ -1,5 +1,9 @@
+import type { PlayerLocomotion } from '../ecs/components/PlayerController'
+import { pistolModelConfig } from './weapons/pistol'
+import { rifleModelConfig } from './weapons/rifle'
+import type { WeaponModelConfig, WeaponTransformValues } from './weapons/types'
+
 export type WeaponDefinition = {
-  model: string
   fireRate: number
   damage: number
   magazineSize: number
@@ -7,13 +11,11 @@ export type WeaponDefinition = {
 
 export const WEAPON_CATALOG = {
   pistol: {
-    model: 'colt_m4a1_low-poly',
     fireRate: 3,
     damage: 20,
     magazineSize: 12,
   },
   rifle: {
-    model: 'm16',
     fireRate: 8,
     damage: 12,
     magazineSize: 30,
@@ -26,8 +28,13 @@ export const SUPPORTED_WEAPON_IDS = Object.keys(WEAPON_CATALOG) as WeaponId[]
 
 export const DEFAULT_WEAPON_ID: WeaponId = 'pistol'
 
+const WEAPON_MODEL_CONFIG_BY_ID = {
+  pistol: pistolModelConfig,
+  rifle: rifleModelConfig,
+} as const satisfies Record<WeaponId, WeaponModelConfig>
+
 export function weaponModelGltfPath(weaponId: WeaponId): string {
-  return `/models/weapons/${WEAPON_CATALOG[weaponId].model}.glb`
+  return `/models/weapons/${WEAPON_MODEL_CONFIG_BY_ID[weaponId].id}.glb`
 }
 
 export function resolveWeaponId(raw: string): WeaponId {
@@ -43,4 +50,19 @@ export function getWeaponDefinition(rawWeaponId: string): WeaponDefinition & { w
     weaponId,
     ...WEAPON_CATALOG[weaponId],
   }
+}
+
+export function getWeaponModelConfig(rawWeaponId: string): WeaponModelConfig & { weaponId: WeaponId } {
+  const weaponId = resolveWeaponId(rawWeaponId)
+  return {
+    weaponId,
+    ...WEAPON_MODEL_CONFIG_BY_ID[weaponId],
+  }
+}
+
+export function getWeaponPoseForLocomotion(
+  rawWeaponId: string,
+  locomotion: PlayerLocomotion,
+): WeaponTransformValues {
+  return getWeaponModelConfig(rawWeaponId).placementByLocomotion[locomotion]
 }

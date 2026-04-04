@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { WeaponTransformValues } from '../config/weapons/types'
 import { cloneWeaponVisualTemplate } from './weaponModelTemplates'
 
 const SOCKET_HINTS = [
@@ -14,12 +15,6 @@ const SOCKET_HINTS = [
 ]
 
 export type WeaponMountType = 'socket' | 'fallback'
-
-export type WeaponTransformValues = {
-  position: { x: number; y: number; z: number }
-  rotation: { x: number; y: number; z: number }
-  scale: { x: number; y: number; z: number }
-}
 
 const DEFAULT_WEAPON_TRANSFORM_BY_MOUNT: Record<WeaponMountType, WeaponTransformValues> = {
   fallback: {

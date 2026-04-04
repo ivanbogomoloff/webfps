@@ -142,3 +142,69 @@ loader.load('path/to/weapon.glb', (weaponGltf) => {
     leftHand: findSocket(playerModel, 'left_hand_socket')
   };
   ```
+
+---
+
+## Weapon poses by locomotion (текущий проект)
+
+В проекте позиция/поворот/масштаб оружия теперь задаются по ключам локомоции игрока:
+
+- типы и список ключей: `client/src/config/weapons/types.ts` (`PLAYER_LOCOMOTION_KEYS`);
+- конфиг оружия по файлам: `client/src/config/weapons/pistol.ts`, `client/src/config/weapons/rifle.ts`;
+- gameplay-каталог оружия: `client/src/config/weaponCatalog.ts` (урон/скорострельность/магазин).
+
+### Формат
+
+Для каждого оружия используется структура:
+
+```ts
+{
+  id: 'm16',
+  placementByLocomotion: {
+    idle: { position: ..., rotation: ..., scale: ... },
+    walk: { ... },
+    // ... остальные ключи PlayerLocomotion
+  }
+}
+```
+
+`placementByLocomotion` должен содержать полный набор ключей `PlayerLocomotion`.
+
+### Как добавить/изменить позицию под анимацию
+
+1. Открой файл оружия в `client/src/config/weapons/<weapon>.ts`.
+2. Оставь базу через `createUniformWeaponPlacement(...)` или задай все ключи вручную.
+3. Переопредели нужный ключ (например `idle`, `walk`, `run_forward`) в `placementByLocomotion`.
+4. Сохрани и проверь в игре/вьювере.
+
+Пример:
+
+```ts
+const base = createUniformWeaponPlacement({
+  position: { x: 0.12, y: 0.02, z: -0.02 },
+  rotation: { x: Math.PI / 2, y: -Math.PI / 2, z: 0 },
+  scale: { x: 1, y: 1, z: 1 },
+})
+
+export const pistolModelConfig = {
+  id: 'colt_m4a1_low-poly',
+  placementByLocomotion: {
+    ...base,
+    idle: {
+      position: { x: 0.11, y: 0.03, z: -0.01 },
+      rotation: { x: 1.57, y: -1.57, z: 0.08 },
+      scale: { x: 1, y: 1, z: 1 },
+    },
+  },
+}
+```
+
+### Workflow через Player Viewer
+
+1. Открой `http://localhost:3000/tools/pv`.
+2. Выбери оружие (`Weapon.model`) и анимацию (`Animation.clip`).
+3. Выбери ключ для записи в конфиг (`Weapon.pose key`).
+4. Подбери `pos/rot/scale`.
+5. Нажми `copy` и вставь блок в `placementByLocomotion` нужного файла оружия.
+
+Подсказка: если имя клипа совпадает с ключом локомоции (`idle`, `walk`, `run_forward`, ...), viewer автоматически подставит соответствующий `pose key`.

@@ -1,5 +1,6 @@
 import GUI from 'three/addons/libs/lil-gui.module.min.js'
-import type { WeaponMountType, WeaponTransformValues } from '../../game/weaponVisualAttach'
+import type { PlayerLocomotion } from '../../ecs/components/PlayerController'
+import { PLAYER_LOCOMOTION_KEYS, type WeaponTransformValues } from '../../config/weapons/types'
 import { cloneWeaponTransformValues } from './weaponTransformState'
 
 type PlayerViewerUiOptions = {
@@ -11,6 +12,7 @@ type PlayerViewerUiOptions = {
   onAnimationPlayToggle: (isPlaying: boolean) => void
   onAnimationSpeedChange: (speed: number) => void
   onLightingBrightnessChange: (brightness: number) => void
+  onPoseLocomotionChange: (locomotion: PlayerLocomotion) => void
   onWeaponTransformChange: (values: WeaponTransformValues) => void
   onResetWeaponTransform: () => void
   onCopyWeaponTransform: () => void
@@ -19,6 +21,7 @@ type PlayerViewerUiOptions = {
 type UiState = {
   playerModelId: string
   weaponId: string
+  poseLocomotion: PlayerLocomotion
   animationName: string
   animationPlaying: boolean
   animationSpeed: number
@@ -43,8 +46,7 @@ export class PlayerViewerUi {
   private readonly animationSpeedController: GUIController
   private readonly animationStatusController: GUIController
   private readonly transformControllers: GUIController[] = []
-  private readonly mountTypeController: GUIController
-  private readonly mountTypeState = { mountType: 'fallback' as WeaponMountType }
+  private readonly poseLocomotionController: GUIController
   private animationSelectElement: HTMLSelectElement | null = null
   private suppressTransformEvents = false
 
@@ -53,6 +55,7 @@ export class PlayerViewerUi {
     this.state = {
       playerModelId: options.playerModelIds[0] ?? '',
       weaponId: options.weaponIds[0] ?? '',
+      poseLocomotion: 'idle',
       animationName: '',
       animationPlaying: true,
       animationSpeed: 1,
@@ -102,8 +105,12 @@ export class PlayerViewerUi {
     weaponFolder.add(this.state, 'weaponId', [...options.weaponIds]).name('model').onChange((next: unknown) => {
       options.onWeaponChange(String(next))
     })
-    this.mountTypeController = weaponFolder.add(this.mountTypeState, 'mountType', ['fallback', 'socket']).name('mount')
-    this.mountTypeController.disable()
+    this.poseLocomotionController = weaponFolder
+      .add(this.state, 'poseLocomotion', [...PLAYER_LOCOMOTION_KEYS])
+      .name('pose key')
+    this.poseLocomotionController.onChange((next: unknown) => {
+      options.onPoseLocomotionChange(String(next) as PlayerLocomotion)
+    })
     weaponFolder.add({ reset: options.onResetWeaponTransform }, 'reset')
     weaponFolder.add({ copy: options.onCopyWeaponTransform }, 'copy')
 
@@ -149,9 +156,9 @@ export class PlayerViewerUi {
     this.animationStatusController.updateDisplay()
   }
 
-  setMountType(mountType: WeaponMountType): void {
-    this.mountTypeState.mountType = mountType
-    this.mountTypeController.updateDisplay()
+  setPoseLocomotion(locomotion: PlayerLocomotion): void {
+    this.state.poseLocomotion = locomotion
+    this.poseLocomotionController.updateDisplay()
   }
 
   setTransformValues(values: WeaponTransformValues): void {

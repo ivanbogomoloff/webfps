@@ -1,4 +1,5 @@
-import type { WeaponMountType, WeaponTransformValues } from '../../game/weaponVisualAttach'
+import type { PlayerLocomotion } from '../../ecs/components/PlayerController'
+import type { WeaponTransformValues } from '../../config/weapons/types'
 
 export function cloneWeaponTransformValues(values: WeaponTransformValues): WeaponTransformValues {
   return {
@@ -24,16 +25,17 @@ function formatNum(value: number): string {
 
 export function formatWeaponTransformForCatalog(
   weaponId: string,
-  mountType: WeaponMountType,
+  locomotion: PlayerLocomotion,
   values: WeaponTransformValues,
 ): string {
   return [
     `${weaponId}: {`,
-    `  weaponPlacement: {`,
-    `    mountType: '${mountType}',`,
-    `    position: [${formatNum(values.position.x)}, ${formatNum(values.position.y)}, ${formatNum(values.position.z)}],`,
-    `    rotation: [${formatNum(values.rotation.x)}, ${formatNum(values.rotation.y)}, ${formatNum(values.rotation.z)}],`,
-    `    scale: [${formatNum(values.scale.x)}, ${formatNum(values.scale.y)}, ${formatNum(values.scale.z)}],`,
+    `  placementByLocomotion: {`,
+    `    ${locomotion}: {`,
+    `      position: [${formatNum(values.position.x)}, ${formatNum(values.position.y)}, ${formatNum(values.position.z)}],`,
+    `      rotation: [${formatNum(values.rotation.x)}, ${formatNum(values.rotation.y)}, ${formatNum(values.rotation.z)}],`,
+    `      scale: [${formatNum(values.scale.x)}, ${formatNum(values.scale.y)}, ${formatNum(values.scale.z)}],`,
+    `    },`,
     `  },`,
     `},`,
   ].join('\n')

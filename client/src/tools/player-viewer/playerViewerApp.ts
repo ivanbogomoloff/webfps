@@ -4,9 +4,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {
   DEFAULT_WEAPON_ID,
   SUPPORTED_WEAPON_IDS,
+  getWeaponModelConfig,
   resolveWeaponId,
   weaponModelGltfPath,
 } from '../../config/weaponCatalog'
+import { cloneWeaponPoseByLocomotion, type WeaponPoseByLocomotion, type WeaponTransformValues } from '../../config/weapons/types'
+import type { PlayerLocomotion } from '../../ecs/components/PlayerController'
 import { preparePlayerVisualFromGltf } from '../../game/playerModelPrep'
 import {
   DEFAULT_PLAYER_MODEL_ID,
@@ -16,18 +19,13 @@ import {
 } from '../../game/supportedPlayerModels'
 import {
   applyWeaponTransformValues,
-  findWeaponMount,
-  getWeaponMountType,
   replaceWeaponVisual,
-  type WeaponMountType,
-  type WeaponTransformValues,
 } from '../../game/weaponVisualAttach'
 import { loadSupportedWeaponModelTemplates } from '../../game/weaponModelTemplates'
 import { PlayerViewerUi } from './playerViewerUi'
 import {
   cloneWeaponTransformValues,
   formatWeaponTransformForCatalog,
-  readWeaponTransformValuesFromObject,
 } from './weaponTransformState'
 
 class PlayerViewerApp {
@@ -50,8 +48,11 @@ class PlayerViewerApp {
   private activeAction: THREE.AnimationAction | null = null
   private animationClips: THREE.AnimationClip[] = []
   private animationActionByName = new Map<string, THREE.AnimationAction>()
-  private currentMountType: WeaponMountType = 'fallback'
   private currentWeaponId = DEFAULT_WEAPON_ID
+  private currentPoseLocomotion: PlayerLocomotion = 'idle'
+  private currentPlacementByLocomotion: WeaponPoseByLocomotion = cloneWeaponPoseByLocomotion(
+    getWeaponModelConfig(DEFAULT_WEAPON_ID).placementByLocomotion,
+  )
   private currentTransform: WeaponTransformValues = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { x: 0, y: 0, z: 0 },
@@ -120,6 +121,9 @@ class PlayerViewerApp {
       },
       onAnimationChange: (animationName) => {
         this.state.animationName = animationName
+        this.currentPoseLocomotion = this.inferLocomotionFromAnimationName(animationName)
+        this.ui.setPoseLocomotion(this.currentPoseLocomotion)
+        this.applyCurrentPoseToWeapon()
         console.log(`[player-viewer][anim] UI selected clip='${animationName}'`)
         this.playAnimation(animationName)
       },
@@ -149,8 +153,14 @@ class PlayerViewerApp {
         this.state.lightingBrightness = brightness
         this.updateLightingBrightness()
       },
+      onPoseLocomotionChange: (locomotion) => {
+        this.currentPoseLocomotion = locomotion
+        this.applyCurrentPoseToWeapon()
+      },
       onWeaponTransformChange: (values) => {
         this.currentTransform = cloneWeaponTransformValues(values)
+        this.currentPlacementByLocomotion[this.currentPoseLocomotion] =
+          cloneWeaponTransformValues(this.currentTransform)
         if (this.weaponObject) {
           applyWeaponTransformValues(this.weaponObject, this.currentTransform)
         }
@@ -158,6 +168,8 @@ class PlayerViewerApp {
       },
       onResetWeaponTransform: () => {
         this.currentTransform = cloneWeaponTransformValues(this.initialTransform)
+        this.currentPlacementByLocomotion[this.currentPoseLocomotion] =
+          cloneWeaponTransformValues(this.currentTransform)
         if (this.weaponObject) {
           applyWeaponTransformValues(this.weaponObject, this.currentTransform)
         }
@@ -234,8 +246,10 @@ class PlayerViewerApp {
       const animationNames = this.animationClips.map((clip) => clip.name)
       const defaultAnimation = this.pickDefaultAnimation(animationNames)
       this.state.animationName = defaultAnimation
+      this.currentPoseLocomotion = this.inferLocomotionFromAnimationName(defaultAnimation)
       this.ui.setAnimationOptions(animationNames, defaultAnimation)
       this.ui.setAnimationState(this.state.animationPlaying, this.state.animationSpeed)
+      this.ui.setPoseLocomotion(this.currentPoseLocomotion)
       this.ui.setAnimationRuntimeStatus('loading')
       this.playAnimation(defaultAnimation)
 
@@ -249,6 +263,9 @@ class PlayerViewerApp {
     if (!this.playerRoot) return
     const resolvedWeaponId = resolveWeaponId(weaponId)
     this.currentWeaponId = resolvedWeaponId
+    this.currentPlacementByLocomotion = cloneWeaponPoseByLocomotion(
+      getWeaponModelConfig(resolvedWeaponId).placementByLocomotion,
+    )
 
     try {
       const templates = await this.weaponTemplatesPromise
@@ -262,12 +279,11 @@ class PlayerViewerApp {
       this.weaponObject = replaceWeaponVisual(this.playerRoot, this.weaponObject, template)
       if (!this.weaponObject) return
 
-      const mount = findWeaponMount(this.playerRoot)
-      this.currentMountType = getWeaponMountType(this.playerRoot, mount)
-      this.ui.setMountType(this.currentMountType)
-
-      this.currentTransform = readWeaponTransformValuesFromObject(this.weaponObject)
+      this.currentTransform = cloneWeaponTransformValues(
+        this.currentPlacementByLocomotion[this.currentPoseLocomotion],
+      )
       this.initialTransform = cloneWeaponTransformValues(this.currentTransform)
+      applyWeaponTransformValues(this.weaponObject, this.currentTransform)
       this.ui.setTransformValues(this.currentTransform)
       this.refreshHint()
     } catch (error) {
@@ -329,13 +345,42 @@ class PlayerViewerApp {
     this.updateAnimationRuntimeStatus()
   }
 
+  private applyCurrentPoseToWeapon(): void {
+    this.currentTransform = cloneWeaponTransformValues(
+      this.currentPlacementByLocomotion[this.currentPoseLocomotion],
+    )
+    this.initialTransform = cloneWeaponTransformValues(this.currentTransform)
+    if (this.weaponObject) {
+      applyWeaponTransformValues(this.weaponObject, this.currentTransform)
+    }
+    this.ui.setTransformValues(this.currentTransform)
+    this.refreshHint()
+  }
+
+  private inferLocomotionFromAnimationName(animationName: string): PlayerLocomotion {
+    const normalized = animationName.trim().toLowerCase()
+    if (!normalized) return 'idle'
+    const direct = normalized as PlayerLocomotion
+    if (direct in this.currentPlacementByLocomotion) {
+      return direct
+    }
+    if (normalized.includes('idle')) return normalized.includes('crouch') ? 'idle_crouch' : 'idle'
+    if (normalized.includes('jump')) return 'jump_up'
+    if (normalized.includes('run')) return 'run_forward'
+    if (normalized.includes('back')) return 'backwards'
+    if (normalized.includes('left')) return 'left'
+    if (normalized.includes('right')) return 'right'
+    if (normalized.includes('walk')) return 'walk'
+    return 'idle'
+  }
+
   private refreshHint(): void {
     const snippet = formatWeaponTransformForCatalog(
       this.currentWeaponId,
-      this.currentMountType,
+      this.currentPoseLocomotion,
       this.currentTransform,
     )
-    this.hintElement.textContent = `Mount: ${this.currentMountType}\n\n${snippet}`
+    this.hintElement.textContent = `Pose key: ${this.currentPoseLocomotion}\n\n${snippet}`
   }
 
   private updateLightingBrightness(): void {
@@ -360,7 +405,7 @@ class PlayerViewerApp {
   private async copyCurrentTransform(): Promise<void> {
     const snippet = formatWeaponTransformForCatalog(
       this.currentWeaponId,
-      this.currentMountType,
+      this.currentPoseLocomotion,
       this.currentTransform,
     )
     try {
