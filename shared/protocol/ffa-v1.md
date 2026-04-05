@@ -17,13 +17,13 @@ Every message has:
 ## Client -> Server
 
 - `join_room`
-  - payload: `{ "roomCode": "1234", "nickname": "ivan", "modelId": "player1", "weaponId": "pistol", "mapId": "test2", "timeLimitSec": 600, "fragLimit": 25 }`
+  - payload: `{ "roomCode": "1234", "nickname": "ivan", "modelId": "player1", "weaponId": "rifle_m16", "mapId": "test2", "timeLimitSec": 600, "fragLimit": 25 }`
 - `set_role`
   - payload: `{ "role": "spectator" | "player" }`
 - `spawn_request`
   - payload: `{}`
 - `state_update`
-  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" | "idle_crouch" | "walk_crouch" | "walk_crouch_left_d" | "walk_crouch_right_d" | "backwards_crouch" | "backwards_crouch_left_d" | "backwards_crouch_right_d" | "left_crouch" | "right_crouch" | "run_forward" | "run_backward" | "run_left" | "run_right" | "run_left_d" | "run_right_d" | "run_backward_left_d" | "run_backward_right_d" | "jump_up", "weaponId": "pistol" }`
+  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" | "idle_crouch" | "walk_crouch" | "walk_crouch_left_d" | "walk_crouch_right_d" | "backwards_crouch" | "backwards_crouch_left_d" | "backwards_crouch_right_d" | "left_crouch" | "right_crouch" | "run_forward" | "run_backward" | "run_left" | "run_right" | "run_left_d" | "run_right_d" | "run_backward_left_d" | "run_backward_right_d" | "jump_up", "weaponId": "rifle_m16" }`
 - `report_kill`
   - payload: `{ "victimPlayerId": "p-2" }`
 - `leave_room`

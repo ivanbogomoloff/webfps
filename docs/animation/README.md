@@ -150,7 +150,7 @@ loader.load('path/to/weapon.glb', (weaponGltf) => {
 В проекте позиция/поворот/масштаб оружия теперь задаются по ключам локомоции игрока:
 
 - типы и список ключей: `client/src/config/weapons/types.ts` (`PLAYER_LOCOMOTION_KEYS`);
-- конфиг оружия по файлам: `client/src/config/weapons/pistol.ts`, `client/src/config/weapons/rifle.ts`;
+- конфиг оружия по файлам: `client/src/config/weapons/rifle_m16.ts`, `client/src/config/weapons/rifle_ak47.ts`;
 - gameplay-каталог оружия: `client/src/config/weaponCatalog.ts` (урон/скорострельность/магазин).
 
 ### Формат
@@ -186,7 +186,7 @@ const base = createUniformWeaponPlacement({
   scale: { x: 1, y: 1, z: 1 },
 })
 
-export const pistolModelConfig = {
+export const rifle_m16ModelConfig = {
   id: 'colt_m4a1_low-poly',
   placementByLocomotion: {
     ...base,

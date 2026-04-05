@@ -1,6 +1,6 @@
 import { createUniformWeaponPlacement, type WeaponModelConfig } from './types'
 
-export const rifleModelConfig: WeaponModelConfig = {
+export const rifle_ak47ModelConfig: WeaponModelConfig = {
   id: 'm16',
   placementByLocomotion: createUniformWeaponPlacement({
     position: { x: 0.12, y: 0.02, z: -0.02 },

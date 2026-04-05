@@ -1,6 +1,6 @@
 import type { PlayerLocomotion } from '../ecs/components/PlayerController'
-import { pistolModelConfig as rifle_m16ModelConfig } from './weapons/pistol'
-import { rifleModelConfig as rifle_ak47ModelConfig } from './weapons/rifle'
+import { rifle_m16ModelConfig } from './weapons/rifle_m16'
+import { rifle_ak47ModelConfig } from './weapons/rifle_ak47'
 import type { WeaponModelConfig, WeaponTransformValues } from './weapons/types'
 
 export type WeaponDefinition = {

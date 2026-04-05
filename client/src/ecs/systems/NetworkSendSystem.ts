@@ -28,7 +28,7 @@ export function createNetworkSendSystem(world: World, networkContext: NetworkCon
       frags: local.playerStats.frags,
       deaths: local.playerStats.deaths,
       locomotion,
-      weaponId: local.weaponState?.weaponId ?? local.networkIdentity.weaponId ?? 'pistol',
+      weaponId: local.weaponState?.weaponId ?? local.networkIdentity.weaponId ?? 'rifle_m16',
     })
   }
 }

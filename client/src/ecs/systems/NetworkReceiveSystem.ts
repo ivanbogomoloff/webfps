@@ -26,7 +26,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
               message.payload.localPlayerId,
               localEntity.networkIdentity?.nickname ?? 'Player',
               localEntity.networkIdentity?.modelId ?? 'player1',
-              localEntity.networkIdentity?.weaponId ?? 'pistol',
+              localEntity.networkIdentity?.weaponId ?? 'rifle_m16',
               true,
               localEntity.networkIdentity?.role ?? 'spectator'
             )
@@ -45,7 +45,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             if (player.playerId === networkContext.getLocalPlayerId()) {
               if (localEntity?.networkIdentity) localEntity.networkIdentity.role = player.role
               if (localEntity) {
-                networkContext.setEntityWeapon(localEntity, player.weaponId || 'pistol')
+                networkContext.setEntityWeapon(localEntity, player.weaponId || 'rifle_m16')
               }
               if (localEntity?.playerStats) {
                 localEntity.playerStats.frags = player.frags
@@ -96,7 +96,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
                 state.playerId,
                 'Remote',
                 state.modelId || 'player1',
-                state.weaponId || 'pistol',
+                state.weaponId || 'rifle_m16',
                 state.role,
               )
             }
@@ -106,7 +106,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             entity.networkTransform.rotY = state.rotY
             entity.networkTransform.updatedAtMs = performance.now()
             entity.networkIdentity.role = state.role
-            networkContext.setEntityWeapon(entity, state.weaponId || 'pistol')
+            networkContext.setEntityWeapon(entity, state.weaponId || 'rifle_m16')
             entity.playerStats.frags = state.frags
             entity.playerStats.deaths = state.deaths
             const pc = (entity as any).playerController as { locomotion?: string } | undefined

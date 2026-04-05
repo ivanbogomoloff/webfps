@@ -145,7 +145,7 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 	}
 	weaponID := payload.WeaponID
 	if weaponID == "" {
-		weaponID = "pistol"
+		weaponID = "rifle_m16"
 	}
 
 	room.Players[playerID] = &playerState{
