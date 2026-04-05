@@ -49,6 +49,7 @@ export async function loadSupportedWeaponModelTemplates(): Promise<
     const glbPath = weaponModelGltfPath(weaponId)
     try {
       const gltf = await loader.loadAsync(glbPath)
+      
       gltf.scene.traverse((node) => {
         const mesh = node as THREE.Mesh
         if (mesh.isMesh) {
@@ -56,7 +57,8 @@ export async function loadSupportedWeaponModelTemplates(): Promise<
           mesh.receiveShadow = true
         }
       })
-      normalizeWeaponTemplate(gltf.scene)
+      // Нормализация под каждое оружение выполняется через WeaponModelConfig
+      // normalizeWeaponTemplate(gltf.scene)
       map.set(weaponId, gltf.scene)
       console.log(`[weaponModelTemplates] loaded weapon '${weaponId}' from '${glbPath}'`)
     } catch (error) {
