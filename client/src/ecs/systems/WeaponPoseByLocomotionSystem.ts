@@ -5,11 +5,17 @@ import { applyWeaponTransformValues } from '../../game/weaponVisualAttach'
 
 export function createWeaponPoseByLocomotionSystem(world: World) {
   const appliedKeyByEntity = new WeakMap<object, string>()
+  const appliedVisualByEntity = new WeakMap<object, object>()
 
   return (_deltaTime: number) => {
     for (const entity of world.with('playerController', 'weaponState', 'weaponVisualObject')) {
       const weaponVisualObject = entity.weaponVisualObject
       if (!weaponVisualObject) continue
+      const previousVisual = appliedVisualByEntity.get(entity)
+      if (previousVisual !== weaponVisualObject) {
+        appliedKeyByEntity.delete(entity)
+        appliedVisualByEntity.set(entity, weaponVisualObject)
+      }
       const playerController = entity.playerController as PlayerController
       const weaponState = entity.weaponState as WeaponState
       const weaponId = resolveWeaponId(weaponState.weaponId)

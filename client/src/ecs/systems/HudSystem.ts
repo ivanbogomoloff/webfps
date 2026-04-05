@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { World } from 'miniplex';
-import type { Health, Input, MatchState, NetworkIdentity, PlayerController, PlayerPhysicsState, PlayerStats } from '../components';
+import type { Health, Input, MatchState, NetworkIdentity, PlayerController, PlayerPhysicsState, PlayerStats, WeaponState } from '../components';
 import type { GroundProbeDebugState } from './PhysicsSystem';
 
 type LocalHudEntity = {
@@ -11,6 +11,7 @@ type LocalHudEntity = {
   networkIdentity: NetworkIdentity;
   playerController: PlayerController;
   playerPhysicsState: PlayerPhysicsState;
+  weaponState: WeaponState;
 };
 
 type HudScoreEntry = {
@@ -39,7 +40,7 @@ type HudSystemOptions = {
 };
 
 function findLocalHudEntity(world: World): LocalHudEntity | null {
-  for (const entity of world.with('playerController', 'playerPhysicsState', 'object3d', 'input', 'camera', 'networkIdentity', 'health')) {
+  for (const entity of world.with('playerController', 'playerPhysicsState', 'object3d', 'input', 'camera', 'networkIdentity', 'health', 'weaponState')) {
     const local = entity as unknown as LocalHudEntity;
     if (local.networkIdentity.isLocal) return local;
   }
@@ -159,6 +160,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       <div>ROTATION: ${((euler.y * 180) / Math.PI).toFixed(0)}°, ${((euler.x * 180) / Math.PI).toFixed(0)}°</div>
       <div>MOUSE LOCKED: ${local.input.mouse.isLocked ? 'YES' : 'NO'}</div>
       <div>ROLE: ${local.networkIdentity.role ?? 'spectator'}</div>
+      <div>current weapon: ${local.weaponState.weaponId}</div>
       <div>JUMP: ${jumpStateLine}</div>
       <div>${groundProbeLine}</div>
       <div>PHASE: ${matchState?.phase ?? 'waiting'} | TIME: ${matchState?.timeLeftSec ?? 0}s | FRAG LIMIT: ${matchState?.fragLimit ?? 0}</div>
