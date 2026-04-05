@@ -1,6 +1,6 @@
 import type { PlayerLocomotion } from '../ecs/components/PlayerController'
-import { pistolModelConfig } from './weapons/pistol'
-import { rifleModelConfig } from './weapons/rifle'
+import { pistolModelConfig as rifle_m16ModelConfig } from './weapons/pistol'
+import { rifleModelConfig as rifle_ak47ModelConfig } from './weapons/rifle'
 import type { WeaponModelConfig, WeaponTransformValues } from './weapons/types'
 
 export type WeaponDefinition = {
@@ -10,12 +10,12 @@ export type WeaponDefinition = {
 }
 
 export const WEAPON_CATALOG = {
-  pistol: {
+  rifle_m16: {
     fireRate: 3,
     damage: 20,
     magazineSize: 12,
   },
-  rifle: {
+  rifle_ak47: {
     fireRate: 8,
     damage: 12,
     magazineSize: 30,
@@ -26,11 +26,11 @@ export type WeaponId = keyof typeof WEAPON_CATALOG
 
 export const SUPPORTED_WEAPON_IDS = Object.keys(WEAPON_CATALOG) as WeaponId[]
 
-export const DEFAULT_WEAPON_ID: WeaponId = 'pistol'
+export const DEFAULT_WEAPON_ID: WeaponId = 'rifle_m16'
 
 const WEAPON_MODEL_CONFIG_BY_ID = {
-  pistol: pistolModelConfig,
-  rifle: rifleModelConfig,
+  rifle_m16: rifle_m16ModelConfig,
+  rifle_ak47: rifle_ak47ModelConfig,
 } as const satisfies Record<WeaponId, WeaponModelConfig>
 
 export function weaponModelGltfPath(weaponId: WeaponId): string {
