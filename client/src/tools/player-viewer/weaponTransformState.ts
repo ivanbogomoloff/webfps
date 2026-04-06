@@ -29,14 +29,10 @@ export function formatWeaponTransformForCatalog(
   values: WeaponTransformValues,
 ): string {
   return [
-    `${weaponId}: {`,
-    `  placementByLocomotion: {`,
     `    ${locomotion}: {`,
     `      position: { x: ${formatNum(values.position.x)}, y: ${formatNum(values.position.y)}, z: ${formatNum(values.position.z)} },`,
     `      rotation: { x: ${formatNum(values.rotation.x)}, y: ${formatNum(values.rotation.y)}, z: ${formatNum(values.rotation.z)} },`,
     `      scale: { x: ${formatNum(values.scale.x)}, y: ${formatNum(values.scale.y)}, z: ${formatNum(values.scale.z)} },`,
     `    },`,
-    `  },`,
-    `},`,
   ].join('\n')
 }
