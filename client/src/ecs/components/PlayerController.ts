@@ -26,6 +26,7 @@ export type PlayerLocomotion =
   | 'run_right_d'
   | 'run_backward_left_d'
   | 'run_backward_right_d'
+  | 'fire'
   | 'jump_up';
 
 export type PlayerMovementMode = 'walk' | 'crouch' | 'run';
