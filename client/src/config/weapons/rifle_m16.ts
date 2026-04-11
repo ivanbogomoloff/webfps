@@ -12,6 +12,12 @@ const walk = {
   scale: {x: 1.0000, y: 1.0000, z: 1.0000},
 };
 
+const run = {
+  position: { x: -0.8740, y: -0.3780, z: -0.5020 },
+  rotation: { x: 1.4710, y: -1.4880, z: 0.5360 },
+  scale: { x: 1.0000, y: 1.0000, z: 1.0000 },
+};
+
 export const rifle_m16ModelConfig: WeaponModelConfig = {
   id: 'm16',
   placementByLocomotion: {
@@ -59,6 +65,11 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
       rotation: {x: 1.5708, y: -1.4100, z: 0.6140},
       scale: {x: 1.0000, y: 1.0000, z: 1.0000},
     },
+    backwards_crouch: {
+      position: { x: -1.4320, y: -0.7500, z: -0.6260 },
+      rotation: { x: 1.5708, y: -1.4100, z: 0.4590 },
+      scale: { x: 1.0000, y: 1.0000, z: 1.0000 },
+    },
     backwards_crouch_left_d: {
       position: { x: -1.4320, y: -0.7500, z: -0.6260 },
       rotation: { x: 1.5708, y: -1.4100, z: 0.4590 },
@@ -79,5 +90,13 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
       rotation: { x: 1.5708, y: -1.5708, z: 0.4590 },
       scale: { x: 1.0000, y: 1.0000, z: 1.0000 },
     },
+    run_forward: run,
+    run_backward: run,
+    run_left: run,
+    run_right: run,
+    run_left_d: run,
+    run_right_d: run,
+    run_backward_left_d: run,
+    run_backward_right_d: run,
   },
 }
