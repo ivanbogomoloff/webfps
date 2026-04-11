@@ -98,6 +98,14 @@ export function toFireLocomotion(base: PlayerLocomotion): PlayerLocomotion | nul
   return FIRE_LOCOMOTION_BY_BASE[base] ?? null;
 }
 
+const BASE_LOCOMOTION_BY_FIRE: Partial<Record<PlayerLocomotion, PlayerLocomotion>> = Object.fromEntries(
+  Object.entries(FIRE_LOCOMOTION_BY_BASE).map(([base, fire]) => [fire, base]),
+) as Partial<Record<PlayerLocomotion, PlayerLocomotion>>;
+
+export function toBaseLocomotionFromFire(locomotion: PlayerLocomotion): PlayerLocomotion {
+  return BASE_LOCOMOTION_BY_FIRE[locomotion] ?? locomotion;
+}
+
 /** Та же развилка, что в PlayerControllerSystem по fz (W/S) и fx (A/D) в осях игрока. */
 export function locomotionFromStrafeAxes(fz: number, fx: number): PlayerLocomotion {
   if (fz === 0 && fx === 0) return 'idle';

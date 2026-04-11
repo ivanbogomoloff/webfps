@@ -1,5 +1,8 @@
 import type { World } from 'miniplex'
 import type { PlayerController, WeaponState } from '../components'
+import type { PlayerAnimation } from '../components/PlayerAnimation'
+import { hasAnimationActionForLocomotion } from '../components/PlayerAnimation'
+import { toBaseLocomotionFromFire } from '../../game/playerLocomotionLogic'
 import { getWeaponPoseForLocomotion, resolveWeaponId } from '../../game/supportedWeaponModels'
 import { applyWeaponTransformValues } from '../../game/weaponVisualAttach'
 
@@ -17,12 +20,18 @@ export function createWeaponPoseByLocomotionSystem(world: World) {
         appliedVisualByEntity.set(entity, weaponVisualObject)
       }
       const playerController = entity.playerController as PlayerController
+      const playerAnimation = (entity as { playerAnimation?: PlayerAnimation }).playerAnimation
       const weaponState = entity.weaponState as WeaponState
       const weaponId = resolveWeaponId(weaponState.weaponId)
       const locomotion = playerController.locomotion
-      const cacheKey = `${weaponId}:${locomotion}`
+      const hasFireAnimation = !locomotion.includes('fire')
+        || !!playerAnimation && hasAnimationActionForLocomotion(playerAnimation.actionByLocomotion, locomotion)
+      const locomotionForPose = hasFireAnimation
+        ? locomotion
+        : toBaseLocomotionFromFire(locomotion)
+      const cacheKey = `${weaponId}:${locomotionForPose}`
       if (appliedKeyByEntity.get(entity) === cacheKey) continue
-      const pose = getWeaponPoseForLocomotion(weaponId, locomotion)
+      const pose = getWeaponPoseForLocomotion(weaponId, locomotionForPose)
       applyWeaponTransformValues(weaponVisualObject, pose)
       appliedKeyByEntity.set(entity, cacheKey)
     }
