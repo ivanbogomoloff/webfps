@@ -6,6 +6,7 @@ export interface Input {
     deltaX: number;
     deltaY: number;
     isLocked: boolean;
+    primaryDown: boolean;
   };
 }
 
@@ -18,6 +19,7 @@ export function createInput(): Input {
       deltaX: 0,
       deltaY: 0,
       isLocked: false,
+      primaryDown: false,
     },
   };
 }

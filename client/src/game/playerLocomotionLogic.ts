@@ -27,8 +27,63 @@ export const PLAYER_LOCOMOTION_IDS = [
   'run_right_d',
   'run_backward_left_d',
   'run_backward_right_d',
+  'fire',
+  'walk_fire',
+  'walk_left_d_fire',
+  'walk_right_d_fire',
+  'backwards_fire',
+  'backwards_left_d_fire',
+  'backwards_right_d_fire',
+  'left_fire',
+  'right_fire',
+  'idle_crouch_fire',
+  'walk_crouch_fire',
+  'walk_crouch_left_d_fire',
+  'walk_crouch_right_d_fire',
+  'backwards_crouch_fire',
+  'backwards_crouch_left_d_fire',
+  'backwards_crouch_right_d_fire',
+  'left_crouch_fire',
+  'right_crouch_fire',
+  'run_forward_fire',
+  'run_backward_fire',
+  'run_left_fire',
+  'run_right_fire',
+  'run_left_d_fire',
+  'run_right_d_fire',
+  'run_backward_left_d_fire',
+  'run_backward_right_d_fire',
   'jump_up',
 ] as const satisfies readonly PlayerLocomotion[];
+
+const FIRE_LOCOMOTION_BY_BASE: Partial<Record<PlayerLocomotion, PlayerLocomotion>> = {
+  idle: 'fire',
+  walk: 'walk_fire',
+  walk_left_d: 'walk_left_d_fire',
+  walk_right_d: 'walk_right_d_fire',
+  backwards: 'backwards_fire',
+  backwards_left_d: 'backwards_left_d_fire',
+  backwards_right_d: 'backwards_right_d_fire',
+  left: 'left_fire',
+  right: 'right_fire',
+  idle_crouch: 'idle_crouch_fire',
+  walk_crouch: 'walk_crouch_fire',
+  walk_crouch_left_d: 'walk_crouch_left_d_fire',
+  walk_crouch_right_d: 'walk_crouch_right_d_fire',
+  backwards_crouch: 'backwards_crouch_fire',
+  backwards_crouch_left_d: 'backwards_crouch_left_d_fire',
+  backwards_crouch_right_d: 'backwards_crouch_right_d_fire',
+  left_crouch: 'left_crouch_fire',
+  right_crouch: 'right_crouch_fire',
+  run_forward: 'run_forward_fire',
+  run_backward: 'run_backward_fire',
+  run_left: 'run_left_fire',
+  run_right: 'run_right_fire',
+  run_left_d: 'run_left_d_fire',
+  run_right_d: 'run_right_d_fire',
+  run_backward_left_d: 'run_backward_left_d_fire',
+  run_backward_right_d: 'run_backward_right_d_fire',
+};
 
 export function isPlayerLocomotion(s: string): s is PlayerLocomotion {
   return (PLAYER_LOCOMOTION_IDS as readonly string[]).includes(s);
@@ -37,6 +92,10 @@ export function isPlayerLocomotion(s: string): s is PlayerLocomotion {
 export function parseNetworkLocomotion(raw: string | undefined | null): PlayerLocomotion {
   if (raw && isPlayerLocomotion(raw)) return raw;
   return 'idle';
+}
+
+export function toFireLocomotion(base: PlayerLocomotion): PlayerLocomotion | null {
+  return FIRE_LOCOMOTION_BY_BASE[base] ?? null;
 }
 
 /** Та же развилка, что в PlayerControllerSystem по fz (W/S) и fx (A/D) в осях игрока. */
@@ -48,7 +107,7 @@ export function locomotionFromStrafeAxes(fz: number, fx: number): PlayerLocomoti
   return fx > 0 ? 'left' : 'right';
 }
 
-const CROUCH_LOCOMOTION_BY_WALK: Record<PlayerLocomotion, PlayerLocomotion> = {
+const CROUCH_LOCOMOTION_BY_WALK: Partial<Record<PlayerLocomotion, PlayerLocomotion>> = {
   idle: 'idle_crouch',
   walk: 'walk_crouch',
   walk_left_d: 'walk_crouch_left_d',
@@ -82,7 +141,7 @@ export function toCrouchLocomotion(locomotion: PlayerLocomotion): PlayerLocomoti
   return CROUCH_LOCOMOTION_BY_WALK[locomotion] ?? 'idle_crouch';
 }
 
-const RUN_LOCOMOTION_BY_WALK: Record<PlayerLocomotion, PlayerLocomotion> = {
+const RUN_LOCOMOTION_BY_WALK: Partial<Record<PlayerLocomotion, PlayerLocomotion>> = {
   idle: 'idle',
   walk: 'run_forward',
   walk_left_d: 'run_left_d',

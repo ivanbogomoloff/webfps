@@ -32,6 +32,32 @@ export type PlayerVisualSetup = {
   runRightDClip: THREE.AnimationClip | null;
   runBackwardLeftDClip: THREE.AnimationClip | null;
   runBackwardRightDClip: THREE.AnimationClip | null;
+  fireClip: THREE.AnimationClip | null;
+  walkFireClip: THREE.AnimationClip | null;
+  walkLeftDFireClip: THREE.AnimationClip | null;
+  walkRightDFireClip: THREE.AnimationClip | null;
+  backwardsFireClip: THREE.AnimationClip | null;
+  backwardsLeftDFireClip: THREE.AnimationClip | null;
+  backwardsRightDFireClip: THREE.AnimationClip | null;
+  leftFireClip: THREE.AnimationClip | null;
+  rightFireClip: THREE.AnimationClip | null;
+  idleCrouchFireClip: THREE.AnimationClip | null;
+  walkCrouchFireClip: THREE.AnimationClip | null;
+  walkCrouchLeftDFireClip: THREE.AnimationClip | null;
+  walkCrouchRightDFireClip: THREE.AnimationClip | null;
+  backwardsCrouchFireClip: THREE.AnimationClip | null;
+  backwardsCrouchLeftDFireClip: THREE.AnimationClip | null;
+  backwardsCrouchRightDFireClip: THREE.AnimationClip | null;
+  leftCrouchFireClip: THREE.AnimationClip | null;
+  rightCrouchFireClip: THREE.AnimationClip | null;
+  runForwardFireClip: THREE.AnimationClip | null;
+  runBackwardFireClip: THREE.AnimationClip | null;
+  runLeftFireClip: THREE.AnimationClip | null;
+  runRightFireClip: THREE.AnimationClip | null;
+  runLeftDFireClip: THREE.AnimationClip | null;
+  runRightDFireClip: THREE.AnimationClip | null;
+  runBackwardLeftDFireClip: THREE.AnimationClip | null;
+  runBackwardRightDFireClip: THREE.AnimationClip | null;
   jumpUpClip: THREE.AnimationClip | null;
 };
 
@@ -156,6 +182,58 @@ export function preparePlayerVisualFromGltf(
     findAnimationClip(gltf.animations, 'run_backward_left_d', 'exact') ?? null;
   const runBackwardRightDClip =
     findAnimationClip(gltf.animations, 'run_backward_right_d', 'exact') ?? null;
+  const fireClip =
+    findAnimationClip(gltf.animations, 'fire', 'exact') ?? null;
+  const walkFireClip =
+    findAnimationClip(gltf.animations, 'walk_fire', 'exact') ?? null;
+  const walkLeftDFireClip =
+    findAnimationClip(gltf.animations, 'walk_left_d_fire', 'exact') ?? null;
+  const walkRightDFireClip =
+    findAnimationClip(gltf.animations, 'walk_right_d_fire', 'exact') ?? null;
+  const backwardsFireClip =
+    findAnimationClip(gltf.animations, 'backwards_fire', 'exact') ?? null;
+  const backwardsLeftDFireClip =
+    findAnimationClip(gltf.animations, 'backwards_left_d_fire', 'exact') ?? null;
+  const backwardsRightDFireClip =
+    findAnimationClip(gltf.animations, 'backwards_right_d_fire', 'exact') ?? null;
+  const leftFireClip =
+    findAnimationClip(gltf.animations, 'left_fire', 'exact') ?? null;
+  const rightFireClip =
+    findAnimationClip(gltf.animations, 'right_fire', 'exact') ?? null;
+  const idleCrouchFireClip =
+    findAnimationClip(gltf.animations, 'idle_crouch_fire', 'exact') ?? null;
+  const walkCrouchFireClip =
+    findAnimationClip(gltf.animations, 'walk_crouch_fire', 'exact') ?? null;
+  const walkCrouchLeftDFireClip =
+    findAnimationClip(gltf.animations, 'walk_crouch_left_d_fire', 'exact') ?? null;
+  const walkCrouchRightDFireClip =
+    findAnimationClip(gltf.animations, 'walk_crouch_right_d_fire', 'exact') ?? null;
+  const backwardsCrouchFireClip =
+    findAnimationClip(gltf.animations, 'backwards_crouch_fire', 'exact') ?? null;
+  const backwardsCrouchLeftDFireClip =
+    findAnimationClip(gltf.animations, 'backwards_crouch_left_d_fire', 'exact') ?? null;
+  const backwardsCrouchRightDFireClip =
+    findAnimationClip(gltf.animations, 'backwards_crouch_right_d_fire', 'exact') ?? null;
+  const leftCrouchFireClip =
+    findAnimationClip(gltf.animations, 'left_crouch_fire', 'exact') ?? null;
+  const rightCrouchFireClip =
+    findAnimationClip(gltf.animations, 'right_crouch_fire', 'exact') ?? null;
+  const runForwardFireClip =
+    findAnimationClip(gltf.animations, 'run_forward_fire', 'exact') ?? null;
+  const runBackwardFireClip =
+    findAnimationClip(gltf.animations, 'run_backward_fire', 'exact') ?? null;
+  const runLeftFireClip =
+    findAnimationClip(gltf.animations, 'run_left_fire', 'exact') ?? null;
+  const runRightFireClip =
+    findAnimationClip(gltf.animations, 'run_right_fire', 'exact') ?? null;
+  const runLeftDFireClip =
+    findAnimationClip(gltf.animations, 'run_left_d_fire', 'exact') ?? null;
+  const runRightDFireClip =
+    findAnimationClip(gltf.animations, 'run_right_d_fire', 'exact') ?? null;
+  const runBackwardLeftDFireClip =
+    findAnimationClip(gltf.animations, 'run_backward_left_d_fire', 'exact') ?? null;
+  const runBackwardRightDFireClip =
+    findAnimationClip(gltf.animations, 'run_backward_right_d_fire', 'exact') ?? null;
 
   if (!idleClip || !walkClip) {
     console.warn(
@@ -192,6 +270,32 @@ export function preparePlayerVisualFromGltf(
     runRightDClip,
     runBackwardLeftDClip,
     runBackwardRightDClip,
+    fireClip,
+    walkFireClip,
+    walkLeftDFireClip,
+    walkRightDFireClip,
+    backwardsFireClip,
+    backwardsLeftDFireClip,
+    backwardsRightDFireClip,
+    leftFireClip,
+    rightFireClip,
+    idleCrouchFireClip,
+    walkCrouchFireClip,
+    walkCrouchLeftDFireClip,
+    walkCrouchRightDFireClip,
+    backwardsCrouchFireClip,
+    backwardsCrouchLeftDFireClip,
+    backwardsCrouchRightDFireClip,
+    leftCrouchFireClip,
+    rightCrouchFireClip,
+    runForwardFireClip,
+    runBackwardFireClip,
+    runLeftFireClip,
+    runRightFireClip,
+    runLeftDFireClip,
+    runRightDFireClip,
+    runBackwardLeftDFireClip,
+    runBackwardRightDFireClip,
     jumpUpClip,
   };
 }
@@ -226,6 +330,32 @@ export function clonePlayerVisualSetup(template: PlayerVisualSetup): PlayerVisua
     runRightDClip: template.runRightDClip,
     runBackwardLeftDClip: template.runBackwardLeftDClip,
     runBackwardRightDClip: template.runBackwardRightDClip,
+    fireClip: template.fireClip,
+    walkFireClip: template.walkFireClip,
+    walkLeftDFireClip: template.walkLeftDFireClip,
+    walkRightDFireClip: template.walkRightDFireClip,
+    backwardsFireClip: template.backwardsFireClip,
+    backwardsLeftDFireClip: template.backwardsLeftDFireClip,
+    backwardsRightDFireClip: template.backwardsRightDFireClip,
+    leftFireClip: template.leftFireClip,
+    rightFireClip: template.rightFireClip,
+    idleCrouchFireClip: template.idleCrouchFireClip,
+    walkCrouchFireClip: template.walkCrouchFireClip,
+    walkCrouchLeftDFireClip: template.walkCrouchLeftDFireClip,
+    walkCrouchRightDFireClip: template.walkCrouchRightDFireClip,
+    backwardsCrouchFireClip: template.backwardsCrouchFireClip,
+    backwardsCrouchLeftDFireClip: template.backwardsCrouchLeftDFireClip,
+    backwardsCrouchRightDFireClip: template.backwardsCrouchRightDFireClip,
+    leftCrouchFireClip: template.leftCrouchFireClip,
+    rightCrouchFireClip: template.rightCrouchFireClip,
+    runForwardFireClip: template.runForwardFireClip,
+    runBackwardFireClip: template.runBackwardFireClip,
+    runLeftFireClip: template.runLeftFireClip,
+    runRightFireClip: template.runRightFireClip,
+    runLeftDFireClip: template.runLeftDFireClip,
+    runRightDFireClip: template.runRightDFireClip,
+    runBackwardLeftDFireClip: template.runBackwardLeftDFireClip,
+    runBackwardRightDFireClip: template.runBackwardRightDFireClip,
     jumpUpClip: template.jumpUpClip,
   };
 }

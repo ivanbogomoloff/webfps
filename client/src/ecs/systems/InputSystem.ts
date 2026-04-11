@@ -8,6 +8,7 @@ export function createInputSystem(world: World) {
   let globalMouseDeltaX = 0;
   let globalMouseDeltaY = 0;
   let globalMouseLocked = false;
+  let globalPrimaryMouseDown = false;
   // Игнорируем keyup сразу после входа в pointer lock (браузер шлёт синтетические keyup при смене фокуса)
   let ignoreKeyUpUntil = 0;
 
@@ -33,6 +34,24 @@ export function createInputSystem(world: World) {
     globalMouseX = e.clientX;
     globalMouseY = e.clientY;
   });
+  window.addEventListener('mousedown', (e) => {
+    if (e.button === 0) {
+      globalPrimaryMouseDown = true;
+    }
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) {
+      globalPrimaryMouseDown = false;
+    }
+  });
+  window.addEventListener('blur', () => {
+    globalPrimaryMouseDown = false;
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') {
+      globalPrimaryMouseDown = false;
+    }
+  });
 
   document.addEventListener('pointerlockchange', () => {
     const locked = document.pointerLockElement !== null;
@@ -57,6 +76,7 @@ export function createInputSystem(world: World) {
       input.mouse.deltaX = globalMouseDeltaX;
       input.mouse.deltaY = globalMouseDeltaY;
       input.mouse.isLocked = globalMouseLocked;
+      input.mouse.primaryDown = globalPrimaryMouseDown;
     }
 
     // Обнуляем дельта после обновления

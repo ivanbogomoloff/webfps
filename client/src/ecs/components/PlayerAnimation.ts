@@ -30,6 +30,32 @@ export interface PlayerAnimationActions {
   run_right_d: THREE.AnimationAction | null;
   run_backward_left_d: THREE.AnimationAction | null;
   run_backward_right_d: THREE.AnimationAction | null;
+  fire: THREE.AnimationAction | null;
+  walk_fire: THREE.AnimationAction | null;
+  walk_left_d_fire: THREE.AnimationAction | null;
+  walk_right_d_fire: THREE.AnimationAction | null;
+  backwards_fire: THREE.AnimationAction | null;
+  backwards_left_d_fire: THREE.AnimationAction | null;
+  backwards_right_d_fire: THREE.AnimationAction | null;
+  left_fire: THREE.AnimationAction | null;
+  right_fire: THREE.AnimationAction | null;
+  idle_crouch_fire: THREE.AnimationAction | null;
+  walk_crouch_fire: THREE.AnimationAction | null;
+  walk_crouch_left_d_fire: THREE.AnimationAction | null;
+  walk_crouch_right_d_fire: THREE.AnimationAction | null;
+  backwards_crouch_fire: THREE.AnimationAction | null;
+  backwards_crouch_left_d_fire: THREE.AnimationAction | null;
+  backwards_crouch_right_d_fire: THREE.AnimationAction | null;
+  left_crouch_fire: THREE.AnimationAction | null;
+  right_crouch_fire: THREE.AnimationAction | null;
+  run_forward_fire: THREE.AnimationAction | null;
+  run_backward_fire: THREE.AnimationAction | null;
+  run_left_fire: THREE.AnimationAction | null;
+  run_right_fire: THREE.AnimationAction | null;
+  run_left_d_fire: THREE.AnimationAction | null;
+  run_right_d_fire: THREE.AnimationAction | null;
+  run_backward_left_d_fire: THREE.AnimationAction | null;
+  run_backward_right_d_fire: THREE.AnimationAction | null;
   jump_up: THREE.AnimationAction | null;
 }
 
@@ -67,6 +93,32 @@ export type PlayerAnimationClips = {
   run_right_d?: THREE.AnimationClip | null;
   run_backward_left_d?: THREE.AnimationClip | null;
   run_backward_right_d?: THREE.AnimationClip | null;
+  fire?: THREE.AnimationClip | null;
+  walk_fire?: THREE.AnimationClip | null;
+  walk_left_d_fire?: THREE.AnimationClip | null;
+  walk_right_d_fire?: THREE.AnimationClip | null;
+  backwards_fire?: THREE.AnimationClip | null;
+  backwards_left_d_fire?: THREE.AnimationClip | null;
+  backwards_right_d_fire?: THREE.AnimationClip | null;
+  left_fire?: THREE.AnimationClip | null;
+  right_fire?: THREE.AnimationClip | null;
+  idle_crouch_fire?: THREE.AnimationClip | null;
+  walk_crouch_fire?: THREE.AnimationClip | null;
+  walk_crouch_left_d_fire?: THREE.AnimationClip | null;
+  walk_crouch_right_d_fire?: THREE.AnimationClip | null;
+  backwards_crouch_fire?: THREE.AnimationClip | null;
+  backwards_crouch_left_d_fire?: THREE.AnimationClip | null;
+  backwards_crouch_right_d_fire?: THREE.AnimationClip | null;
+  left_crouch_fire?: THREE.AnimationClip | null;
+  right_crouch_fire?: THREE.AnimationClip | null;
+  run_forward_fire?: THREE.AnimationClip | null;
+  run_backward_fire?: THREE.AnimationClip | null;
+  run_left_fire?: THREE.AnimationClip | null;
+  run_right_fire?: THREE.AnimationClip | null;
+  run_left_d_fire?: THREE.AnimationClip | null;
+  run_right_d_fire?: THREE.AnimationClip | null;
+  run_backward_left_d_fire?: THREE.AnimationClip | null;
+  run_backward_right_d_fire?: THREE.AnimationClip | null;
   jump_up?: THREE.AnimationClip | null;
 };
 
@@ -76,6 +128,21 @@ function makeAction(
 ): THREE.AnimationAction | null {
   if (!clip) return null;
   return mixer.clipAction(clip);
+}
+
+function exactActionForLocomotion(
+  actions: PlayerAnimationActions,
+  locomotion: PlayerLocomotion,
+): THREE.AnimationAction | null {
+  const action = actions[locomotion as keyof PlayerAnimationActions];
+  return action ?? null;
+}
+
+export function hasAnimationActionForLocomotion(
+  actions: PlayerAnimationActions,
+  locomotion: PlayerLocomotion,
+): boolean {
+  return exactActionForLocomotion(actions, locomotion) !== null;
 }
 
 /** Какое действие микшера соответствует логической локомоции (с запасными клипами). */
@@ -162,6 +229,88 @@ export function pickAnimationAction(
         ?? actions.run_forward
         ?? actions.walk
       );
+    case 'fire':
+      return actions.fire ?? actions.idle;
+    case 'walk_fire':
+      return actions.walk_fire ?? actions.walk;
+    case 'walk_left_d_fire':
+      return actions.walk_left_d_fire ?? actions.walk_left_d ?? actions.walk;
+    case 'walk_right_d_fire':
+      return actions.walk_right_d_fire ?? actions.walk_right_d ?? actions.walk;
+    case 'backwards_fire':
+      return actions.backwards_fire ?? actions.backwards ?? actions.walk;
+    case 'backwards_left_d_fire':
+      return actions.backwards_left_d_fire ?? actions.backwards_left_d ?? actions.backwards ?? actions.walk;
+    case 'backwards_right_d_fire':
+      return actions.backwards_right_d_fire ?? actions.backwards_right_d ?? actions.backwards ?? actions.walk;
+    case 'left_fire':
+      return actions.left_fire ?? actions.left ?? actions.walk;
+    case 'right_fire':
+      return actions.right_fire ?? actions.right ?? actions.walk;
+    case 'idle_crouch_fire':
+      return actions.idle_crouch_fire ?? actions.idle_crouch ?? actions.idle;
+    case 'walk_crouch_fire':
+      return actions.walk_crouch_fire ?? actions.walk_crouch ?? actions.walk;
+    case 'walk_crouch_left_d_fire':
+      return actions.walk_crouch_left_d_fire ?? actions.walk_crouch_left_d ?? actions.walk_crouch ?? actions.walk_left_d ?? actions.walk;
+    case 'walk_crouch_right_d_fire':
+      return actions.walk_crouch_right_d_fire ?? actions.walk_crouch_right_d ?? actions.walk_crouch ?? actions.walk_right_d ?? actions.walk;
+    case 'backwards_crouch_fire':
+      return actions.backwards_crouch_fire ?? actions.backwards_crouch ?? actions.backwards ?? actions.walk;
+    case 'backwards_crouch_left_d_fire':
+      return (
+        actions.backwards_crouch_left_d_fire
+        ?? actions.backwards_crouch_left_d
+        ?? actions.backwards_crouch
+        ?? actions.backwards_left_d
+        ?? actions.backwards
+        ?? actions.walk
+      );
+    case 'backwards_crouch_right_d_fire':
+      return (
+        actions.backwards_crouch_right_d_fire
+        ?? actions.backwards_crouch_right_d
+        ?? actions.backwards_crouch
+        ?? actions.backwards_right_d
+        ?? actions.backwards
+        ?? actions.walk
+      );
+    case 'left_crouch_fire':
+      return actions.left_crouch_fire ?? actions.left_crouch ?? actions.left ?? actions.walk_crouch ?? actions.walk;
+    case 'right_crouch_fire':
+      return actions.right_crouch_fire ?? actions.right_crouch ?? actions.right ?? actions.walk_crouch ?? actions.walk;
+    case 'run_forward_fire':
+      return actions.run_forward_fire ?? actions.run_forward ?? actions.walk;
+    case 'run_backward_fire':
+      return actions.run_backward_fire ?? actions.run_backward ?? actions.backwards ?? actions.run_forward ?? actions.walk;
+    case 'run_left_fire':
+      return actions.run_left_fire ?? actions.run_left ?? actions.left ?? actions.run_forward ?? actions.walk;
+    case 'run_right_fire':
+      return actions.run_right_fire ?? actions.run_right ?? actions.right ?? actions.run_forward ?? actions.walk;
+    case 'run_left_d_fire':
+      return actions.run_left_d_fire ?? actions.run_left_d ?? actions.run_forward ?? actions.walk_left_d ?? actions.walk;
+    case 'run_right_d_fire':
+      return actions.run_right_d_fire ?? actions.run_right_d ?? actions.run_forward ?? actions.walk_right_d ?? actions.walk;
+    case 'run_backward_left_d_fire':
+      return (
+        actions.run_backward_left_d_fire
+        ?? actions.run_backward_left_d
+        ?? actions.run_backward
+        ?? actions.backwards_left_d
+        ?? actions.backwards
+        ?? actions.run_forward
+        ?? actions.walk
+      );
+    case 'run_backward_right_d_fire':
+      return (
+        actions.run_backward_right_d_fire
+        ?? actions.run_backward_right_d
+        ?? actions.run_backward
+        ?? actions.backwards_right_d
+        ?? actions.backwards
+        ?? actions.run_forward
+        ?? actions.walk
+      );
     case 'jump_up':
       return actions.jump_up ?? actions.idle;
     default:
@@ -211,6 +360,32 @@ export function createPlayerAnimation(
       run_right_d: makeAction(mixer, clips.run_right_d ?? null),
       run_backward_left_d: makeAction(mixer, clips.run_backward_left_d ?? null),
       run_backward_right_d: makeAction(mixer, clips.run_backward_right_d ?? null),
+      fire: makeAction(mixer, clips.fire ?? null),
+      walk_fire: makeAction(mixer, clips.walk_fire ?? null),
+      walk_left_d_fire: makeAction(mixer, clips.walk_left_d_fire ?? null),
+      walk_right_d_fire: makeAction(mixer, clips.walk_right_d_fire ?? null),
+      backwards_fire: makeAction(mixer, clips.backwards_fire ?? null),
+      backwards_left_d_fire: makeAction(mixer, clips.backwards_left_d_fire ?? null),
+      backwards_right_d_fire: makeAction(mixer, clips.backwards_right_d_fire ?? null),
+      left_fire: makeAction(mixer, clips.left_fire ?? null),
+      right_fire: makeAction(mixer, clips.right_fire ?? null),
+      idle_crouch_fire: makeAction(mixer, clips.idle_crouch_fire ?? null),
+      walk_crouch_fire: makeAction(mixer, clips.walk_crouch_fire ?? null),
+      walk_crouch_left_d_fire: makeAction(mixer, clips.walk_crouch_left_d_fire ?? null),
+      walk_crouch_right_d_fire: makeAction(mixer, clips.walk_crouch_right_d_fire ?? null),
+      backwards_crouch_fire: makeAction(mixer, clips.backwards_crouch_fire ?? null),
+      backwards_crouch_left_d_fire: makeAction(mixer, clips.backwards_crouch_left_d_fire ?? null),
+      backwards_crouch_right_d_fire: makeAction(mixer, clips.backwards_crouch_right_d_fire ?? null),
+      left_crouch_fire: makeAction(mixer, clips.left_crouch_fire ?? null),
+      right_crouch_fire: makeAction(mixer, clips.right_crouch_fire ?? null),
+      run_forward_fire: makeAction(mixer, clips.run_forward_fire ?? null),
+      run_backward_fire: makeAction(mixer, clips.run_backward_fire ?? null),
+      run_left_fire: makeAction(mixer, clips.run_left_fire ?? null),
+      run_right_fire: makeAction(mixer, clips.run_right_fire ?? null),
+      run_left_d_fire: makeAction(mixer, clips.run_left_d_fire ?? null),
+      run_right_d_fire: makeAction(mixer, clips.run_right_d_fire ?? null),
+      run_backward_left_d_fire: makeAction(mixer, clips.run_backward_left_d_fire ?? null),
+      run_backward_right_d_fire: makeAction(mixer, clips.run_backward_right_d_fire ?? null),
       jump_up: jumpUp,
     },
     current: 'idle',

@@ -1,6 +1,7 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
-import { locomotionFromStrafeAxes, toCrouchLocomotion, toRunLocomotion } from '../../game/playerLocomotionLogic';
+import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/playerLocomotionLogic';
+import { hasAnimationActionForLocomotion, type PlayerAnimation } from '../components/PlayerAnimation';
 import type { Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
 
 export function createPlayerControllerSystem(
@@ -44,6 +45,7 @@ export function createPlayerControllerSystem(
       const object3d = entity.object3d as THREE.Object3D;
       const input = entity.input as Input;
       const camera = entity.camera as THREE.PerspectiveCamera;
+      const playerAnimation = (entity as { playerAnimation?: PlayerAnimation }).playerAnimation;
 
       // Инициализируем состояние камеры если его ещё нет
       if (!cameraState.has(entity)) {
@@ -127,7 +129,21 @@ export function createPlayerControllerSystem(
       if (!isGrounded || jumpPending) {
         controller.locomotion = 'jump_up';
       } else {
-        controller.locomotion = modeLocomotion;
+        const wantsFire = input.mouse.primaryDown;
+        if (wantsFire) {
+          const fireLocomotion = toFireLocomotion(modeLocomotion);
+          if (
+            fireLocomotion
+            && playerAnimation
+            && hasAnimationActionForLocomotion(playerAnimation.actionByLocomotion, fireLocomotion)
+          ) {
+            controller.locomotion = fireLocomotion;
+          } else {
+            controller.locomotion = modeLocomotion;
+          }
+        } else {
+          controller.locomotion = modeLocomotion;
+        }
       }
 
       if (direction.length() > 0) {
