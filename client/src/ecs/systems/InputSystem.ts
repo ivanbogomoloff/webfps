@@ -11,19 +11,39 @@ export function createInputSystem(world: World) {
   let globalPrimaryMouseDown = false;
   // Игнорируем keyup сразу после входа в pointer lock (браузер шлёт синтетические keyup при смене фокуса)
   let ignoreKeyUpUntil = 0;
+  const keyUpAllowDuringIgnore = new Set<string>();
+  const MOVEMENT_KEYS = ['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'];
+
+  const clearAllKeys = () => {
+    for (const key of Array.from(globalKeys.keys())) {
+      globalKeys.set(key, false);
+    }
+    keyUpAllowDuringIgnore.clear();
+  };
+
+  const clearMovementKeys = () => {
+    for (const key of MOVEMENT_KEYS) {
+      globalKeys.set(key, false);
+      keyUpAllowDuringIgnore.delete(key);
+    }
+  };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    const key = e.key.toLowerCase();
     if (e.key === 'Tab') {
       e.preventDefault();
     }
-    globalKeys.set(e.key.toLowerCase(), true);
+    globalKeys.set(key, true);
+    keyUpAllowDuringIgnore.add(key);
   };
   const onKeyUp = (e: KeyboardEvent) => {
+    const key = e.key.toLowerCase();
     if (e.key === 'Tab') {
       e.preventDefault();
     }
-    if (Date.now() < ignoreKeyUpUntil) return;
-    globalKeys.set(e.key.toLowerCase(), false);
+    if (Date.now() < ignoreKeyUpUntil && !keyUpAllowDuringIgnore.has(key)) return;
+    globalKeys.set(key, false);
+    keyUpAllowDuringIgnore.delete(key);
   };
   document.addEventListener('keydown', onKeyDown, true);
   document.addEventListener('keyup', onKeyUp, true);
@@ -46,10 +66,12 @@ export function createInputSystem(world: World) {
   });
   window.addEventListener('blur', () => {
     globalPrimaryMouseDown = false;
+    clearAllKeys();
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
       globalPrimaryMouseDown = false;
+      clearAllKeys();
     }
   });
 
@@ -57,6 +79,15 @@ export function createInputSystem(world: World) {
     const locked = document.pointerLockElement !== null;
     if (locked) {
       ignoreKeyUpUntil = Date.now() + 150;
+      keyUpAllowDuringIgnore.clear();
+      for (const [key, isDown] of globalKeys) {
+        if (isDown) {
+          keyUpAllowDuringIgnore.add(key);
+        }
+      }
+    } else {
+      // При выходе из pointer lock браузер может потерять keyup, сбрасываем движение принудительно.
+      clearMovementKeys();
     }
     globalMouseLocked = locked;
   });
