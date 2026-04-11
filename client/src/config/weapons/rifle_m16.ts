@@ -40,6 +40,11 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
       rotation: {x: 1.5708, y: -1.5650, z: 0.3810},
       scale: {x: 1.0000, y: 1.0000, z: 1.0000},
     },
+    walk_fire: {
+      position: { x: -1.3080, y: -0.4400, z: 0.3650 },
+      rotation: { x: 1.3930, y: -1.4100, z: 0.3810 },
+      scale: { x: 1.0000, y: 1.0000, z: 1.0000 },
+    },
     walk_crouch: {
       position: {x: -1.0600, y: -0.9360, z: -0.8120},
       rotation: {x: 1.5708, y: -1.4100, z: 0.6140},

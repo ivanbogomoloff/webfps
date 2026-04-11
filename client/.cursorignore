@@ -1,0 +1,21 @@
+client/public/models/
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Logs and tests
+*.log
+coverage/
+.npm/
+
+# Environment and secrets
+.env
+.env.*
