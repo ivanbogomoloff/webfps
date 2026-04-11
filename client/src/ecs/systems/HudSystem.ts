@@ -153,6 +153,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     const groundProbeLine = jumpDebug
       ? `GROUND PROBE: hit=${jumpDebug.groundProbe.hit ? 'YES' : 'NO'} fromY=${jumpDebug.groundProbe.fromY.toFixed(2)} toY=${jumpDebug.groundProbe.toY.toFixed(2)} at=(${jumpDebug.groundProbe.x.toFixed(2)}, ${jumpDebug.groundProbe.y.toFixed(2)}, ${jumpDebug.groundProbe.z.toFixed(2)})`
       : 'GROUND PROBE: -';
+    const isFiring = local.playerController.locomotion.includes('fire');
 
     options.debugHudContentElement.innerHTML = `
       <div>ROOM: ${roomCode ?? '…'}</div>
@@ -161,6 +162,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       <div>MOUSE LOCKED: ${local.input.mouse.isLocked ? 'YES' : 'NO'}</div>
       <div>ROLE: ${local.networkIdentity.role ?? 'spectator'}</div>
       <div>current weapon: ${local.weaponState.weaponId}</div>
+      <div>fire: ${isFiring ? 'on' : 'off'}</div>
       <div>JUMP: ${jumpStateLine}</div>
       <div>${groundProbeLine}</div>
       <div>PHASE: ${matchState?.phase ?? 'waiting'} | TIME: ${matchState?.timeLeftSec ?? 0}s | FRAG LIMIT: ${matchState?.fragLimit ?? 0}</div>
