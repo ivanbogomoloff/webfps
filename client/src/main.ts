@@ -5,7 +5,6 @@ import { loadSupportedWeaponModelTemplates } from './game/weaponModelTemplates'
 import { clonePlayerVisualSetup, DEFAULT_PLAYER_RADIUS } from './game/playerModelPrep'
 import { DEFAULT_PLAYER_MODEL_ID, resolvePlayerModelId } from './game/supportedPlayerModels'
 import { DEFAULT_WEAPON_ID, resolveWeaponId, SUPPORTED_WEAPON_IDS } from './game/supportedWeaponModels'
-import { OfflineLoopbackTransport } from './net/OfflineLoopbackTransport'
 import type { GameTransport, TransportConnectParams } from './net/GameTransport'
 import { WsTransport } from './net/WsTransport'
 
@@ -14,7 +13,7 @@ const DEBUG_HUD =
   typeof import.meta !== 'undefined' &&
   (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_DEBUG_HUD === 'true'
 
-type Mode = 'offline' | 'online'
+type Mode = 'loopback_bot' | 'online'
 type StartOptions = {
   mode: Mode
   wsUrl: string
@@ -30,15 +29,20 @@ type StartOptions = {
 
 let game: Game | null = null
 
+function resolveMapAssets(mapId: string): { mapPath: string; hdrPath: string } {
+  const normalizedMapId = mapId.trim() || 'test2'
+  return {
+    mapPath: `/models/maps/${normalizedMapId}/map_${normalizedMapId}.glb`,
+    hdrPath: `/models/maps/${normalizedMapId}/map_${normalizedMapId}.hdr`,
+  }
+}
+
 async function startGame(options: StartOptions): Promise<void> {
   const templates = await loadSupportedPlayerModelTemplates()
   const weaponTemplates = await loadSupportedWeaponModelTemplates()
   const resolvedModelId = resolvePlayerModelId(options.modelId.trim() || DEFAULT_PLAYER_MODEL_ID)
   const resolvedWeaponId = resolveWeaponId(options.weaponId.trim() || DEFAULT_WEAPON_ID)
-  const transport: GameTransport =
-    options.mode === 'online'
-      ? new WsTransport(options.wsUrl)
-      : new OfflineLoopbackTransport()
+  const transport: GameTransport = new WsTransport(options.wsUrl)
   const connectParams: TransportConnectParams = {
     roomCode: options.roomCode.trim(),
     nickname: options.nickname.trim() || 'Player',
@@ -75,9 +79,10 @@ async function startGame(options: StartOptions): Promise<void> {
   game.createPlayer(localVisual, DEFAULT_PLAYER_RADIUS)
 
   try {
+    const { mapPath, hdrPath } = resolveMapAssets(connectParams.mapId)
     await game.loadMap(
-      '/models/maps/test2/map_test2.glb',
-      '/models/maps/test2/map_test2.hdr',
+      mapPath,
+      hdrPath,
     )
   } catch (error) {
     console.error('Failed to load game:', error)
@@ -110,7 +115,7 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
       <h2 style="margin: 0 0 14px;">FFA Multiplayer</h2>
       <label style="display:block; margin-bottom:8px;">Mode
         <select id="mode" style="width:100%; margin-top:4px;">
-          <option value="offline" selected>offline (loopback + bot)</option>
+          <option value="loopback_bot" selected>loopback + bot (server)</option>
           <option value="online">online (websocket)</option>
         </select>
       </label>
@@ -166,8 +171,8 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
   const submit = async (startAsPlayer: boolean) => {
     try {
       error.textContent = ''
-      const selectedMode = mode.value === 'online' ? 'online' : 'offline'
-      if (selectedMode === 'online' && roomCode.value.trim() !== '' && !/^\d{4}$/.test(roomCode.value.trim())) {
+      const selectedMode = mode.value === 'online' ? 'online' : 'loopback_bot'
+      if (roomCode.value.trim() !== '' && !/^\d{4}$/.test(roomCode.value.trim())) {
         throw new Error('Room code must be exactly 4 digits')
       }
       const options: StartOptions = {
@@ -281,6 +286,7 @@ matchControls.style.cssText = `
 matchControls.innerHTML = `
   <button id="btnSpectator">Spectator</button>
   <button id="btnEnterMatch">Enter Match</button>
+  <button id="btnAddBot">Add Bot</button>
   <button id="btnHitSelf">Hit Self</button>
 `
 debugHudElement.appendChild(matchControls)
@@ -292,9 +298,18 @@ debugHudElement.appendChild(matchControls)
   game?.setLocalRole('player')
   game?.requestSpawn()
 })
+;(matchControls.querySelector('#btnAddBot') as HTMLButtonElement).addEventListener('click', () => {
+  if (!game?.canAddBot()) return
+  game.addBot()
+})
 ;(matchControls.querySelector('#btnHitSelf') as HTMLButtonElement).addEventListener('click', () => {
   game?.debugHitSelf()
 })
+
+const addBotButton = matchControls.querySelector('#btnAddBot') as HTMLButtonElement
+window.setInterval(() => {
+  addBotButton.disabled = !(game?.canAddBot() ?? false)
+}, 250)
 
 const weaponHotkeysHint = document.createElement('div')
 weaponHotkeysHint.style.cssText = `

@@ -9,6 +9,7 @@ const (
 	TypeJoinRoom       = "join_room"
 	TypeSetRole        = "set_role"
 	TypeSpawnRequest   = "spawn_request"
+	TypeAddBot         = "add_bot"
 	TypeStateUpdate    = "state_update"
 	TypeReportKill     = "report_kill"
 	TypeDebugHitSelf   = "debug_hit_self"
@@ -128,6 +129,7 @@ type ReportKillPayload struct {
 }
 
 type DebugHitSelfPayload struct{}
+type AddBotPayload struct{}
 
 type ErrorPayload struct {
 	Code    string `json:"code"`

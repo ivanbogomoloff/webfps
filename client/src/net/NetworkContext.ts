@@ -30,6 +30,7 @@ export class NetworkContext {
   private playerEntityById = new Map<string, AnyEntity>()
   private localPlayerEntity: AnyEntity | null = null
   private localPlayerId: string | null = null
+  private ownerPlayerId: string | null = null
 
   public scoreboard: ScoreboardPlayer[] = []
   public lastError: string | null = null
@@ -229,6 +230,15 @@ export class NetworkContext {
     return this.localPlayerId ?? this.transport.getLocalPlayerId()
   }
 
+  setOwnerPlayerId(playerId: string | null): void {
+    this.ownerPlayerId = playerId
+  }
+
+  canAddBot(): boolean {
+    const localPlayerId = this.getLocalPlayerId()
+    return localPlayerId != null && this.ownerPlayerId != null && localPlayerId === this.ownerPlayerId
+  }
+
   sendState(update: LocalStateUpdate): void {
     this.transport.sendState(update)
   }
@@ -239,6 +249,10 @@ export class NetworkContext {
 
   requestSpawn(): void {
     this.transport.requestSpawn()
+  }
+
+  addBot(): void {
+    this.transport.addBot()
   }
 
   debugHitSelf(): void {

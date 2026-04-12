@@ -579,6 +579,14 @@ export class Game {
     this.networkContext?.requestSpawn();
   }
 
+  public addBot(): void {
+    this.networkContext?.addBot();
+  }
+
+  public canAddBot(): boolean {
+    return this.networkContext?.canAddBot() ?? false;
+  }
+
   public debugHitSelf(): void {
     this.networkContext?.debugHitSelf();
   }

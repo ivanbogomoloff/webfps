@@ -18,6 +18,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
       switch (message.type) {
         case 'room_joined': {
           networkContext.setLocalPlayerId(message.payload.localPlayerId)
+          networkContext.setOwnerPlayerId(message.payload.ownerPlayerId)
           if (matchEntity?.matchState) {
             matchEntity.matchState.maxPlayers = message.payload.maxPlayers
           }
@@ -35,6 +36,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
           break
         }
         case 'room_state': {
+          networkContext.setOwnerPlayerId(message.payload.ownerPlayerId)
           if (matchEntity?.matchState) {
             matchEntity.matchState.phase = message.payload.phase
             matchEntity.matchState.timeLimitSec = message.payload.timeLimitSec

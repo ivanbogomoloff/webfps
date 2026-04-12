@@ -69,6 +69,13 @@ func (h *Hub) routeMessage(client *clientConn, msg protocol.Message) {
 		h.manager.SetRole(client.id, payload.Role)
 	case protocol.TypeSpawnRequest:
 		h.manager.SpawnRequest(client.id)
+	case protocol.TypeAddBot:
+		var payload protocol.AddBotPayload
+		if !decodePayload(msg.Payload, &payload) {
+			h.sendError(client, "bad_payload", "invalid add_bot payload")
+			return
+		}
+		h.manager.AddBot(client.id)
 	case protocol.TypeStateUpdate:
 		var payload protocol.StateUpdatePayload
 		if !decodePayload(msg.Payload, &payload) {

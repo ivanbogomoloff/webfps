@@ -52,19 +52,21 @@ type playerState struct {
 	IsDead      bool    `json:"isDead"`
 	RespawnAtMs int64   `json:"-"`
 	ForcedLoc   string  `json:"forcedLocomotion,omitempty"`
+	IsBot       bool    `json:"-"`
 }
 
 type roomState struct {
-	Code         string
-	MapID        string
-	MaxPlayers   int
-	TimeLimitSec int
-	FragLimit    int
-	TimeLeftSec  int
-	Phase        string
-	WinnerID     string
-	Players      map[string]*playerState
-	Clients      map[string]ClientSender
+	Code          string
+	OwnerPlayerID string
+	MapID         string
+	MaxPlayers    int
+	TimeLimitSec  int
+	FragLimit     int
+	TimeLeftSec   int
+	Phase         string
+	WinnerID      string
+	Players       map[string]*playerState
+	Clients       map[string]ClientSender
 }
 
 type Manager struct {
@@ -74,7 +76,9 @@ type Manager struct {
 	clientToPlayer map[string]string
 	spawnByMap     map[string]int
 	random         *rand.Rand
+	botBehavior    BotBehavior
 	nextPlayerInt  int
+	nextBotInt     int
 }
 
 func NewManager(manifestPath string) (*Manager, error) {
@@ -99,6 +103,7 @@ func NewManager(manifestPath string) (*Manager, error) {
 		clientToPlayer: make(map[string]string),
 		spawnByMap:     spawnByMap,
 		random:         rand.New(rand.NewSource(time.Now().UnixNano())),
+		botBehavior:    IdleBotBehavior{},
 	}, nil
 }
 
@@ -170,6 +175,9 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 		Health:     defaultPlayerHealth,
 		MaxHealth:  defaultPlayerHealth,
 	}
+	if room.OwnerPlayerID == "" {
+		room.OwnerPlayerID = playerID
+	}
 	room.Clients[client.ID()] = client
 	m.clientToRoom[client.ID()] = roomCode
 	m.clientToPlayer[client.ID()] = playerID
@@ -187,6 +195,7 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 		"payload": map[string]any{
 			"roomCode":      room.Code,
 			"localPlayerId": playerID,
+			"ownerPlayerId": room.OwnerPlayerID,
 			"mapId":         room.MapID,
 			"maxPlayers":    room.MaxPlayers,
 		},
@@ -249,6 +258,59 @@ func (m *Manager) SpawnRequest(clientID string) {
 		})
 		go m.runRoomTimer(room.Code)
 	}
+}
+
+func (m *Manager) AddBot(clientID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	room, _ := m.getRoomAndPlayerByClientLocked(clientID)
+	if room == nil {
+		return
+	}
+	requestPlayerID := m.clientToPlayer[clientID]
+	if requestPlayerID == "" || requestPlayerID != room.OwnerPlayerID {
+		m.sendErrorLocked(clientID, "forbidden", "only room owner can add bot")
+		return
+	}
+	if m.countActivePlayersLocked(room) >= room.MaxPlayers {
+		m.sendErrorLocked(clientID, "room_full", "player slots are full for this map")
+		return
+	}
+
+	m.nextBotInt++
+	botID := fmt.Sprintf("bot-%d", m.nextBotInt)
+	spawnX, spawnY, spawnZ, spawnRotY := m.pickBotSpawnLocked(room)
+	bot := &playerState{
+		PlayerID:   botID,
+		Nickname:   fmt.Sprintf("Bot %d", m.nextBotInt),
+		ModelID:    "player1",
+		WeaponID:   "rifle_ak47",
+		Role:       "player",
+		Locomotion: "idle",
+		X:          spawnX,
+		Y:          spawnY,
+		Z:          spawnZ,
+		RotY:       spawnRotY,
+		Health:     defaultPlayerHealth,
+		MaxHealth:  defaultPlayerHealth,
+		IsBot:      true,
+	}
+	room.Players[botID] = bot
+	m.applyBotBehaviorLocked(room, time.Now().UnixMilli())
+
+	m.broadcastLocked(room, map[string]any{
+		"type": protocol.TypePlayerJoined,
+		"payload": map[string]any{
+			"playerId": bot.PlayerID,
+			"nickname": bot.Nickname,
+			"modelId":  bot.ModelID,
+			"weaponId": bot.WeaponID,
+			"role":     bot.Role,
+		},
+	})
+	m.broadcastPlayerStatesLocked(room)
+	m.broadcastRoomStateLocked(room)
 }
 
 func (m *Manager) UpdateState(clientID string, payload protocol.StateUpdatePayload) {
@@ -367,6 +429,7 @@ func (m *Manager) runRoomTimer(roomCode string) {
 			return
 		}
 		respawnStateChanged := m.applyRespawnsLocked(room, time.Now().UnixMilli())
+		m.applyBotBehaviorLocked(room, time.Now().UnixMilli())
 		room.TimeLeftSec--
 		m.broadcastLocked(room, map[string]any{
 			"type": protocol.TypeMatchTick,
@@ -453,11 +516,12 @@ func (m *Manager) broadcastRoomStateLocked(room *roomState) {
 	m.broadcastLocked(room, map[string]any{
 		"type": protocol.TypeRoomState,
 		"payload": map[string]any{
-			"phase":        room.Phase,
-			"timeLimitSec": room.TimeLimitSec,
-			"timeLeftSec":  room.TimeLeftSec,
-			"fragLimit":    room.FragLimit,
-			"players":      players,
+			"phase":         room.Phase,
+			"timeLimitSec":  room.TimeLimitSec,
+			"timeLeftSec":   room.TimeLeftSec,
+			"fragLimit":     room.FragLimit,
+			"ownerPlayerId": room.OwnerPlayerID,
+			"players":       players,
 		},
 	})
 	m.broadcastScoreboardLocked(room)
@@ -480,21 +544,21 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 			forcedLoc = p.ForcedLoc
 		}
 		states = append(states, map[string]any{
-			"playerId":   p.PlayerID,
-			"modelId":    p.ModelID,
-			"weaponId":   p.WeaponID,
-			"locomotion": locomotion,
-			"x":          p.X,
-			"y":          p.Y,
-			"z":          p.Z,
-			"rotY":       p.RotY,
-			"role":       p.Role,
-			"frags":      p.Frags,
-			"deaths":     p.Deaths,
-			"health":     p.Health,
-			"maxHealth":  p.MaxHealth,
-			"isDead":     p.IsDead,
-			"respawnInSec": respawnInSec,
+			"playerId":         p.PlayerID,
+			"modelId":          p.ModelID,
+			"weaponId":         p.WeaponID,
+			"locomotion":       locomotion,
+			"x":                p.X,
+			"y":                p.Y,
+			"z":                p.Z,
+			"rotY":             p.RotY,
+			"role":             p.Role,
+			"frags":            p.Frags,
+			"deaths":           p.Deaths,
+			"health":           p.Health,
+			"maxHealth":        p.MaxHealth,
+			"isDead":           p.IsDead,
+			"respawnInSec":     respawnInSec,
 			"forcedLocomotion": forcedLoc,
 		})
 	}
@@ -526,7 +590,7 @@ func calcRespawnInSec(nowMs int64, respawnAtMs int64) int {
 	if respawnAtMs <= nowMs {
 		return 0
 	}
-	return int((respawnAtMs-nowMs + 999) / 1000)
+	return int((respawnAtMs - nowMs + 999) / 1000)
 }
 
 func isCrouchLocomotion(locomotion string) bool {
@@ -587,6 +651,41 @@ func (m *Manager) sendErrorLocked(clientID string, code string, message string) 
 			"message": message,
 		},
 	})
+}
+
+func (m *Manager) applyBotBehaviorLocked(room *roomState, nowMs int64) {
+	if room == nil || m.botBehavior == nil {
+		return
+	}
+	for _, player := range room.Players {
+		if !player.IsBot {
+			continue
+		}
+		m.botBehavior.Apply(player, room, nowMs)
+	}
+}
+
+func (m *Manager) pickBotSpawnLocked(room *roomState) (x float64, y float64, z float64, rotY float64) {
+	if room == nil {
+		return 0, 0, 0, 0
+	}
+	owner := room.Players[room.OwnerPlayerID]
+	if owner != nil {
+		return owner.X, owner.Y, owner.Z, owner.RotY
+	}
+	for _, p := range room.Players {
+		if p == nil || p.IsBot || p.Role != "player" {
+			continue
+		}
+		return p.X, p.Y, p.Z, p.RotY
+	}
+	for _, p := range room.Players {
+		if p == nil || p.IsBot {
+			continue
+		}
+		return p.X, p.Y, p.Z, p.RotY
+	}
+	return 0, 0, 0, 0
 }
 
 func (m *Manager) getRoomAndPlayerByClientLocked(clientID string) (*roomState, *playerState) {

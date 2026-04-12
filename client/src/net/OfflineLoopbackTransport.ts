@@ -101,6 +101,7 @@ export class OfflineLoopbackTransport implements GameTransport {
       payload: {
         roomCode: this.roomCode,
         localPlayerId: this.localPlayerId,
+        ownerPlayerId: this.localPlayerId,
         mapId: this.mapId,
         maxPlayers: this.maxPlayers,
       },
@@ -146,6 +147,10 @@ export class OfflineLoopbackTransport implements GameTransport {
       })
       this.emitRoomState()
     }
+  }
+
+  addBot(): void {
+    // Loopback transport is kept only for local fallback and does not expose server bot spawning.
   }
 
   debugHitSelf(): void {
@@ -303,6 +308,7 @@ export class OfflineLoopbackTransport implements GameTransport {
         timeLimitSec: this.timeLimitSec,
         timeLeftSec: this.timeLeftSec,
         fragLimit: this.fragLimit,
+        ownerPlayerId: this.localPlayerId ?? 'local-1',
         players: Array.from(this.players.values()).map((player) => ({
           playerId: player.playerId,
           nickname: player.nickname,

@@ -58,6 +58,10 @@ export class WsTransport implements GameTransport {
     this.send({ type: 'spawn_request', payload: {} })
   }
 
+  addBot(): void {
+    this.send({ type: 'add_bot', payload: {} })
+  }
+
   debugHitSelf(): void {
     this.send({ type: 'debug_hit_self', payload: {} })
   }

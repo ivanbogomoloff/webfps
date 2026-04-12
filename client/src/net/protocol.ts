@@ -54,7 +54,7 @@ export interface RoomPlayer {
 export type IncomingMessage =
   | {
       type: 'room_joined'
-      payload: { roomCode: string; localPlayerId: string; mapId: string; maxPlayers: number }
+      payload: { roomCode: string; localPlayerId: string; ownerPlayerId: string; mapId: string; maxPlayers: number }
     }
   | {
       type: 'room_state'
@@ -63,6 +63,7 @@ export type IncomingMessage =
         timeLimitSec: number
         timeLeftSec: number
         fragLimit: number
+        ownerPlayerId: string
         players: RoomPlayer[]
       }
     }
@@ -82,6 +83,7 @@ export type OutgoingMessage =
   | { type: 'join_room'; payload: JoinRoomPayload }
   | { type: 'set_role'; payload: { role: PlayerRole } }
   | { type: 'spawn_request'; payload: Record<string, never> }
+  | { type: 'add_bot'; payload: Record<string, never> }
   | {
       type: 'state_update'
       payload: {
