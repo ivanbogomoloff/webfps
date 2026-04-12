@@ -8,25 +8,6 @@ import {
   weaponModelGltfPath,
 } from './supportedWeaponModels'
 
-function normalizeWeaponTemplate(root: THREE.Object3D): void {
-  root.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(root)
-  if (box.isEmpty()) return
-
-  const size = new THREE.Vector3()
-  const center = new THREE.Vector3()
-  box.getSize(size)
-  box.getCenter(center)
-  const longest = Math.max(size.x, size.y, size.z)
-  if (longest <= 0) return
-
-  const desiredLongest = 0.6
-  const scale = THREE.MathUtils.clamp(desiredLongest / longest, 0.01, 20)
-  root.scale.multiplyScalar(scale)
-  root.position.sub(center.multiplyScalar(scale))
-  root.updateMatrixWorld(true)
-}
-
 function emptyWeaponTemplate(): THREE.Object3D {
   const root = new THREE.Group()
   const mesh = new THREE.Mesh(

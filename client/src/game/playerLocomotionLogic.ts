@@ -54,6 +54,8 @@ export const PLAYER_LOCOMOTION_IDS = [
   'run_backward_left_d_fire',
   'run_backward_right_d_fire',
   'jump_up',
+  'death_back',
+  'death_crouch',
 ] as const satisfies readonly PlayerLocomotion[];
 
 const FIRE_LOCOMOTION_BY_BASE: Partial<Record<PlayerLocomotion, PlayerLocomotion>> = {
@@ -143,6 +145,8 @@ const CROUCH_LOCOMOTION_BY_WALK: Partial<Record<PlayerLocomotion, PlayerLocomoti
   run_backward_left_d: 'run_backward_left_d',
   run_backward_right_d: 'run_backward_right_d',
   jump_up: 'jump_up',
+  death_back: 'death_back',
+  death_crouch: 'death_crouch',
 };
 
 export function toCrouchLocomotion(locomotion: PlayerLocomotion): PlayerLocomotion {
@@ -177,6 +181,8 @@ const RUN_LOCOMOTION_BY_WALK: Partial<Record<PlayerLocomotion, PlayerLocomotion>
   run_backward_left_d: 'run_backward_left_d',
   run_backward_right_d: 'run_backward_right_d',
   jump_up: 'jump_up',
+  death_back: 'death_back',
+  death_crouch: 'death_crouch',
 };
 
 export function toRunLocomotion(locomotion: PlayerLocomotion): PlayerLocomotion {

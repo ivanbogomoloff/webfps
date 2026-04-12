@@ -58,6 +58,10 @@ export class WsTransport implements GameTransport {
     this.send({ type: 'spawn_request', payload: {} })
   }
 
+  debugHitSelf(): void {
+    this.send({ type: 'debug_hit_self', payload: {} })
+  }
+
   sendState(update: LocalStateUpdate): void {
     this.send({
       type: 'state_update',

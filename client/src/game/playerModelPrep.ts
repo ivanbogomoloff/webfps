@@ -59,6 +59,8 @@ export type PlayerVisualSetup = {
   runBackwardLeftDFireClip: THREE.AnimationClip | null;
   runBackwardRightDFireClip: THREE.AnimationClip | null;
   jumpUpClip: THREE.AnimationClip | null;
+  deathBackClip: THREE.AnimationClip | null;
+  deathCrouchClip: THREE.AnimationClip | null;
 };
 
 function findAnimationClip(
@@ -234,6 +236,10 @@ export function preparePlayerVisualFromGltf(
     findAnimationClip(gltf.animations, 'run_backward_left_d_fire', 'exact') ?? null;
   const runBackwardRightDFireClip =
     findAnimationClip(gltf.animations, 'run_backward_right_d_fire', 'exact') ?? null;
+  const deathBackClip =
+    findAnimationClip(gltf.animations, 'death_back', 'exact') ?? null;
+  const deathCrouchClip =
+    findAnimationClip(gltf.animations, 'death_crouch', 'exact') ?? null;
 
   if (!idleClip || !walkClip) {
     console.warn(
@@ -297,6 +303,8 @@ export function preparePlayerVisualFromGltf(
     runBackwardLeftDFireClip,
     runBackwardRightDFireClip,
     jumpUpClip,
+    deathBackClip,
+    deathCrouchClip,
   };
 }
 
@@ -357,5 +365,7 @@ export function clonePlayerVisualSetup(template: PlayerVisualSetup): PlayerVisua
     runBackwardLeftDFireClip: template.runBackwardLeftDFireClip,
     runBackwardRightDFireClip: template.runBackwardRightDFireClip,
     jumpUpClip: template.jumpUpClip,
+    deathBackClip: template.deathBackClip,
+    deathCrouchClip: template.deathCrouchClip,
   };
 }

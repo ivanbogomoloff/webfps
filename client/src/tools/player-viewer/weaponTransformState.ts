@@ -24,7 +24,7 @@ function formatNum(value: number): string {
 }
 
 export function formatWeaponTransformForCatalog(
-  weaponId: string,
+  _weaponId: string,
   locomotion: PlayerLocomotion,
   values: WeaponTransformValues,
 ): string {

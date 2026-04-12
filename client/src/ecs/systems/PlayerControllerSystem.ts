@@ -1,7 +1,7 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
 import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/playerLocomotionLogic';
-import type { Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
+import type { Health, Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
 
 export function createPlayerControllerSystem(
   world: World,
@@ -44,12 +44,20 @@ export function createPlayerControllerSystem(
       const object3d = entity.object3d as THREE.Object3D;
       const input = entity.input as Input;
       const camera = entity.camera as THREE.PerspectiveCamera;
+      const health = (entity as { health?: Health }).health;
 
       // Инициализируем состояние камеры если его ещё нет
       if (!cameraState.has(entity)) {
         cameraState.set(entity, { pitch: 0, yaw: 0 });
       }
       const camState = cameraState.get(entity)!;
+
+      if (health?.isDead) {
+        physicsState.moveDirection.set(0, 0, 0);
+        physicsState.jumpPending = false;
+        controller.locomotion = health.forcedLocomotion ?? 'death_back';
+        continue;
+      }
 
       // Обработка поворота мышью (если pointer lock активен)
       if (input.mouse.isLocked) {

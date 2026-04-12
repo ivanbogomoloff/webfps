@@ -57,6 +57,8 @@ export interface PlayerAnimationActions {
   run_backward_left_d_fire: THREE.AnimationAction | null;
   run_backward_right_d_fire: THREE.AnimationAction | null;
   jump_up: THREE.AnimationAction | null;
+  death_back: THREE.AnimationAction | null;
+  death_crouch: THREE.AnimationAction | null;
 }
 
 export interface PlayerAnimation {
@@ -120,6 +122,8 @@ export type PlayerAnimationClips = {
   run_backward_left_d_fire?: THREE.AnimationClip | null;
   run_backward_right_d_fire?: THREE.AnimationClip | null;
   jump_up?: THREE.AnimationClip | null;
+  death_back?: THREE.AnimationClip | null;
+  death_crouch?: THREE.AnimationClip | null;
 };
 
 function makeAction(
@@ -313,6 +317,10 @@ export function pickAnimationAction(
       );
     case 'jump_up':
       return actions.jump_up ?? actions.idle;
+    case 'death_back':
+      return actions.death_back ?? actions.idle;
+    case 'death_crouch':
+      return actions.death_crouch ?? actions.death_back ?? actions.idle_crouch ?? actions.idle;
     default:
       return actions.idle;
   }
@@ -387,6 +395,8 @@ export function createPlayerAnimation(
       run_backward_left_d_fire: makeAction(mixer, clips.run_backward_left_d_fire ?? null),
       run_backward_right_d_fire: makeAction(mixer, clips.run_backward_right_d_fire ?? null),
       jump_up: jumpUp,
+      death_back: makeAction(mixer, clips.death_back ?? null),
+      death_crouch: makeAction(mixer, clips.death_crouch ?? null),
     },
     current: 'idle',
   };

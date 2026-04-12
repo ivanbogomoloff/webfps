@@ -54,6 +54,8 @@ export const PLAYER_LOCOMOTION_KEYS: readonly PlayerLocomotion[] = [
   'run_right_d_fire',
   'run_backward_left_d_fire',
   'run_backward_right_d_fire',
+  'death_back',
+  'death_crouch',
 ]
 
 export type WeaponTransformValues = {

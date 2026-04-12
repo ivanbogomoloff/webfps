@@ -7,11 +7,18 @@ import (
 	"math/rand"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"web-fps/server/internal/match"
 	"web-fps/server/internal/protocol"
+)
+
+const (
+	defaultPlayerHealth = 100
+	debugHitDamage      = 25
+	respawnDelayMs      = int64(3000)
 )
 
 type ClientSender interface {
@@ -40,6 +47,11 @@ type playerState struct {
 	RotY        float64 `json:"rotY"`
 	Frags       int     `json:"frags"`
 	Deaths      int     `json:"deaths"`
+	Health      int     `json:"health"`
+	MaxHealth   int     `json:"maxHealth"`
+	IsDead      bool    `json:"isDead"`
+	RespawnAtMs int64   `json:"-"`
+	ForcedLoc   string  `json:"forcedLocomotion,omitempty"`
 }
 
 type roomState struct {
@@ -155,6 +167,8 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 		WeaponID:   weaponID,
 		Role:       "spectator",
 		Locomotion: "idle",
+		Health:     defaultPlayerHealth,
+		MaxHealth:  defaultPlayerHealth,
 	}
 	room.Clients[client.ID()] = client
 	m.clientToRoom[client.ID()] = roomCode
@@ -245,6 +259,7 @@ func (m *Manager) UpdateState(clientID string, payload protocol.StateUpdatePaylo
 	if room == nil || player == nil {
 		return
 	}
+	respawnStateChanged := m.applyRespawnsLocked(room, time.Now().UnixMilli())
 	player.X = payload.X
 	player.Y = payload.Y
 	player.Z = payload.Z
@@ -255,9 +270,14 @@ func (m *Manager) UpdateState(clientID string, payload protocol.StateUpdatePaylo
 	if payload.WeaponID != "" {
 		player.WeaponID = payload.WeaponID
 	}
-	player.Locomotion = protocol.NormalizePlayerLocomotion(payload.Locomotion)
+	if !player.IsDead {
+		player.Locomotion = protocol.NormalizePlayerLocomotion(payload.Locomotion)
+	}
 
 	m.broadcastPlayerStatesLocked(room)
+	if respawnStateChanged {
+		m.broadcastRoomStateLocked(room)
+	}
 }
 
 func (m *Manager) ReportKill(clientID string, payload protocol.ReportKillPayload) {
@@ -275,6 +295,10 @@ func (m *Manager) ReportKill(clientID string, payload protocol.ReportKillPayload
 
 	killer.Frags++
 	victim.Deaths++
+	victim.Health = victim.MaxHealth
+	victim.IsDead = false
+	victim.RespawnAtMs = 0
+	victim.ForcedLoc = ""
 	m.broadcastScoreboardLocked(room)
 
 	end := match.EvaluateEnd(match.EvaluateInput{
@@ -285,6 +309,41 @@ func (m *Manager) ReportKill(clientID string, payload protocol.ReportKillPayload
 	if end.Ended {
 		m.finishMatchLocked(room, string(end.Reason), end.WinnerID)
 	}
+}
+
+func (m *Manager) DebugHitSelf(clientID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	room, player := m.getRoomAndPlayerByClientLocked(clientID)
+	if room == nil || player == nil {
+		return
+	}
+	if player.Role != "player" || player.IsDead {
+		return
+	}
+
+	healthBefore := player.Health
+	if healthBefore <= 0 {
+		healthBefore = player.MaxHealth
+	}
+	player.Health = max(0, healthBefore-debugHitDamage)
+
+	if player.Health <= 0 {
+		player.Health = 0
+		player.IsDead = true
+		player.Deaths++
+		if isCrouchLocomotion(player.Locomotion) {
+			player.ForcedLoc = "death_crouch"
+		} else {
+			player.ForcedLoc = "death_back"
+		}
+		player.Locomotion = player.ForcedLoc
+		player.RespawnAtMs = time.Now().UnixMilli() + respawnDelayMs
+		m.broadcastScoreboardLocked(room)
+	}
+
+	m.broadcastPlayerStatesLocked(room)
 }
 
 func (m *Manager) LeaveRoom(clientID string) {
@@ -307,6 +366,7 @@ func (m *Manager) runRoomTimer(roomCode string) {
 			m.mu.Unlock()
 			return
 		}
+		respawnStateChanged := m.applyRespawnsLocked(room, time.Now().UnixMilli())
 		room.TimeLeftSec--
 		m.broadcastLocked(room, map[string]any{
 			"type": protocol.TypeMatchTick,
@@ -324,6 +384,10 @@ func (m *Manager) runRoomTimer(roomCode string) {
 			m.finishMatchLocked(room, string(end.Reason), end.WinnerID)
 			m.mu.Unlock()
 			return
+		}
+		if respawnStateChanged {
+			m.broadcastPlayerStatesLocked(room)
+			m.broadcastRoomStateLocked(room)
 		}
 		m.mu.Unlock()
 	}
@@ -400,13 +464,26 @@ func (m *Manager) broadcastRoomStateLocked(room *roomState) {
 }
 
 func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
+	nowMs := time.Now().UnixMilli()
 	states := make([]map[string]any, 0, len(room.Players))
 	for _, p := range room.Players {
+		locomotion := protocol.NormalizePlayerLocomotion(p.Locomotion)
+		if p.IsDead && p.ForcedLoc != "" {
+			locomotion = protocol.NormalizePlayerLocomotion(p.ForcedLoc)
+		}
+		respawnInSec := 0
+		if p.IsDead && p.RespawnAtMs > 0 {
+			respawnInSec = calcRespawnInSec(nowMs, p.RespawnAtMs)
+		}
+		forcedLoc := any(nil)
+		if p.IsDead && p.ForcedLoc != "" {
+			forcedLoc = p.ForcedLoc
+		}
 		states = append(states, map[string]any{
 			"playerId":   p.PlayerID,
 			"modelId":    p.ModelID,
 			"weaponId":   p.WeaponID,
-			"locomotion": protocol.NormalizePlayerLocomotion(p.Locomotion),
+			"locomotion": locomotion,
 			"x":          p.X,
 			"y":          p.Y,
 			"z":          p.Z,
@@ -414,6 +491,11 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 			"role":       p.Role,
 			"frags":      p.Frags,
 			"deaths":     p.Deaths,
+			"health":     p.Health,
+			"maxHealth":  p.MaxHealth,
+			"isDead":     p.IsDead,
+			"respawnInSec": respawnInSec,
+			"forcedLocomotion": forcedLoc,
 		})
 	}
 	m.broadcastLocked(room, map[string]any{
@@ -422,6 +504,33 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 			"states": states,
 		},
 	})
+}
+
+func (m *Manager) applyRespawnsLocked(room *roomState, nowMs int64) bool {
+	changed := false
+	for _, p := range room.Players {
+		if !p.IsDead || p.RespawnAtMs <= 0 || nowMs < p.RespawnAtMs {
+			continue
+		}
+		p.IsDead = false
+		p.Health = p.MaxHealth
+		p.RespawnAtMs = 0
+		p.ForcedLoc = ""
+		p.Locomotion = "idle"
+		changed = true
+	}
+	return changed
+}
+
+func calcRespawnInSec(nowMs int64, respawnAtMs int64) int {
+	if respawnAtMs <= nowMs {
+		return 0
+	}
+	return int((respawnAtMs-nowMs + 999) / 1000)
+}
+
+func isCrouchLocomotion(locomotion string) bool {
+	return strings.Contains(locomotion, "crouch")
 }
 
 func (m *Manager) scoreboardLocked(room *roomState) []match.ScoreEntry {

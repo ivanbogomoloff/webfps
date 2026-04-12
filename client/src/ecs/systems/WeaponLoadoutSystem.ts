@@ -1,5 +1,5 @@
 import type { World } from 'miniplex'
-import { applyWeaponDefinition, type Input, type NetworkIdentity, type WeaponState } from '../components'
+import { applyWeaponDefinition, type Health, type Input, type NetworkIdentity, type WeaponState } from '../components'
 import { SUPPORTED_WEAPON_IDS } from '../../game/supportedWeaponModels'
 
 const MAX_HOTKEY_WEAPONS = 9
@@ -13,7 +13,9 @@ export function createWeaponLoadoutSystem(world: World) {
       const input = entity.input as Input
       const weaponState = entity.weaponState as WeaponState
       const networkIdentity = entity.networkIdentity as NetworkIdentity
+      const health = (entity as { health?: Health }).health
       if (!networkIdentity.isLocal) continue
+      if (health?.isDead) continue
 
       let previous = previousByEntity.get(entity)
       if (!previous) {

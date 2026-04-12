@@ -27,6 +27,11 @@ export interface PlayerStateMessage {
   role: PlayerRole
   frags: number
   deaths: number
+  health: number
+  maxHealth: number
+  isDead: boolean
+  respawnInSec: number
+  forcedLocomotion?: PlayerLocomotion
 }
 
 export interface ScoreboardPlayer {
@@ -92,4 +97,5 @@ export type OutgoingMessage =
       }
     }
   | { type: 'report_kill'; payload: { victimPlayerId: string } }
+  | { type: 'debug_hit_self'; payload: Record<string, never> }
   | { type: 'leave_room'; payload: Record<string, never> }

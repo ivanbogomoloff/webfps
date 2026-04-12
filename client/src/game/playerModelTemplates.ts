@@ -68,6 +68,8 @@ function emptyPlayerVisualSetup(): PlayerVisualSetup {
     runBackwardLeftDFireClip: null,
     runBackwardRightDFireClip: null,
     jumpUpClip: null,
+    deathBackClip: null,
+    deathCrouchClip: null,
   };
 }
 

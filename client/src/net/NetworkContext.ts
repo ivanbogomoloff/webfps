@@ -169,6 +169,8 @@ export class NetworkContext {
           run_backward_left_d_fire: setup.runBackwardLeftDFireClip,
           run_backward_right_d_fire: setup.runBackwardRightDFireClip,
           jump_up: setup.jumpUpClip,
+          death_back: setup.deathBackClip,
+          death_crouch: setup.deathCrouchClip,
         }),
       )
     }
@@ -237,6 +239,10 @@ export class NetworkContext {
 
   requestSpawn(): void {
     this.transport.requestSpawn()
+  }
+
+  debugHitSelf(): void {
+    this.transport.debugHitSelf()
   }
 
   reportKill(victimPlayerId: string): void {

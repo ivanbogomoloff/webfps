@@ -21,9 +21,17 @@ type SimPlayer = {
   rotY: number
   frags: number
   deaths: number
+  health: number
+  maxHealth: number
+  isDead: boolean
+  respawnAtMs: number
+  forcedLocomotion: PlayerLocomotion | null
 }
 
 export class OfflineLoopbackTransport implements GameTransport {
+  private static readonly PLAYER_HEALTH_MAX = 100
+  private static readonly DEBUG_HIT_DAMAGE = 25
+  private static readonly RESPAWN_DELAY_MS = 3000
   private handlers = new Set<TransportHandler>()
   private localPlayerId: string | null = null
   private roomCode = '0000'
@@ -62,6 +70,11 @@ export class OfflineLoopbackTransport implements GameTransport {
       rotY: 0,
       frags: 0,
       deaths: 0,
+      health: OfflineLoopbackTransport.PLAYER_HEALTH_MAX,
+      maxHealth: OfflineLoopbackTransport.PLAYER_HEALTH_MAX,
+      isDead: false,
+      respawnAtMs: 0,
+      forcedLocomotion: null,
     })
     this.players.set(this.botId, {
       playerId: this.botId,
@@ -76,6 +89,11 @@ export class OfflineLoopbackTransport implements GameTransport {
       rotY: 0,
       frags: 0,
       deaths: 0,
+      health: OfflineLoopbackTransport.PLAYER_HEALTH_MAX,
+      maxHealth: OfflineLoopbackTransport.PLAYER_HEALTH_MAX,
+      isDead: false,
+      respawnAtMs: 0,
+      forcedLocomotion: null,
     })
 
     this.emit({
@@ -130,6 +148,14 @@ export class OfflineLoopbackTransport implements GameTransport {
     }
   }
 
+  debugHitSelf(): void {
+    const local = this.getLocal()
+    if (!local || local.role !== 'player' || local.isDead) return
+    this.applyDamage(local, OfflineLoopbackTransport.DEBUG_HIT_DAMAGE)
+    this.emitStateBatch()
+    this.emitRoomState()
+  }
+
   sendState(update: LocalStateUpdate): void {
     const local = this.getLocal()
     if (!local) return
@@ -140,7 +166,9 @@ export class OfflineLoopbackTransport implements GameTransport {
     local.role = update.role
     local.frags = update.frags
     local.deaths = update.deaths
-    local.locomotion = update.locomotion
+    if (!local.isDead) {
+      local.locomotion = update.locomotion
+    }
     local.weaponId = update.weaponId
   }
 
@@ -173,6 +201,7 @@ export class OfflineLoopbackTransport implements GameTransport {
     }
     this.intervalId = window.setInterval(() => {
       this.botStep(0.1)
+      this.applyRespawns()
       this.emitStateBatch()
 
       if (this.phase === 'running') {
@@ -200,13 +229,50 @@ export class OfflineLoopbackTransport implements GameTransport {
     const vx = (bot.x - prevX) / dt
     const vz = (bot.z - prevZ) / dt
     const { fz, fx } = strafeAxesFromWorldVelocity(bot.rotY, vx, vz)
-    bot.locomotion = locomotionFromStrafeAxes(fz, fx)
+    if (!bot.isDead) {
+      bot.locomotion = locomotionFromStrafeAxes(fz, fx)
+    }
 
     if (this.phase === 'running' && Math.random() < 0.02) {
       bot.frags += 1
       local.deaths += 1
+      local.health = local.maxHealth
+      local.isDead = false
+      local.respawnAtMs = 0
+      local.forcedLocomotion = null
       this.emitScoreboard()
       this.checkMatchEnd('frag_limit')
+    }
+  }
+
+  private applyDamage(player: SimPlayer, damage: number): void {
+    player.health = Math.max(0, player.health - damage)
+    if (player.health > 0) return
+    player.health = 0
+    player.isDead = true
+    player.deaths += 1
+    player.forcedLocomotion = player.locomotion.includes('crouch') ? 'death_crouch' : 'death_back'
+    player.locomotion = player.forcedLocomotion
+    player.respawnAtMs = Date.now() + OfflineLoopbackTransport.RESPAWN_DELAY_MS
+    this.emitScoreboard()
+  }
+
+  private applyRespawns(): void {
+    const now = Date.now()
+    let hasRespawn = false
+    for (const player of this.players.values()) {
+      if (!player.isDead || player.respawnAtMs <= 0 || now < player.respawnAtMs) {
+        continue
+      }
+      player.isDead = false
+      player.health = player.maxHealth
+      player.respawnAtMs = 0
+      player.forcedLocomotion = null
+      player.locomotion = 'idle'
+      hasRespawn = true
+    }
+    if (hasRespawn) {
+      this.emitRoomState()
     }
   }
 
@@ -259,7 +325,7 @@ export class OfflineLoopbackTransport implements GameTransport {
           playerId: player.playerId,
           modelId: player.modelId,
           weaponId: player.weaponId,
-          locomotion: player.locomotion,
+          locomotion: player.forcedLocomotion ?? player.locomotion,
           x: player.x,
           y: player.y,
           z: player.z,
@@ -267,6 +333,14 @@ export class OfflineLoopbackTransport implements GameTransport {
           role: player.role,
           frags: player.frags,
           deaths: player.deaths,
+          health: player.health,
+          maxHealth: player.maxHealth,
+          isDead: player.isDead,
+          respawnInSec:
+            player.isDead && player.respawnAtMs > 0
+              ? Math.max(0, Math.ceil((player.respawnAtMs - Date.now()) / 1000))
+              : 0,
+          forcedLocomotion: player.forcedLocomotion ?? undefined,
         })),
       },
     })

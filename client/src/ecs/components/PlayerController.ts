@@ -52,7 +52,9 @@ export type PlayerLocomotion =
   | 'run_right_d_fire'
   | 'run_backward_left_d_fire'
   | 'run_backward_right_d_fire'
-  | 'jump_up';
+  | 'jump_up'
+  | 'death_back'
+  | 'death_crouch';
 
 export type PlayerMovementMode = 'walk' | 'crouch' | 'run';
 

@@ -40,6 +40,7 @@ import type {
   AmmoApi,
   AmmoTransform,
   AmmoWorld,
+  Health,
   NetworkIdentity,
   AudioEmitterState,
   PlayerController,
@@ -52,6 +53,7 @@ import { NetworkContext } from '../net/NetworkContext';
 import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
+import type { RespawnPoint } from './Map';
 import type { PlayerVisualSetup } from './playerModelPrep';
 import { replaceWeaponVisual } from './weaponVisualAttach';
 import {
@@ -73,6 +75,7 @@ type LocalPlayerEntity = {
   input: ReturnType<typeof createInput>;
   camera: THREE.PerspectiveCamera;
   object3d: THREE.Object3D;
+  health: Health;
   networkIdentity: NetworkIdentity;
   playerController: PlayerController;
   playerPhysicsState: PlayerPhysicsState;
@@ -95,6 +98,7 @@ export class Game {
   private mapLoader: MapLoader;
   private mapBuilder: MapBuilder;
   private currentMap: THREE.Group | null = null;
+  private currentRespawns: ReadonlyArray<RespawnPoint> = [];
   /** Группа с wireframe-боксами границ физических тел карты (только при VITE_DEBUG_PHYSICS=true) */
   private physicsDebugRoot: THREE.Group | null = null;
   private statsJs: Stats;
@@ -110,6 +114,7 @@ export class Game {
   private matchEntity: { id: number; matchState: ReturnType<typeof createMatchState>; scoreboard: ScoreboardPlayer[] } | null = null;
   private networkContext: NetworkContext | null = null;
   private hudSystemAttached = false;
+  private wasLocalDead = false;
 
   constructor(
     private readonly options?: {
@@ -310,6 +315,8 @@ export class Game {
       runBackwardLeftDFireClip,
       runBackwardRightDFireClip,
       jumpUpClip,
+      deathBackClip,
+      deathCrouchClip,
     } = setup;
     const playerRoot = new THREE.Group();
     playerRoot.position.set(0, 6, 0);
@@ -404,6 +411,8 @@ export class Game {
           run_backward_left_d_fire: runBackwardLeftDFireClip,
           run_backward_right_d_fire: runBackwardRightDFireClip,
           jump_up: jumpUpClip,
+          death_back: deathBackClip,
+          death_crouch: deathCrouchClip,
         }),
       );
     }
@@ -443,6 +452,7 @@ export class Game {
       if (this.currentMap) {
         this.scene.remove(this.currentMap);
       }
+      this.currentRespawns = [];
       if (this.physicsDebugRoot) {
         this.scene.remove(this.physicsDebugRoot);
         this.physicsDebugRoot = null;
@@ -462,6 +472,7 @@ export class Game {
       }, hdrPath);
 
       this.currentMap = map.scene;
+      this.currentRespawns = map.getRespawns();
       this.scene.add(map.scene);
       if (physicsDebugRoot) {
         this.physicsDebugRoot = physicsDebugRoot;
@@ -470,32 +481,7 @@ export class Game {
         }
       }
 
-      // Позиционируем игрока на одной из точек респауна
-      const respawns = map.getRespawns();
-      const playerRadius = 0.5;
-      const local = this.localPlayerEntity;
-      const playerBody = local?.ammoBody?.body ?? null;
-      const playerObject3D = local?.object3d ?? null;
-      const physicsTransform = this.physicsContext.ammoTransform as AmmoTransform | null;
-      if (respawns.length > 0 && playerBody && playerObject3D && physicsTransform) {
-        const point = respawns[Math.floor(Math.random() * respawns.length)];
-        const spawnY = point.center.y + point.size.y / 2 + playerRadius;
-        const spawnX = point.center.x;
-        const spawnZ = point.center.z;
-        playerObject3D.position.set(spawnX, spawnY, spawnZ);
-        const originVec = new this.ammo!.btVector3(spawnX, spawnY, spawnZ);
-        physicsTransform.setIdentity();
-        physicsTransform.setOrigin(originVec);
-        playerBody.setWorldTransform(physicsTransform);
-        const zeroVel = new this.ammo!.btVector3(0, 0, 0);
-        playerBody.setLinearVelocity(zeroVel);
-        this.ammo!.destroy(zeroVel);
-        this.ammo!.destroy(originVec);
-        if (local) {
-          local.playerPhysicsState.isGrounded = true;
-          local.playerPhysicsState.jumpPending = false;
-        }
-      }
+      this.placeLocalPlayerAtRandomRespawn();
 
       if (map.environment) {
         this.scene.environment = map.environment;
@@ -531,6 +517,11 @@ export class Game {
     }
     if (this.localPlayerEntity) {
       this.syncEntityWeaponVisual(this.localPlayerEntity);
+      const isDead = this.localPlayerEntity.health?.isDead ?? false;
+      if (this.wasLocalDead && !isDead) {
+        this.placeLocalPlayerAtRandomRespawn();
+      }
+      this.wasLocalDead = isDead;
     }
 
     // Рендерим сцену
@@ -588,6 +579,10 @@ export class Game {
     this.networkContext?.requestSpawn();
   }
 
+  public debugHitSelf(): void {
+    this.networkContext?.debugHitSelf();
+  }
+
   public reportKill(victimPlayerId: string): void {
     this.networkContext?.reportKill(victimPlayerId);
   }
@@ -621,6 +616,32 @@ export class Game {
 
   public getRoomCode(): string | null {
     return this.options?.transport?.getRoomCode() ?? null;
+  }
+
+  private placeLocalPlayerAtRandomRespawn(): void {
+    const local = this.localPlayerEntity;
+    const playerBody = local?.ammoBody?.body ?? null;
+    const playerObject3D = local?.object3d ?? null;
+    const physicsTransform = this.physicsContext.ammoTransform as AmmoTransform | null;
+    if (!local || !playerBody || !playerObject3D || !physicsTransform || this.currentRespawns.length === 0 || !this.ammo) {
+      return;
+    }
+    const point = this.currentRespawns[Math.floor(Math.random() * this.currentRespawns.length)];
+    const playerRadius = this.physicsContext.playerRadius;
+    const spawnX = point.center.x;
+    const spawnY = point.center.y + point.size.y / 2 + playerRadius;
+    const spawnZ = point.center.z;
+    playerObject3D.position.set(spawnX, spawnY, spawnZ);
+    const originVec = new this.ammo.btVector3(spawnX, spawnY, spawnZ);
+    physicsTransform.setIdentity();
+    physicsTransform.setOrigin(originVec);
+    playerBody.setWorldTransform(physicsTransform);
+    const zeroVel = new this.ammo.btVector3(0, 0, 0);
+    playerBody.setLinearVelocity(zeroVel);
+    this.ammo.destroy(zeroVel);
+    this.ammo.destroy(originVec);
+    local.playerPhysicsState.isGrounded = true;
+    local.playerPhysicsState.jumpPending = false;
   }
 
   private syncEntityWeaponVisual(entity: {

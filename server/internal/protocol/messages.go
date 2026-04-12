@@ -11,6 +11,7 @@ const (
 	TypeSpawnRequest   = "spawn_request"
 	TypeStateUpdate    = "state_update"
 	TypeReportKill     = "report_kill"
+	TypeDebugHitSelf   = "debug_hit_self"
 	TypeLeaveRoom      = "leave_room"
 	TypeRoomJoined     = "room_joined"
 	TypeRoomState      = "room_state"
@@ -98,6 +99,8 @@ var PlayerLocomotionValues = []string{
 	"run_backward_left_d_fire",
 	"run_backward_right_d_fire",
 	"jump_up",
+	"death_back",
+	"death_crouch",
 }
 
 // NormalizePlayerLocomotion возвращает допустимую локомоцию или "idle".
@@ -123,6 +126,8 @@ type StateUpdatePayload struct {
 type ReportKillPayload struct {
 	VictimPlayerID string `json:"victimPlayerId"`
 }
+
+type DebugHitSelfPayload struct{}
 
 type ErrorPayload struct {
 	Code    string `json:"code"`

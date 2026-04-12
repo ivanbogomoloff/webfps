@@ -83,6 +83,13 @@ func (h *Hub) routeMessage(client *clientConn, msg protocol.Message) {
 			return
 		}
 		h.manager.ReportKill(client.id, payload)
+	case protocol.TypeDebugHitSelf:
+		var payload protocol.DebugHitSelfPayload
+		if !decodePayload(msg.Payload, &payload) {
+			h.sendError(client, "bad_payload", "invalid debug_hit_self payload")
+			return
+		}
+		h.manager.DebugHitSelf(client.id)
 	case protocol.TypeLeaveRoom:
 		h.manager.LeaveRoom(client.id)
 	default:

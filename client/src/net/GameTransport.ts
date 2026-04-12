@@ -22,6 +22,7 @@ export interface GameTransport {
   disconnect(): Promise<void>
   setRole(role: PlayerRole): void
   requestSpawn(): void
+  debugHitSelf(): void
   sendState(update: LocalStateUpdate): void
   reportKill(victimPlayerId: string): void
   subscribe(handler: TransportHandler): () => void

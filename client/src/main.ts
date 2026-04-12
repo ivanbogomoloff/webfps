@@ -281,6 +281,7 @@ matchControls.style.cssText = `
 matchControls.innerHTML = `
   <button id="btnSpectator">Spectator</button>
   <button id="btnEnterMatch">Enter Match</button>
+  <button id="btnHitSelf">Hit Self</button>
 `
 debugHudElement.appendChild(matchControls)
 
@@ -290,6 +291,9 @@ debugHudElement.appendChild(matchControls)
 ;(matchControls.querySelector('#btnEnterMatch') as HTMLButtonElement).addEventListener('click', () => {
   game?.setLocalRole('player')
   game?.requestSpawn()
+})
+;(matchControls.querySelector('#btnHitSelf') as HTMLButtonElement).addEventListener('click', () => {
+  game?.debugHitSelf()
 })
 
 const weaponHotkeysHint = document.createElement('div')
