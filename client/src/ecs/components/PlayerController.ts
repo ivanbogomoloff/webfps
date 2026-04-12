@@ -57,12 +57,14 @@ export type PlayerLocomotion =
   | 'death_crouch';
 
 export type PlayerMovementMode = 'walk' | 'crouch' | 'run';
+export type PlayerViewMode = 'third' | 'first';
 
 export interface PlayerController {
   speed: number;
   sensitivity: number;
   locomotion: PlayerLocomotion;
   movementMode: PlayerMovementMode;
+  viewMode: PlayerViewMode;
 }
 
 export function createPlayerController(
@@ -74,5 +76,6 @@ export function createPlayerController(
     sensitivity,
     locomotion: 'idle',
     movementMode: 'walk',
+    viewMode: 'third',
   };
 }

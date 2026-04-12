@@ -9,3 +9,18 @@ body {
     right: 0;
     z-index: 1000;
 }
+
+#hud-crosshair {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1100;
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 22px;
+    line-height: 1;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+    user-select: none;
+}

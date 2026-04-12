@@ -44,6 +44,7 @@ import type {
   NetworkIdentity,
   AudioEmitterState,
   PlayerController,
+  PlayerViewMode,
   PlayerPhysicsState,
   WeaponState,
 } from '../ecs/components';
@@ -517,6 +518,7 @@ export class Game {
     }
     if (this.localPlayerEntity) {
       this.syncEntityWeaponVisual(this.localPlayerEntity);
+      this.syncLocalViewVisibility();
       const isDead = this.localPlayerEntity.health?.isDead ?? false;
       if (this.wasLocalDead && !isDead) {
         this.placeLocalPlayerAtRandomRespawn();
@@ -626,6 +628,21 @@ export class Game {
     return this.options?.transport?.getRoomCode() ?? null;
   }
 
+  public getViewMode(): PlayerViewMode {
+    return this.localPlayerEntity?.playerController?.viewMode ?? 'third';
+  }
+
+  public setViewMode(mode: PlayerViewMode): void {
+    if (!this.localPlayerEntity?.playerController) return;
+    this.localPlayerEntity.playerController.viewMode = mode;
+  }
+
+  public toggleViewMode(): PlayerViewMode {
+    const nextMode: PlayerViewMode = this.getViewMode() === 'third' ? 'first' : 'third';
+    this.setViewMode(nextMode);
+    return nextMode;
+  }
+
   private placeLocalPlayerAtRandomRespawn(): void {
     const local = this.localPlayerEntity;
     const playerBody = local?.ammoBody?.body ?? null;
@@ -681,8 +698,20 @@ export class Game {
     entity.weaponVisualWeaponId = resolvedId;
   }
 
+  private syncLocalViewVisibility(): void {
+    const local = this.localPlayerEntity;
+    if (!local?.weaponVisualRoot) return;
+    local.weaponVisualRoot.visible = this.getViewMode() !== 'first';
+  }
+
   public enableHud(
-    elements: { debugHudRootElement: HTMLElement; debugHudContentElement: HTMLElement; gameHudElement: HTMLElement; scoreboardHudElement: HTMLElement },
+    elements: {
+      debugHudRootElement: HTMLElement;
+      debugHudContentElement: HTMLElement;
+      gameHudElement: HTMLElement;
+      scoreboardHudElement: HTMLElement;
+      crosshairElement: HTMLElement;
+    },
     updateHz = 10,
     debugEnabled = false,
   ): void {
@@ -696,8 +725,10 @@ export class Game {
         debugHudContentElement: elements.debugHudContentElement,
         gameHudElement: elements.gameHudElement,
         scoreboardHudElement: elements.scoreboardHudElement,
+        crosshairElement: elements.crosshairElement,
         getRoomCode: () => this.getRoomCode(),
         getLastNetworkError: () => this.getLastNetworkError(),
+        getViewMode: () => this.getViewMode(),
         getJumpDebugState: () => this.getJumpDebugState(),
       }),
     );

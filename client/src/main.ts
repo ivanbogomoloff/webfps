@@ -72,6 +72,7 @@ async function startGame(options: StartOptions): Promise<void> {
       debugHudContentElement,
       gameHudElement,
       scoreboardHudElement,
+      crosshairElement,
     },
     10,
     DEBUG_HUD,
@@ -277,6 +278,12 @@ scoreboardHudElement.style.cssText = `
 `
 document.body.appendChild(scoreboardHudElement)
 
+const crosshairElement = document.createElement('div')
+crosshairElement.id = 'hud-crosshair'
+crosshairElement.style.display = 'none'
+crosshairElement.textContent = '+'
+document.body.appendChild(crosshairElement)
+
 const matchControls = document.createElement('div')
 matchControls.style.cssText = `
   margin-top: 8px;
@@ -286,6 +293,7 @@ matchControls.style.cssText = `
 matchControls.innerHTML = `
   <button id="btnSpectator">Spectator</button>
   <button id="btnEnterMatch">Enter Match</button>
+  <button id="btnToggleView">Toggle View</button>
   <button id="btnAddBot">Add Bot</button>
   <button id="btnHitSelf">Hit Self</button>
 `
@@ -298,6 +306,9 @@ debugHudElement.appendChild(matchControls)
   game?.setLocalRole('player')
   game?.requestSpawn()
 })
+;(matchControls.querySelector('#btnToggleView') as HTMLButtonElement).addEventListener('click', () => {
+  game?.toggleViewMode()
+})
 ;(matchControls.querySelector('#btnAddBot') as HTMLButtonElement).addEventListener('click', () => {
   if (!game?.canAddBot()) return
   game.addBot()
@@ -307,8 +318,11 @@ debugHudElement.appendChild(matchControls)
 })
 
 const addBotButton = matchControls.querySelector('#btnAddBot') as HTMLButtonElement
+const toggleViewButton = matchControls.querySelector('#btnToggleView') as HTMLButtonElement
 window.setInterval(() => {
   addBotButton.disabled = !(game?.canAddBot() ?? false)
+  const viewMode = game?.getViewMode() ?? 'third'
+  toggleViewButton.textContent = viewMode === 'first' ? 'Switch to Third' : 'Switch to First'
 }, 250)
 
 const weaponHotkeysHint = document.createElement('div')

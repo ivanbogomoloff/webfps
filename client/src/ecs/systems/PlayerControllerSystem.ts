@@ -7,6 +7,13 @@ export function createPlayerControllerSystem(
   world: World,
   canvas: HTMLCanvasElement,
 ) {
+  const FIRST_PERSON_EYE_Y = 1.0;
+  const FIRST_PERSON_CROUCH_EYE_Y = 0.35;
+  const THIRD_PERSON_DISTANCE = 5;
+  const thirdPersonDirection = new THREE.Vector3();
+  const thirdPersonLookAt = new THREE.Vector3();
+  const cameraEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
   const setupPointerLock = () => {
     canvas.addEventListener('click', () => {
       canvas.requestPointerLock =
@@ -98,6 +105,12 @@ export function createPlayerControllerSystem(
         direction.x -= 1; // Вправо
       }
 
+      // Movement mapping was tuned for third-person chase camera (camera looks toward player).
+      // In first-person we need the same WASD semantics as player expects in view direction.
+      if (controller.viewMode === 'first') {
+        direction.multiplyScalar(-1);
+      }
+
       if (networkIdentity?.role === 'spectator') {
         direction.set(0, 0, 0);
       }
@@ -157,34 +170,30 @@ export function createPlayerControllerSystem(
         physicsState.moveDirection.set(0, 0, 0);
       }
 
-      // Обновляем позицию камеры чтобы она следила за игроком
-      camera.position.copy(object3d.position);
-      camera.position.y += 0.5; // Смещение камеры относительно позиции игрока
-
-      // Устанавливаем камеру в положение для вида от третьего лица
-      const distance = 5; // Расстояние от игрока до камеры
-      const directionVector = new THREE.Vector3(0, 0, -1); // Направление смотрит вперед
-      directionVector.applyEuler(new THREE.Euler(camState.pitch, camState.yaw, 0));
-      directionVector.normalize();
-      directionVector.multiplyScalar(distance);
-      camera.position.set(
-        object3d.position.x + directionVector.x,
-        object3d.position.y + directionVector.y,
-        object3d.position.z + directionVector.z
-      );
-
-      // Устанавливаем направление камеры на игрока
-      const lookAtVector = new THREE.Vector3(
-        object3d.position.x - camera.position.x,
-        object3d.position.y - camera.position.y,
-        object3d.position.z - camera.position.z
-      );
-      lookAtVector.normalize();
-      camera.lookAt(new THREE.Vector3(
-        camera.position.x + lookAtVector.x,
-        camera.position.y + lookAtVector.y,
-        camera.position.z + lookAtVector.z
-      ));
+      if (controller.viewMode === 'first') {
+        const eyeY =
+          controller.movementMode === 'crouch'
+            ? FIRST_PERSON_CROUCH_EYE_Y
+            : FIRST_PERSON_EYE_Y;
+        camera.position.copy(object3d.position);
+        camera.position.y += eyeY;
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = camState.yaw;
+        camera.rotation.x = camState.pitch;
+      } else {
+        // Third-person camera orbit.
+        thirdPersonDirection.set(0, 0, -1);
+        cameraEuler.set(camState.pitch, camState.yaw, 0, 'YXZ');
+        thirdPersonDirection.applyEuler(cameraEuler).normalize();
+        thirdPersonDirection.multiplyScalar(THIRD_PERSON_DISTANCE);
+        camera.position.set(
+          object3d.position.x + thirdPersonDirection.x,
+          object3d.position.y + thirdPersonDirection.y,
+          object3d.position.z + thirdPersonDirection.z,
+        );
+        thirdPersonLookAt.copy(object3d.position);
+        camera.lookAt(thirdPersonLookAt);
+      }
     }
   };
 }

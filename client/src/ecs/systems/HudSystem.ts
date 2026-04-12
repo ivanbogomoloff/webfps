@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { World } from 'miniplex';
 import type { Health, Input, MatchState, NetworkIdentity, PlayerController, PlayerPhysicsState, PlayerStats, WeaponState } from '../components';
+import type { PlayerViewMode } from '../components';
 import type { GroundProbeDebugState } from './PhysicsSystem';
 
 type LocalHudEntity = {
@@ -28,8 +29,10 @@ type HudSystemOptions = {
   debugHudContentElement: HTMLElement;
   gameHudElement: HTMLElement;
   scoreboardHudElement: HTMLElement;
+  crosshairElement: HTMLElement;
   getRoomCode: () => string | null;
   getLastNetworkError: () => string | null;
+  getViewMode: () => PlayerViewMode;
   getJumpDebugState: () => {
     jumpPending: boolean;
     isGrounded: boolean;
@@ -84,6 +87,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     if (!local) {
       options.gameHudElement.style.display = 'none';
       options.scoreboardHudElement.style.display = 'none';
+      options.crosshairElement.style.display = 'none';
       if (!debugEnabled) {
         options.debugHudRootElement.style.display = 'none';
       }
@@ -109,6 +113,12 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     } else {
       options.gameHudElement.style.display = 'none';
     }
+
+    const showCrosshair =
+      local.networkIdentity.role === 'player' &&
+      !local.health.isDead &&
+      options.getViewMode() === 'first';
+    options.crosshairElement.style.display = showCrosshair ? 'block' : 'none';
 
     const showScoreboard = !!local.input.keys.get('tab');
     if (showScoreboard) {
