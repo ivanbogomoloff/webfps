@@ -5,6 +5,7 @@ import { World } from 'miniplex';
 import {
   applyWeaponDefinition,
   createAmmoBody,
+  createAudioEmitterState,
   createCamera,
   createInput,
   createHealth,
@@ -20,6 +21,7 @@ import {
 import {
   attachAmmoRuntimeToPhysicsContext,
   createAmmoPhysicsContext,
+  createAudioSystem,
   createMatchRulesClientSystem,
   createNetworkReceiveSystem,
   createNetworkSendSystem,
@@ -39,6 +41,7 @@ import type {
   AmmoTransform,
   AmmoWorld,
   NetworkIdentity,
+  AudioEmitterState,
   PlayerController,
   PlayerPhysicsState,
   WeaponState,
@@ -73,6 +76,7 @@ type LocalPlayerEntity = {
   networkIdentity: NetworkIdentity;
   playerController: PlayerController;
   playerPhysicsState: PlayerPhysicsState;
+  audioEmitterState: AudioEmitterState;
   weaponState: WeaponState;
   weaponVisualRoot?: THREE.Object3D;
   weaponVisualObject?: THREE.Object3D | null;
@@ -201,6 +205,7 @@ export class Game {
     this.systems.push(createPlayerAnimationSystem(this.world));
     this.systems.push(createWeaponPoseByLocomotionSystem(this.world));
     this.systems.push(createPhysicsSystem(this.world, this.physicsContext));
+    this.systems.push(createAudioSystem(this.world, this.camera));
     this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
 
     // Обработка изменения размера окна
@@ -328,6 +333,7 @@ export class Game {
       playerStats: createPlayerStats(),
       playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
       playerPhysicsState: createPlayerPhysicsState(),
+      audioEmitterState: createAudioEmitterState(),
       weaponState: createWeaponState(initialWeaponId),
       weaponVisualRoot: visualModel,
       weaponVisualObject: null as THREE.Object3D | null,

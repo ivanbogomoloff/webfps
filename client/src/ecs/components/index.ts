@@ -11,6 +11,7 @@ export { createNetworkTransform } from './NetworkTransform';
 export { createPlayerStats } from './PlayerStats';
 export { createMatchState } from './MatchState';
 export { createWeaponState, applyWeaponDefinition } from './WeaponState';
+export { createAudioEmitterState } from './AudioEmitterState';
 
 export type { Camera } from './Camera';
 export type { Input } from './Input';
@@ -25,3 +26,4 @@ export type { NetworkTransform } from './NetworkTransform';
 export type { PlayerStats } from './PlayerStats';
 export type { MatchState } from './MatchState';
 export type { WeaponState } from './WeaponState';
+export type { AudioEmitterState } from './AudioEmitterState';

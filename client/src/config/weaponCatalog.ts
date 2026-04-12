@@ -7,6 +7,14 @@ export type WeaponDefinition = {
   fireRate: number
   damage: number
   magazineSize: number
+  audio: {
+    shot: {
+      src: string
+      volume?: number
+      refDistance?: number
+      maxDistance?: number
+    }
+  }
 }
 
 export const WEAPON_CATALOG = {
@@ -14,11 +22,27 @@ export const WEAPON_CATALOG = {
     fireRate: 3,
     damage: 20,
     magazineSize: 12,
+    audio: {
+      shot: {
+        src: '/audio/weapons/m16_shot.wav',
+        volume: 0.72,
+        refDistance: 11,
+        maxDistance: 64,
+      },
+    },
   },
   rifle_ak47: {
     fireRate: 8,
     damage: 12,
     magazineSize: 30,
+    audio: {
+      shot: {
+        src: '/audio/weapons/ak47_shot.wav',
+        volume: 0.7,
+        refDistance: 11,
+        maxDistance: 64,
+      },
+    },
   },
 } as const satisfies Record<string, WeaponDefinition>
 

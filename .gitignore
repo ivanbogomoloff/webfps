@@ -36,6 +36,7 @@ logs/
 # Optional eslint cache
 .eslintcache
 client/public/models
+client/public/audio
 client/public/other
 server/logs
 server/bin

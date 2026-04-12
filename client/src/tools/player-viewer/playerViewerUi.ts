@@ -16,6 +16,12 @@ type PlayerViewerUiOptions = {
   onWeaponTransformChange: (values: WeaponTransformValues) => void
   onResetWeaponTransform: () => void
   onCopyWeaponTransform: () => void
+  audioPreviewIds: readonly string[]
+  onAudioPreviewChange: (audioId: string) => void
+  onAudioVolumeChange: (volume: number) => void
+  onPlayAudioPreview: () => void
+  onPlayCurrentWeaponShot: () => void
+  onStopAudioPreview: () => void
 }
 
 type UiState = {
@@ -34,6 +40,8 @@ type UiState = {
   weaponRotY: number
   weaponRotZ: number
   weaponScale: number
+  audioPreviewId: string
+  audioVolume: number
 }
 
 export class PlayerViewerUi {
@@ -68,6 +76,8 @@ export class PlayerViewerUi {
       weaponRotY: 0,
       weaponRotZ: 0,
       weaponScale: 1,
+      audioPreviewId: options.audioPreviewIds[0] ?? '',
+      audioVolume: 0.8,
     }
 
     this.gui = new GUI({ title: 'Player Viewer', width: 420 })
@@ -130,6 +140,19 @@ export class PlayerViewerUi {
         options.onWeaponTransformChange(this.getTransformValues())
       })
     })
+
+    const audioFolder = this.gui.addFolder('Audio')
+    audioFolder
+      .add(this.state, 'audioPreviewId', [...options.audioPreviewIds])
+      .name('clip')
+      .onChange((next: unknown) => options.onAudioPreviewChange(String(next)))
+    audioFolder
+      .add(this.state, 'audioVolume', 0, 1, 0.01)
+      .name('volume')
+      .onChange((next: unknown) => options.onAudioVolumeChange(Number(next)))
+    audioFolder.add({ play: options.onPlayAudioPreview }, 'play')
+    audioFolder.add({ weaponShot: options.onPlayCurrentWeaponShot }, 'weaponShot')
+    audioFolder.add({ stop: options.onStopAudioPreview }, 'stop')
   }
 
   setAnimationOptions(names: readonly string[], selectedName: string): void {

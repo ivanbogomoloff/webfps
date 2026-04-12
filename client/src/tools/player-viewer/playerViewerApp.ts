@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {
   DEFAULT_WEAPON_ID,
   SUPPORTED_WEAPON_IDS,
+  getWeaponDefinition,
   getWeaponModelConfig,
   resolveWeaponId,
   weaponModelGltfPath,
@@ -28,6 +29,23 @@ import {
   formatWeaponTransformForCatalog,
 } from './weaponTransformState'
 
+type AudioPreviewId =
+  | 'footstep_walk'
+  | 'footstep_run'
+  | 'jump'
+  | 'land'
+  | 'weapon_m16_shot'
+  | 'weapon_ak47_shot'
+
+const AUDIO_PREVIEW_CATALOG: Record<AudioPreviewId, { label: string; src: string }> = {
+  footstep_walk: { label: 'footstep_walk', src: '/audio/player/footstep_walk.ogg' },
+  footstep_run: { label: 'footstep_run', src: '/audio/player/footstep_run.ogg' },
+  jump: { label: 'jump', src: '/audio/player/jump.ogg' },
+  land: { label: 'land', src: '/audio/player/land.wav' },
+  weapon_m16_shot: { label: 'weapon_m16_shot', src: '/audio/weapons/m16_shot.wav' },
+  weapon_ak47_shot: { label: 'weapon_ak47_shot', src: '/audio/weapons/ak47_shot.wav' },
+}
+
 class PlayerViewerApp {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true })
   private readonly scene = new THREE.Scene()
@@ -37,10 +55,15 @@ class PlayerViewerApp {
   private readonly orbit: OrbitControls
   private readonly clock = new THREE.Clock()
   private readonly loader = new GLTFLoader()
+  private readonly audioLoader = new THREE.AudioLoader()
   private readonly root = document.createElement('div')
   private readonly hintElement = document.createElement('div')
   private readonly ui: PlayerViewerUi
   private readonly weaponTemplatesPromise = loadSupportedWeaponModelTemplates()
+  private readonly audioListener = new THREE.AudioListener()
+  private readonly audioPreview = new THREE.Audio(this.audioListener)
+  private readonly audioBuffersBySrc = new Map<string, AudioBuffer>()
+  private readonly audioLoadPromisesBySrc = new Map<string, Promise<AudioBuffer>>()
 
   private playerRoot: THREE.Object3D | null = null
   private weaponObject: THREE.Object3D | null = null
@@ -60,6 +83,8 @@ class PlayerViewerApp {
   }
   private initialTransform: WeaponTransformValues = cloneWeaponTransformValues(this.currentTransform)
   private modelLoadVersion = 0
+  private selectedAudioPreviewId: AudioPreviewId = 'footstep_walk'
+  private audioVolume = 0.8
 
   private readonly state = {
     modelId: DEFAULT_PLAYER_MODEL_ID as string,
@@ -82,6 +107,9 @@ class PlayerViewerApp {
     this.root.appendChild(this.renderer.domElement)
 
     this.camera.position.set(1.7, 1.5, 2.2)
+    this.camera.add(this.audioListener)
+    this.audioPreview.setLoop(false)
+    this.audioPreview.setVolume(this.audioVolume)
     this.orbit = new OrbitControls(this.camera, this.renderer.domElement)
     this.orbit.target.set(0, 1.0, 0)
     this.orbit.enableDamping = true
@@ -178,6 +206,29 @@ class PlayerViewerApp {
       },
       onCopyWeaponTransform: () => {
         void this.copyCurrentTransform()
+      },
+      audioPreviewIds: (Object.keys(AUDIO_PREVIEW_CATALOG) as AudioPreviewId[]).map(
+        (id) => AUDIO_PREVIEW_CATALOG[id].label,
+      ),
+      onAudioPreviewChange: (audioId) => {
+        this.selectedAudioPreviewId = (audioId in AUDIO_PREVIEW_CATALOG
+          ? audioId
+          : 'footstep_walk') as AudioPreviewId
+      },
+      onAudioVolumeChange: (volume) => {
+        this.audioVolume = Math.max(0, Math.min(1, volume))
+        this.audioPreview.setVolume(this.audioVolume)
+      },
+      onPlayAudioPreview: () => {
+        void this.playSelectedAudioPreview()
+      },
+      onPlayCurrentWeaponShot: () => {
+        void this.playCurrentWeaponShot()
+      },
+      onStopAudioPreview: () => {
+        if (this.audioPreview.isPlaying) {
+          this.audioPreview.stop()
+        }
       },
     })
 
@@ -417,10 +468,57 @@ class PlayerViewerApp {
     }
   }
 
+  private async playSelectedAudioPreview(): Promise<void> {
+    const entry = AUDIO_PREVIEW_CATALOG[this.selectedAudioPreviewId]
+    if (!entry) return
+    await this.playAudioBySrc(entry.src)
+  }
+
+  private async playCurrentWeaponShot(): Promise<void> {
+    const shotSrc = getWeaponDefinition(this.currentWeaponId).audio.shot.src
+    await this.playAudioBySrc(shotSrc)
+  }
+
+  private async playAudioBySrc(src: string): Promise<void> {
+    if (this.audioListener.context.state === 'suspended') {
+      await this.audioListener.context.resume()
+    }
+    if (this.audioPreview.isPlaying) {
+      this.audioPreview.stop()
+    }
+    this.audioPreview.setVolume(this.audioVolume)
+    const buffer = await this.loadAudioBuffer(src)
+    if (!buffer) return
+    this.audioPreview.setBuffer(buffer)
+    this.audioPreview.play()
+  }
+
+  private async loadAudioBuffer(src: string): Promise<AudioBuffer | null> {
+    const cached = this.audioBuffersBySrc.get(src)
+    if (cached) return cached
+    const pending = this.audioLoadPromisesBySrc.get(src)
+    if (pending) return pending
+    const promise = this.audioLoader.loadAsync(src)
+    this.audioLoadPromisesBySrc.set(src, promise)
+    try {
+      const loaded = await promise
+      this.audioBuffersBySrc.set(src, loaded)
+      return loaded
+    } catch (error) {
+      console.error(`[player-viewer][audio] failed to load '${src}'`, error)
+      return null
+    } finally {
+      this.audioLoadPromisesBySrc.delete(src)
+    }
+  }
+
   private readonly dispose = (): void => {
     window.removeEventListener('resize', this.handleResize)
     window.removeEventListener('beforeunload', this.dispose)
     this.ui.dispose()
+    if (this.audioPreview.isPlaying) {
+      this.audioPreview.stop()
+    }
     this.orbit.dispose()
     this.renderer.dispose()
   }

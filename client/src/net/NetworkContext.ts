@@ -8,6 +8,7 @@ import {
   createPlayerAnimation,
   createPlayerController,
   createPlayerStats,
+  createAudioEmitterState,
   createWeaponState,
 } from '../ecs/components'
 import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/playerModelPrep'
@@ -102,6 +103,7 @@ export class NetworkContext {
       networkIdentity: createNetworkIdentity(playerId, nickname, modelId, resolveWeaponId(weaponId), false, role),
       networkTransform: createNetworkTransform(),
       playerStats: createPlayerStats(),
+      audioEmitterState: createAudioEmitterState(),
       weaponState: createWeaponState(weaponId),
       weaponVisualRoot: setup?.visualModel ?? remoteRoot,
       weaponVisualObject: null,

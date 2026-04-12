@@ -14,3 +14,4 @@ export { createRemoteInterpolationSystem } from './RemoteInterpolationSystem';
 export { createMatchRulesClientSystem } from './MatchRulesClientSystem';
 export { createWeaponLoadoutSystem } from './WeaponLoadoutSystem';
 export { createWeaponPoseByLocomotionSystem } from './WeaponPoseByLocomotionSystem';
+export { createAudioSystem } from './AudioSystem';
