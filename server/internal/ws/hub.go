@@ -83,6 +83,13 @@ func (h *Hub) routeMessage(client *clientConn, msg protocol.Message) {
 			return
 		}
 		h.manager.UpdateState(client.id, payload)
+	case protocol.TypePlayerShot:
+		var payload protocol.PlayerShotPayload
+		if !decodePayload(msg.Payload, &payload) {
+			h.sendError(client, "bad_payload", "invalid player_shot payload")
+			return
+		}
+		h.manager.HandleShot(client.id, payload)
 	case protocol.TypeReportKill:
 		var payload protocol.ReportKillPayload
 		if !decodePayload(msg.Payload, &payload) {

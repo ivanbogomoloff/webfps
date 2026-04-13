@@ -1,5 +1,5 @@
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
-import type { IncomingMessage, OutgoingMessage, PlayerRole } from './protocol'
+import type { IncomingMessage, OutgoingMessage, PlayerRole, PlayerShotPayload } from './protocol'
 
 export class WsTransport implements GameTransport {
   private socket: WebSocket | null = null
@@ -79,8 +79,13 @@ export class WsTransport implements GameTransport {
         deaths: update.deaths,
         locomotion: update.locomotion,
         weaponId: update.weaponId,
+        hitbox: update.hitbox,
       },
     })
+  }
+
+  sendShot(payload: PlayerShotPayload): void {
+    this.send({ type: 'player_shot', payload })
   }
 
   reportKill(victimPlayerId: string): void {

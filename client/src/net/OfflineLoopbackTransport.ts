@@ -6,7 +6,7 @@ import {
 } from '../game/playerLocomotionLogic'
 import { pickRandomBotModelId } from '../game/supportedPlayerModels'
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
-import type { IncomingMessage, MatchPhase, PlayerRole, ScoreboardPlayer } from './protocol'
+import type { IncomingMessage, MatchPhase, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
 
 type SimPlayer = {
   playerId: string
@@ -26,12 +26,23 @@ type SimPlayer = {
   isDead: boolean
   respawnAtMs: number
   forcedLocomotion: PlayerLocomotion | null
+  hitboxCenterX: number
+  hitboxCenterY: number
+  hitboxCenterZ: number
+  hitboxRadius: number
 }
 
 export class OfflineLoopbackTransport implements GameTransport {
   private static readonly PLAYER_HEALTH_MAX = 100
   private static readonly DEBUG_HIT_DAMAGE = 25
   private static readonly RESPAWN_DELAY_MS = 3000
+  private static readonly HIT_RADIUS = 0.55
+  private static readonly HIT_CENTER_Y_OFFSET = 0.65
+  private static readonly HITSCAN_RANGE = 120
+  private static readonly DAMAGE_BY_WEAPON: Record<string, number> = {
+    rifle_m16: 20,
+    rifle_ak47: 12,
+  }
   private handlers = new Set<TransportHandler>()
   private localPlayerId: string | null = null
   private roomCode = '0000'
@@ -75,6 +86,10 @@ export class OfflineLoopbackTransport implements GameTransport {
       isDead: false,
       respawnAtMs: 0,
       forcedLocomotion: null,
+      hitboxCenterX: 0,
+      hitboxCenterY: 1 + OfflineLoopbackTransport.HIT_CENTER_Y_OFFSET,
+      hitboxCenterZ: 0,
+      hitboxRadius: OfflineLoopbackTransport.HIT_RADIUS,
     })
     this.players.set(this.botId, {
       playerId: this.botId,
@@ -94,6 +109,10 @@ export class OfflineLoopbackTransport implements GameTransport {
       isDead: false,
       respawnAtMs: 0,
       forcedLocomotion: null,
+      hitboxCenterX: 4,
+      hitboxCenterY: 1 + OfflineLoopbackTransport.HIT_CENTER_Y_OFFSET,
+      hitboxCenterZ: 0,
+      hitboxRadius: OfflineLoopbackTransport.HIT_RADIUS,
     })
 
     this.emit({
@@ -175,6 +194,60 @@ export class OfflineLoopbackTransport implements GameTransport {
       local.locomotion = update.locomotion
     }
     local.weaponId = update.weaponId
+    local.hitboxCenterX = update.hitbox.center.x
+    local.hitboxCenterY = update.hitbox.center.y
+    local.hitboxCenterZ = update.hitbox.center.z
+    local.hitboxRadius = Math.max(0.1, update.hitbox.radius)
+  }
+
+  sendShot(payload: PlayerShotPayload): void {
+    const local = this.getLocal()
+    if (!local || local.isDead || local.role !== 'player' || this.phase !== 'running') return
+    const directionLengthSq =
+      payload.direction.x * payload.direction.x +
+      payload.direction.y * payload.direction.y +
+      payload.direction.z * payload.direction.z
+    if (directionLengthSq <= 1e-6) return
+    const invLength = 1 / Math.sqrt(directionLengthSq)
+    const dx = payload.direction.x * invLength
+    const dy = payload.direction.y * invLength
+    const dz = payload.direction.z * invLength
+    const maxDistance = OfflineLoopbackTransport.HITSCAN_RANGE
+
+    let closestVictim: SimPlayer | null = null
+    let closestDistance = maxDistance + 1
+    for (const player of this.players.values()) {
+      if (player.playerId === local.playerId || player.role !== 'player' || player.isDead) continue
+      const hitDistance = intersectRaySphere(
+        payload.origin.x,
+        payload.origin.y,
+        payload.origin.z,
+        dx,
+        dy,
+        dz,
+        player.hitboxCenterX,
+        player.hitboxCenterY,
+        player.hitboxCenterZ,
+        player.hitboxRadius,
+        maxDistance,
+      )
+      if (hitDistance == null || hitDistance >= closestDistance) continue
+      closestDistance = hitDistance
+      closestVictim = player
+    }
+    if (!closestVictim) return
+
+    this.applyDamage(
+      closestVictim,
+      OfflineLoopbackTransport.DAMAGE_BY_WEAPON[payload.weaponId] ?? OfflineLoopbackTransport.DAMAGE_BY_WEAPON.rifle_m16,
+    )
+    if (closestVictim.isDead) {
+      local.frags += 1
+      this.emitScoreboard()
+      this.checkMatchEnd('frag_limit')
+    }
+    this.emitStateBatch()
+    this.emitRoomState()
   }
 
   reportKill(victimPlayerId: string): void {
@@ -237,6 +310,9 @@ export class OfflineLoopbackTransport implements GameTransport {
     if (!bot.isDead) {
       bot.locomotion = locomotionFromStrafeAxes(fz, fx)
     }
+    bot.hitboxCenterX = bot.x
+    bot.hitboxCenterY = bot.y + OfflineLoopbackTransport.HIT_CENTER_Y_OFFSET
+    bot.hitboxCenterZ = bot.z
 
     if (this.phase === 'running' && Math.random() < 0.02) {
       bot.frags += 1
@@ -385,4 +461,34 @@ export class OfflineLoopbackTransport implements GameTransport {
       handler(message)
     }
   }
+}
+
+function intersectRaySphere(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  cx: number,
+  cy: number,
+  cz: number,
+  radius: number,
+  maxDistance: number,
+): number | null {
+  const lx = ox - cx
+  const ly = oy - cy
+  const lz = oz - cz
+  const b = 2 * (lx * dx + ly * dy + lz * dz)
+  const c = lx * lx + ly * ly + lz * lz - radius * radius
+  const discriminant = b * b - 4 * c
+  if (discriminant < 0) return null
+  const sqrtDisc = Math.sqrt(discriminant)
+  const t0 = (-b - sqrtDisc) * 0.5
+  const t1 = (-b + sqrtDisc) * 0.5
+  let t = Number.POSITIVE_INFINITY
+  if (t0 >= 0) t = t0
+  if (t1 >= 0 && t1 < t) t = t1
+  if (!Number.isFinite(t) || t > maxDistance) return null
+  return t
 }

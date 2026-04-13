@@ -13,6 +13,25 @@ export interface JoinRoomPayload {
   fragLimit: number
 }
 
+export interface PlayerShotPayload {
+  origin: { x: number; y: number; z: number }
+  direction: { x: number; y: number; z: number }
+  weaponId: string
+  seq: number
+  clientTime: number
+}
+
+export interface PlayerHitbox {
+  center: { x: number; y: number; z: number }
+  radius: number
+}
+
+export interface PlayerHitEffectPayload {
+  attackerPlayerId: string
+  victimPlayerId: string
+  point: { x: number; y: number; z: number }
+}
+
 export interface PlayerStateMessage {
   playerId: string
   /** Совпадает с `room_state` / `player_joined`; нужен, если батч приходит раньше полного room_state. */
@@ -75,6 +94,7 @@ export type IncomingMessage =
   | { type: 'match_started'; payload: { startedAtUnixMs: number; timeLimitSec: number; fragLimit: number } }
   | { type: 'match_tick'; payload: { timeLeftSec: number } }
   | { type: 'player_state_batch'; payload: { states: PlayerStateMessage[] } }
+  | { type: 'player_hit_effect'; payload: PlayerHitEffectPayload }
   | { type: 'scoreboard_update'; payload: { players: ScoreboardPlayer[] } }
   | { type: 'match_ended'; payload: { winnerPlayerId: string; reason: 'frag_limit' | 'time_limit'; players: ScoreboardPlayer[] } }
   | { type: 'error'; payload: { code: string; message: string } }
@@ -96,8 +116,10 @@ export type OutgoingMessage =
         deaths: number
         locomotion: PlayerLocomotion
         weaponId: string
+        hitbox: PlayerHitbox
       }
     }
   | { type: 'report_kill'; payload: { victimPlayerId: string } }
+  | { type: 'player_shot'; payload: PlayerShotPayload }
   | { type: 'debug_hit_self'; payload: Record<string, never> }
   | { type: 'leave_room'; payload: Record<string, never> }

@@ -9,6 +9,7 @@ export { createPlayerControllerSystem } from './PlayerControllerSystem';
 export { createPlayerAnimationSystem } from './PlayerAnimationSystem';
 export { createHudSystem } from './HudSystem';
 export { createNetworkSendSystem } from './NetworkSendSystem';
+export { createShotSendSystem } from './ShotSendSystem';
 export { createNetworkReceiveSystem } from './NetworkReceiveSystem';
 export { createRemoteInterpolationSystem } from './RemoteInterpolationSystem';
 export { createMatchRulesClientSystem } from './MatchRulesClientSystem';

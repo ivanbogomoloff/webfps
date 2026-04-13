@@ -1,6 +1,24 @@
 import type { World } from 'miniplex'
+import * as THREE from 'three'
 import type { NetworkContext } from '../../net/NetworkContext'
 import type { MatchState } from '../components'
+
+const DEFAULT_HITBOX_RADIUS = 0.5
+const DEFAULT_CENTER_Y_OFFSET = 0.65
+const tempBounds = new THREE.Box3()
+const tempCenter = new THREE.Vector3()
+
+function getHitboxCenterY(local: Record<string, any>): number {
+  const root = (local.weaponVisualRoot as THREE.Object3D | undefined) ?? (local.object3d as THREE.Object3D | undefined)
+  if (root) {
+    tempBounds.setFromObject(root)
+    if (!tempBounds.isEmpty()) {
+      tempBounds.getCenter(tempCenter)
+      return tempCenter.y
+    }
+  }
+  return local.object3d.position.y + DEFAULT_CENTER_Y_OFFSET
+}
 
 export function createNetworkSendSystem(world: World, networkContext: NetworkContext) {
   let accumulator = 0
@@ -29,6 +47,14 @@ export function createNetworkSendSystem(world: World, networkContext: NetworkCon
       deaths: local.playerStats.deaths,
       locomotion,
       weaponId: local.weaponState?.weaponId ?? local.networkIdentity.weaponId ?? 'rifle_m16',
+      hitbox: {
+        center: {
+          x: local.object3d.position.x,
+          y: getHitboxCenterY(local as Record<string, any>),
+          z: local.object3d.position.z,
+        },
+        radius: DEFAULT_HITBOX_RADIUS,
+      },
     })
   }
 }

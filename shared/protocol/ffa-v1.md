@@ -25,7 +25,9 @@ Every message has:
 - `add_bot`
   - payload: `{}`
 - `state_update`
-  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" | "idle_crouch" | "walk_crouch" | "walk_crouch_left_d" | "walk_crouch_right_d" | "backwards_crouch" | "backwards_crouch_left_d" | "backwards_crouch_right_d" | "left_crouch" | "right_crouch" | "run_forward" | "run_backward" | "run_left" | "run_right" | "run_left_d" | "run_right_d" | "run_backward_left_d" | "run_backward_right_d" | "jump_up", "weaponId": "rifle_m16" }`
+  - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" | "idle_crouch" | "walk_crouch" | "walk_crouch_left_d" | "walk_crouch_right_d" | "backwards_crouch" | "backwards_crouch_left_d" | "backwards_crouch_right_d" | "left_crouch" | "right_crouch" | "run_forward" | "run_backward" | "run_left" | "run_right" | "run_left_d" | "run_right_d" | "run_backward_left_d" | "run_backward_right_d" | "jump_up", "weaponId": "rifle_m16", "hitbox": { "center": { "x": 0, "y": 1.1, "z": 0 }, "radius": 0.55 } }`
+- `player_shot`
+  - payload: `{ "origin": { "x": 0, "y": 1.6, "z": 0 }, "direction": { "x": 0, "y": 0, "z": -1 }, "weaponId": "rifle_m16", "seq": 42, "clientTime": 1710000000000 }`
 - `report_kill`
   - payload: `{ "victimPlayerId": "p-2" }`
 - `leave_room`
@@ -51,6 +53,8 @@ Every message has:
   - payload: `{ timeLeftSec }`
 - `player_state_batch`
   - payload: `{ states: [{ playerId, modelId, weaponId, locomotion, x, y, z, rotY, role, frags, deaths }] }`
+- `player_hit_effect`
+  - payload: `{ "attackerPlayerId": "p-1", "victimPlayerId": "p-2", "point": { "x": 1.2, "y": 1.7, "z": -4.3 } }`
 - `scoreboard_update`
   - payload: `{ players: [{ playerId, nickname, frags, deaths }] }`
 - `match_ended`

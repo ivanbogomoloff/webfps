@@ -25,6 +25,7 @@ import {
   createMatchRulesClientSystem,
   createNetworkReceiveSystem,
   createNetworkSendSystem,
+  createShotSendSystem,
   createPhysicsSystem,
   createRenderSystem,
   createRemoteInterpolationSystem,
@@ -205,6 +206,7 @@ export class Game {
       this.systems.push(createNetworkReceiveSystem(this.world, this.scene, this.networkContext));
       this.systems.push(createRemoteInterpolationSystem(this.world));
       this.systems.push(createMatchRulesClientSystem(this.world));
+      this.systems.push(createShotSendSystem(this.world, this.networkContext));
       this.systems.push(createNetworkSendSystem(this.world, this.networkContext));
     }
     // После сетевого приёма: у соперников `playerController.locomotion` уже из пакета.

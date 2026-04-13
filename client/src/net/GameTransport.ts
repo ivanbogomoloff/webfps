@@ -1,4 +1,4 @@
-import type { IncomingMessage, JoinRoomPayload, PlayerRole } from './protocol'
+import type { IncomingMessage, JoinRoomPayload, PlayerHitbox, PlayerRole, PlayerShotPayload } from './protocol'
 import type { PlayerLocomotion } from '../ecs/components/PlayerController'
 
 export interface TransportConnectParams extends JoinRoomPayload {}
@@ -13,6 +13,7 @@ export interface LocalStateUpdate {
   deaths: number
   locomotion: PlayerLocomotion
   weaponId: string
+  hitbox: PlayerHitbox
 }
 
 export type TransportHandler = (message: IncomingMessage) => void
@@ -25,6 +26,7 @@ export interface GameTransport {
   addBot(): void
   debugHitSelf(): void
   sendState(update: LocalStateUpdate): void
+  sendShot(payload: PlayerShotPayload): void
   reportKill(victimPlayerId: string): void
   subscribe(handler: TransportHandler): () => void
   getLocalPlayerId(): string | null

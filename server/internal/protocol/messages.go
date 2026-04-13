@@ -11,6 +11,7 @@ const (
 	TypeSpawnRequest   = "spawn_request"
 	TypeAddBot         = "add_bot"
 	TypeStateUpdate    = "state_update"
+	TypePlayerShot     = "player_shot"
 	TypeReportKill     = "report_kill"
 	TypeDebugHitSelf   = "debug_hit_self"
 	TypeLeaveRoom      = "leave_room"
@@ -21,6 +22,7 @@ const (
 	TypeMatchStarted   = "match_started"
 	TypeMatchTick      = "match_tick"
 	TypePlayerStateBag = "player_state_batch"
+	TypePlayerHitFX    = "player_hit_effect"
 	TypeScoreboard     = "scoreboard_update"
 	TypeMatchEnded     = "match_ended"
 	TypeError          = "error"
@@ -122,6 +124,32 @@ type StateUpdatePayload struct {
 	Deaths     int     `json:"deaths"`
 	Locomotion string  `json:"locomotion"`
 	WeaponID   string  `json:"weaponId"`
+	Hitbox     *Hitbox `json:"hitbox,omitempty"`
+}
+
+type Vec3 struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	Z float64 `json:"z"`
+}
+
+type Hitbox struct {
+	Center Vec3    `json:"center"`
+	Radius float64 `json:"radius"`
+}
+
+type PlayerShotPayload struct {
+	Origin     Vec3   `json:"origin"`
+	Direction  Vec3   `json:"direction"`
+	WeaponID   string `json:"weaponId"`
+	Seq        int64  `json:"seq"`
+	ClientTime int64  `json:"clientTime"`
+}
+
+type PlayerHitEffectPayload struct {
+	AttackerPlayerID string `json:"attackerPlayerId"`
+	VictimPlayerID   string `json:"victimPlayerId"`
+	Point            Vec3   `json:"point"`
 }
 
 type ReportKillPayload struct {

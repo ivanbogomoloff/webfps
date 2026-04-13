@@ -14,7 +14,7 @@ import {
 import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/playerModelPrep'
 import { replaceWeaponVisual } from '../game/weaponVisualAttach'
 import { resolveWeaponId } from '../game/supportedWeaponModels'
-import type { IncomingMessage, PlayerRole, ScoreboardPlayer } from './protocol'
+import type { IncomingMessage, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
 import type { GameTransport, LocalStateUpdate } from './GameTransport'
 
 type AnyEntity = Record<string, any>
@@ -241,6 +241,10 @@ export class NetworkContext {
 
   sendState(update: LocalStateUpdate): void {
     this.transport.sendState(update)
+  }
+
+  sendShot(payload: PlayerShotPayload): void {
+    this.transport.sendShot(payload)
   }
 
   setRole(role: PlayerRole): void {

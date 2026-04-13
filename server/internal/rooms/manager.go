@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"slices"
@@ -19,7 +20,24 @@ const (
 	defaultPlayerHealth = 100
 	debugHitDamage      = 25
 	respawnDelayMs      = int64(3000)
+	hitscanMaxDistance  = 120.0
+	defaultHitboxRadius = 0.5
+	defaultHitboxYOff   = 0.65
+	playerEyeHeight     = 1.6
+	maxOriginOffset     = 1.6
+	maxShotPastAgeMs    = int64(1500)
+	maxShotFutureMs     = int64(250)
 )
+
+type weaponRule struct {
+	Damage   int
+	FireRate float64
+}
+
+var weaponRulesByID = map[string]weaponRule{
+	"rifle_m16":  {Damage: 20, FireRate: 3},
+	"rifle_ak47": {Damage: 12, FireRate: 8},
+}
 
 type ClientSender interface {
 	ID() string
@@ -53,6 +71,12 @@ type playerState struct {
 	RespawnAtMs int64   `json:"-"`
 	ForcedLoc   string  `json:"forcedLocomotion,omitempty"`
 	IsBot       bool    `json:"-"`
+	LastShotSeq int64   `json:"-"`
+	LastShotAt  int64   `json:"-"`
+	HitboxCX    float64 `json:"-"`
+	HitboxCY    float64 `json:"-"`
+	HitboxCZ    float64 `json:"-"`
+	HitboxR     float64 `json:"-"`
 }
 
 type roomState struct {
@@ -174,6 +198,10 @@ func (m *Manager) JoinRoom(client ClientSender, payload protocol.JoinRoomPayload
 		Locomotion: "idle",
 		Health:     defaultPlayerHealth,
 		MaxHealth:  defaultPlayerHealth,
+		HitboxCX:   0,
+		HitboxCY:   defaultHitboxYOff,
+		HitboxCZ:   0,
+		HitboxR:    defaultHitboxRadius,
 	}
 	if room.OwnerPlayerID == "" {
 		room.OwnerPlayerID = playerID
@@ -295,6 +323,10 @@ func (m *Manager) AddBot(clientID string) {
 		Health:     defaultPlayerHealth,
 		MaxHealth:  defaultPlayerHealth,
 		IsBot:      true,
+		HitboxCX:   spawnX,
+		HitboxCY:   spawnY + defaultHitboxYOff,
+		HitboxCZ:   spawnZ,
+		HitboxR:    defaultHitboxRadius,
 	}
 	room.Players[botID] = bot
 	m.applyBotBehaviorLocked(room, time.Now().UnixMilli())
@@ -334,6 +366,17 @@ func (m *Manager) UpdateState(clientID string, payload protocol.StateUpdatePaylo
 	}
 	if !player.IsDead {
 		player.Locomotion = protocol.NormalizePlayerLocomotion(payload.Locomotion)
+	}
+	if payload.Hitbox != nil {
+		player.HitboxCX = payload.Hitbox.Center.X
+		player.HitboxCY = payload.Hitbox.Center.Y
+		player.HitboxCZ = payload.Hitbox.Center.Z
+		player.HitboxR = math.Max(0.1, payload.Hitbox.Radius)
+	} else {
+		player.HitboxCX = player.X
+		player.HitboxCY = player.Y + defaultHitboxYOff
+		player.HitboxCZ = player.Z
+		player.HitboxR = defaultHitboxRadius
 	}
 
 	m.broadcastPlayerStatesLocked(room)
@@ -406,6 +449,128 @@ func (m *Manager) DebugHitSelf(clientID string) {
 	}
 
 	m.broadcastPlayerStatesLocked(room)
+}
+
+func (m *Manager) HandleShot(clientID string, payload protocol.PlayerShotPayload) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	room, shooter := m.getRoomAndPlayerByClientLocked(clientID)
+	if room == nil || shooter == nil || room.Phase != "running" {
+		return
+	}
+	nowMs := time.Now().UnixMilli()
+	respawnStateChanged := m.applyRespawnsLocked(room, nowMs)
+	if shooter.Role != "player" || shooter.IsDead {
+		if respawnStateChanged {
+			m.broadcastPlayerStatesLocked(room)
+			m.broadcastRoomStateLocked(room)
+		}
+		return
+	}
+
+	weaponID := normalizeWeaponID(shooter.WeaponID)
+	if payload.WeaponID != "" && normalizeWeaponID(payload.WeaponID) != weaponID {
+		return
+	}
+	weaponRule := weaponRulesByID[weaponID]
+
+	if payload.Seq > 0 && payload.Seq <= shooter.LastShotSeq {
+		return
+	}
+	minShotIntervalMs := int64(math.Ceil(1000.0 / math.Max(1.0, weaponRule.FireRate)))
+	if shooter.LastShotAt > 0 && nowMs-shooter.LastShotAt < minShotIntervalMs {
+		return
+	}
+	if payload.ClientTime > 0 {
+		if nowMs-payload.ClientTime > maxShotPastAgeMs {
+			return
+		}
+		if payload.ClientTime-nowMs > maxShotFutureMs {
+			return
+		}
+	}
+
+	dx := payload.Direction.X
+	dy := payload.Direction.Y
+	dz := payload.Direction.Z
+	lenSq := dx*dx + dy*dy + dz*dz
+	if lenSq <= 1e-6 {
+		return
+	}
+	invLen := 1.0 / math.Sqrt(lenSq)
+	dx *= invLen
+	dy *= invLen
+	dz *= invLen
+
+	shooterCenterX, shooterCenterY, shooterCenterZ, shooterRadius := resolvePlayerHitbox(shooter)
+	originDx := payload.Origin.X - shooterCenterX
+	originDy := payload.Origin.Y - (shooterCenterY + (playerEyeHeight - defaultHitboxYOff))
+	originDz := payload.Origin.Z - shooterCenterZ
+	maxOriginDistance := shooterRadius + maxOriginOffset
+	if originDx*originDx+originDy*originDy+originDz*originDz > maxOriginDistance*maxOriginDistance {
+		return
+	}
+
+	var victim *playerState
+	closestHitDistance := hitscanMaxDistance + 1
+	for _, target := range room.Players {
+		if target == nil || target.PlayerID == shooter.PlayerID || target.Role != "player" || target.IsDead {
+			continue
+		}
+		targetCenterX, targetCenterY, targetCenterZ, targetRadius := resolvePlayerHitbox(target)
+		hitDistance, ok := intersectRaySphere(
+			payload.Origin.X,
+			payload.Origin.Y,
+			payload.Origin.Z,
+			dx,
+			dy,
+			dz,
+			targetCenterX,
+			targetCenterY,
+			targetCenterZ,
+			targetRadius,
+			hitscanMaxDistance,
+		)
+		if !ok || hitDistance >= closestHitDistance {
+			continue
+		}
+		closestHitDistance = hitDistance
+		victim = target
+	}
+
+	shooter.LastShotSeq = max(shooter.LastShotSeq, payload.Seq)
+	shooter.LastShotAt = nowMs
+
+	if victim == nil {
+		if respawnStateChanged {
+			m.broadcastPlayerStatesLocked(room)
+			m.broadcastRoomStateLocked(room)
+		}
+		return
+	}
+
+	wasKilled := m.applyShotDamageLocked(room, shooter, victim, weaponRule.Damage, nowMs)
+	hitPointX := payload.Origin.X + dx*closestHitDistance
+	hitPointY := payload.Origin.Y + dy*closestHitDistance
+	hitPointZ := payload.Origin.Z + dz*closestHitDistance
+	m.broadcastHitEffectLocked(room, shooter.PlayerID, victim.PlayerID, hitPointX, hitPointY, hitPointZ)
+	m.broadcastPlayerStatesLocked(room)
+	if respawnStateChanged {
+		m.broadcastRoomStateLocked(room)
+	}
+	if !wasKilled {
+		return
+	}
+
+	end := match.EvaluateEnd(match.EvaluateInput{
+		FragLimit:  room.FragLimit,
+		TimeLeft:   room.TimeLeftSec,
+		Scoreboard: m.scoreboardLocked(room),
+	})
+	if end.Ended {
+		m.finishMatchLocked(room, string(end.Reason), end.WinnerID)
+	}
 }
 
 func (m *Manager) LeaveRoom(clientID string) {
@@ -570,6 +735,28 @@ func (m *Manager) broadcastPlayerStatesLocked(room *roomState) {
 	})
 }
 
+func (m *Manager) broadcastHitEffectLocked(
+	room *roomState,
+	attackerPlayerID string,
+	victimPlayerID string,
+	x float64,
+	y float64,
+	z float64,
+) {
+	m.broadcastLocked(room, map[string]any{
+		"type": protocol.TypePlayerHitFX,
+		"payload": map[string]any{
+			"attackerPlayerId": attackerPlayerID,
+			"victimPlayerId":   victimPlayerID,
+			"point": map[string]float64{
+				"x": x,
+				"y": y,
+				"z": z,
+			},
+		},
+	})
+}
+
 func (m *Manager) applyRespawnsLocked(room *roomState, nowMs int64) bool {
 	changed := false
 	for _, p := range room.Players {
@@ -595,6 +782,106 @@ func calcRespawnInSec(nowMs int64, respawnAtMs int64) int {
 
 func isCrouchLocomotion(locomotion string) bool {
 	return strings.Contains(locomotion, "crouch")
+}
+
+func normalizeWeaponID(raw string) string {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	if _, ok := weaponRulesByID[normalized]; ok {
+		return normalized
+	}
+	return "rifle_m16"
+}
+
+func resolvePlayerHitbox(p *playerState) (centerX float64, centerY float64, centerZ float64, radius float64) {
+	if p == nil {
+		return 0, defaultHitboxYOff, 0, defaultHitboxRadius
+	}
+	r := p.HitboxR
+	if r < 0.1 {
+		r = defaultHitboxRadius
+	}
+	cx := p.HitboxCX
+	cy := p.HitboxCY
+	cz := p.HitboxCZ
+	if cx == 0 && cy == 0 && cz == 0 {
+		cx = p.X
+		cy = p.Y + defaultHitboxYOff
+		cz = p.Z
+	}
+	return cx, cy, cz, r
+}
+
+func intersectRaySphere(
+	originX float64,
+	originY float64,
+	originZ float64,
+	dirX float64,
+	dirY float64,
+	dirZ float64,
+	centerX float64,
+	centerY float64,
+	centerZ float64,
+	radius float64,
+	maxDistance float64,
+) (float64, bool) {
+	lx := originX - centerX
+	ly := originY - centerY
+	lz := originZ - centerZ
+	b := 2 * (lx*dirX + ly*dirY + lz*dirZ)
+	c := lx*lx + ly*ly + lz*lz - radius*radius
+	discriminant := b*b - 4*c
+	if discriminant < 0 {
+		return 0, false
+	}
+	sqrtDisc := math.Sqrt(discriminant)
+	t0 := (-b - sqrtDisc) * 0.5
+	t1 := (-b + sqrtDisc) * 0.5
+	t := math.Inf(1)
+	if t0 >= 0 {
+		t = t0
+	}
+	if t1 >= 0 && t1 < t {
+		t = t1
+	}
+	if !isFinite(t) || t > maxDistance {
+		return 0, false
+	}
+	return t, true
+}
+
+func (m *Manager) applyShotDamageLocked(room *roomState, attacker *playerState, victim *playerState, damage int, nowMs int64) bool {
+	if room == nil || attacker == nil || victim == nil || victim.IsDead {
+		return false
+	}
+	if damage <= 0 {
+		return false
+	}
+	healthBefore := victim.Health
+	if healthBefore <= 0 {
+		healthBefore = victim.MaxHealth
+	}
+	victim.Health = max(0, healthBefore-damage)
+	if victim.Health > 0 {
+		return false
+	}
+
+	victim.Health = 0
+	victim.IsDead = true
+	victim.Deaths++
+	if isCrouchLocomotion(victim.Locomotion) {
+		victim.ForcedLoc = "death_crouch"
+	} else {
+		victim.ForcedLoc = "death_back"
+	}
+	victim.Locomotion = victim.ForcedLoc
+	victim.RespawnAtMs = nowMs + respawnDelayMs
+	attacker.Frags++
+	m.broadcastScoreboardLocked(room)
+	return true
+}
+
+func isFinite(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0)
 }
 
 func (m *Manager) scoreboardLocked(room *roomState) []match.ScoreEntry {
@@ -662,6 +949,10 @@ func (m *Manager) applyBotBehaviorLocked(room *roomState, nowMs int64) {
 			continue
 		}
 		m.botBehavior.Apply(player, room, nowMs)
+		player.HitboxCX = player.X
+		player.HitboxCY = player.Y + defaultHitboxYOff
+		player.HitboxCZ = player.Z
+		player.HitboxR = defaultHitboxRadius
 	}
 }
 

@@ -5,9 +5,40 @@ import type { NetworkContext } from '../../net/NetworkContext'
 import { parseNetworkLocomotion } from '../../game/playerLocomotionLogic'
 
 type AnyEntity = Record<string, any>
+type ActiveHitMarker = {
+  mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>
+  victimEntity: AnyEntity
+  expiresAtMs: number
+}
 
 export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, networkContext: NetworkContext) {
+  const markerGeometry = new THREE.SphereGeometry(0.06, 8, 8)
+  const markerMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff2b2b,
+    transparent: true,
+    opacity: 0.95,
+    depthTest: true,
+  })
+  const hitFadeDurationMs = 260
+  const maxActiveMarkers = 24
+  const activeHitMarkers: ActiveHitMarker[] = []
+  const tempWorldPoint = new THREE.Vector3()
+
   return (_deltaTime: number) => {
+    const now = performance.now()
+    for (let i = activeHitMarkers.length - 1; i >= 0; i -= 1) {
+      const marker = activeHitMarkers[i]
+      const lifeLeft = marker.expiresAtMs - now
+      if (lifeLeft <= 0) {
+        marker.victimEntity.object3d?.remove(marker.mesh)
+        marker.mesh.material.dispose()
+        activeHitMarkers.splice(i, 1)
+        continue
+      }
+      marker.mesh.material.opacity = Math.max(0.08, lifeLeft / hitFadeDurationMs)
+      marker.mesh.scale.setScalar(0.6 + (1 - lifeLeft / hitFadeDurationMs) * 0.6)
+    }
+
     const messages = networkContext.consumeQueue()
     if (messages.length === 0) return
 
@@ -151,6 +182,28 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
                 : state.locomotion
               pc.locomotion = parseNetworkLocomotion(locomotion)
             }
+          }
+          break
+        }
+        case 'player_hit_effect': {
+          const victimEntity = networkContext.getPlayerEntity(message.payload.victimPlayerId)
+          if (!victimEntity?.object3d) break
+          tempWorldPoint.set(message.payload.point.x, message.payload.point.y, message.payload.point.z)
+          victimEntity.object3d.worldToLocal(tempWorldPoint)
+          const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial.clone())
+          markerMesh.position.copy(tempWorldPoint)
+          markerMesh.renderOrder = 10
+          victimEntity.object3d.add(markerMesh)
+          activeHitMarkers.push({
+            mesh: markerMesh as THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>,
+            victimEntity,
+            expiresAtMs: now + hitFadeDurationMs,
+          })
+          while (activeHitMarkers.length > maxActiveMarkers) {
+            const removed = activeHitMarkers.shift()
+            if (!removed) break
+            removed.victimEntity.object3d?.remove(removed.mesh)
+            removed.mesh.material.dispose()
           }
           break
         }
