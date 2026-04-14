@@ -4,19 +4,8 @@ import { World } from 'miniplex';
 
 import {
   applyWeaponDefinition,
-  createAmmoBody,
-  createAudioEmitterState,
   createCamera,
-  createInput,
-  createHealth,
   createMatchState,
-  createNetworkIdentity,
-  createNetworkTransform,
-  createPlayerController,
-  createPlayerAnimation,
-  createPlayerPhysicsState,
-  createPlayerStats,
-  createWeaponState,
 } from '../ecs/components';
 import {
   attachAmmoRuntimeToPhysicsContext,
@@ -39,16 +28,9 @@ import {
   createWeaponLoadoutSystem,
 } from '../ecs/systems';
 import type {
-  AmmoBody,
   AmmoApi,
   AmmoWorld,
-  Health,
-  NetworkIdentity,
-  AudioEmitterState,
-  PlayerController,
   PlayerViewMode,
-  PlayerPhysicsState,
-  WeaponState,
 } from '../ecs/components';
 import type { AmmoPhysicsContext, GroundProbeDebugState } from '../ecs/systems/PhysicsSystem';
 import type { GameTransport } from '../net/GameTransport';
@@ -56,6 +38,8 @@ import { NetworkContext } from '../net/NetworkContext';
 import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
+import { createLocalPlayerEntity, type LocalPlayerEntity } from './localPlayerFactory';
+import { attachLocalPlayerAmmoBody } from './localPlayerPhysics';
 import type { RespawnPoint } from './Map';
 import type { PlayerVisualSetup } from './playerModelPrep';
 import {
@@ -71,23 +55,6 @@ import {
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
-
-type LocalPlayerEntity = {
-  id: number;
-  input: ReturnType<typeof createInput>;
-  camera: THREE.PerspectiveCamera;
-  object3d: THREE.Object3D;
-  health: Health;
-  networkIdentity: NetworkIdentity;
-  playerController: PlayerController;
-  playerPhysicsState: PlayerPhysicsState;
-  audioEmitterState: AudioEmitterState;
-  weaponState: WeaponState;
-  weaponVisualRoot?: THREE.Object3D;
-  weaponVisualObject?: THREE.Object3D | null;
-  weaponVisualWeaponId?: string;
-  ammoBody?: AmmoBody;
-};
 
 export class Game {
   private world: World;
@@ -276,188 +243,27 @@ export class Game {
    * Создаёт сущность игрока и физическое тело. Визуал и клипы анимаций готовятся снаружи (см. main.ts).
    */
   public createPlayer(setup: PlayerVisualSetup, playerRadius: number = 0.5): void {
-    const {
-      visualModel,
-      idleClip,
-      walkClip,
-      backwardsClip,
-      walkLeftDClip,
-      walkRightDClip,
-      backwardsLeftDClip,
-      backwardsRightDClip,
-      left,
-      right,
-      idleCrouchClip,
-      walkCrouchClip,
-      walkCrouchLeftDClip,
-      walkCrouchRightDClip,
-      backwardsCrouchClip,
-      backwardsCrouchLeftDClip,
-      backwardsCrouchRightDClip,
-      leftCrouchClip,
-      rightCrouchClip,
-      runForwardClip,
-      runBackwardClip,
-      runLeftClip,
-      runRightClip,
-      runLeftDClip,
-      runRightDClip,
-      runBackwardLeftDClip,
-      runBackwardRightDClip,
-      fireClip,
-      walkFireClip,
-      walkLeftDFireClip,
-      walkRightDFireClip,
-      backwardsFireClip,
-      backwardsLeftDFireClip,
-      backwardsRightDFireClip,
-      leftFireClip,
-      rightFireClip,
-      idleCrouchFireClip,
-      walkCrouchFireClip,
-      walkCrouchLeftDFireClip,
-      walkCrouchRightDFireClip,
-      backwardsCrouchFireClip,
-      backwardsCrouchLeftDFireClip,
-      backwardsCrouchRightDFireClip,
-      leftCrouchFireClip,
-      rightCrouchFireClip,
-      runForwardFireClip,
-      runBackwardFireClip,
-      runLeftFireClip,
-      runRightFireClip,
-      runLeftDFireClip,
-      runRightDFireClip,
-      runBackwardLeftDFireClip,
-      runBackwardRightDFireClip,
-      jumpUpClip,
-      deathBackClip,
-      deathCrouchClip,
-    } = setup;
-    const playerRoot = new THREE.Group();
-    playerRoot.position.set(0, 6, 0);
-    playerRoot.add(visualModel);
-    const initialWeaponId = resolveWeaponId(this.options?.localWeaponId ?? DEFAULT_WEAPON_ID);
-
-    const entity = this.createEntity({
-      input: createInput(),
+    const entity = createLocalPlayerEntity({
+      world: this.world,
       camera: this.camera,
-      object3d: playerRoot,
-      health: createHealth(100),
-      networkTransform: createNetworkTransform(),
-      networkIdentity: createNetworkIdentity(
-        'pending-local',
-        this.options?.localNickname ?? 'Player',
-        this.options?.localModelId ?? 'player1',
-        initialWeaponId,
-        true,
-        'spectator'
-      ),
-      playerStats: createPlayerStats(),
-      playerController: createPlayerController(5, 0.003), // 5 м/с скорость, чувствительность мыши
-      playerPhysicsState: createPlayerPhysicsState(),
-      audioEmitterState: createAudioEmitterState(),
-      weaponState: createWeaponState(initialWeaponId),
-      weaponVisualRoot: visualModel,
-      weaponVisualObject: null as THREE.Object3D | null,
-      weaponVisualWeaponId: '' as string,
+      setup,
+      localNickname: this.options?.localNickname,
+      localModelId: this.options?.localModelId,
+      localWeaponId: this.options?.localWeaponId,
+      createEntity: (components) => this.createEntity(components),
     });
 
     this.physicsContext.playerRadius = playerRadius;
     this.localPlayerEntity = entity;
     this.networkContext?.setLocalPlayerEntity(entity);
-
-    if (idleClip && walkClip) {
-      // Miniplex: нельзя просто присвоить entity.playerAnimation — сущность не попадёт в query
-      this.world.addComponent(
-        entity as any,
-        'playerAnimation',
-        createPlayerAnimation(visualModel, {
-          idle: idleClip,
-          walk: walkClip,
-          walk_left_d: walkLeftDClip,
-          walk_right_d: walkRightDClip,
-          backwards: backwardsClip,
-          backwards_left_d: backwardsLeftDClip,
-          backwards_right_d: backwardsRightDClip,
-          left,
-          right,
-          idle_crouch: idleCrouchClip,
-          walk_crouch: walkCrouchClip,
-          walk_crouch_left_d: walkCrouchLeftDClip,
-          walk_crouch_right_d: walkCrouchRightDClip,
-          backwards_crouch: backwardsCrouchClip,
-          backwards_crouch_left_d: backwardsCrouchLeftDClip,
-          backwards_crouch_right_d: backwardsCrouchRightDClip,
-          left_crouch: leftCrouchClip,
-          right_crouch: rightCrouchClip,
-          run_forward: runForwardClip,
-          run_backward: runBackwardClip,
-          run_left: runLeftClip,
-          run_right: runRightClip,
-          run_left_d: runLeftDClip,
-          run_right_d: runRightDClip,
-          run_backward_left_d: runBackwardLeftDClip,
-          run_backward_right_d: runBackwardRightDClip,
-          fire: fireClip,
-          walk_fire: walkFireClip,
-          walk_left_d_fire: walkLeftDFireClip,
-          walk_right_d_fire: walkRightDFireClip,
-          backwards_fire: backwardsFireClip,
-          backwards_left_d_fire: backwardsLeftDFireClip,
-          backwards_right_d_fire: backwardsRightDFireClip,
-          left_fire: leftFireClip,
-          right_fire: rightFireClip,
-          idle_crouch_fire: idleCrouchFireClip,
-          walk_crouch_fire: walkCrouchFireClip,
-          walk_crouch_left_d_fire: walkCrouchLeftDFireClip,
-          walk_crouch_right_d_fire: walkCrouchRightDFireClip,
-          backwards_crouch_fire: backwardsCrouchFireClip,
-          backwards_crouch_left_d_fire: backwardsCrouchLeftDFireClip,
-          backwards_crouch_right_d_fire: backwardsCrouchRightDFireClip,
-          left_crouch_fire: leftCrouchFireClip,
-          right_crouch_fire: rightCrouchFireClip,
-          run_forward_fire: runForwardFireClip,
-          run_backward_fire: runBackwardFireClip,
-          run_left_fire: runLeftFireClip,
-          run_right_fire: runRightFireClip,
-          run_left_d_fire: runLeftDFireClip,
-          run_right_d_fire: runRightDFireClip,
-          run_backward_left_d_fire: runBackwardLeftDFireClip,
-          run_backward_right_d_fire: runBackwardRightDFireClip,
-          jump_up: jumpUpClip,
-          death_back: deathBackClip,
-          death_crouch: deathCrouchClip,
-        }),
-      );
-    }
-
-    // Добавляем игрока в физический мир Ammo как динамическое тело
-    (async () => {
-      await this.physicsReady;
-      if (!this.ammo || !this.physicsWorld) return;
-
-      const startTransform = new this.ammo.btTransform();
-      startTransform.setIdentity();
-      startTransform.setOrigin(new this.ammo.btVector3(0, 6, 0));
-
-      const shape = new this.ammo.btSphereShape(playerRadius);
-      const mass = 1;
-      const localInertia = new this.ammo.btVector3(0, 0, 0);
-      shape.calculateLocalInertia(mass, localInertia);
-
-      const motionState = new this.ammo.btDefaultMotionState(startTransform);
-      const rbInfo = new this.ammo.btRigidBodyConstructionInfo(
-        mass,
-        motionState,
-        shape,
-        localInertia
-      );
-      const body = new this.ammo.btRigidBody(rbInfo);
-
-      this.physicsWorld.addRigidBody(body);
-      this.world.addComponent(entity as unknown as object, 'ammoBody', createAmmoBody(body));
-    })();
+    attachLocalPlayerAmmoBody({
+      world: this.world,
+      entity,
+      playerRadius,
+      physicsReady: this.physicsReady,
+      getAmmo: () => this.ammo,
+      getPhysicsWorld: () => this.physicsWorld,
+    });
   }
 
   public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
