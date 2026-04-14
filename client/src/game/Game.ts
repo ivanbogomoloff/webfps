@@ -22,9 +22,11 @@ import {
   attachAmmoRuntimeToPhysicsContext,
   createAmmoPhysicsContext,
   createAudioSystem,
+  createLocalPlayerSystem,
   createMatchRulesClientSystem,
   createNetworkReceiveSystem,
   createNetworkSendSystem,
+  placeLocalPlayerAtRandomRespawn,
   createShotSendSystem,
   createPhysicsSystem,
   createRenderSystem,
@@ -39,7 +41,6 @@ import {
 import type {
   AmmoBody,
   AmmoApi,
-  AmmoTransform,
   AmmoWorld,
   Health,
   NetworkIdentity,
@@ -57,7 +58,6 @@ import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './MapBuilder';
 import type { RespawnPoint } from './Map';
 import type { PlayerVisualSetup } from './playerModelPrep';
-import { replaceWeaponVisual } from './weaponVisualAttach';
 import {
   DEFAULT_PLAYER_MODEL_ID,
   resolvePlayerModelId,
@@ -116,7 +116,6 @@ export class Game {
   private matchEntity: { id: number; matchState: ReturnType<typeof createMatchState>; scoreboard: ScoreboardPlayer[] } | null = null;
   private networkContext: NetworkContext | null = null;
   private hudSystemAttached = false;
-  private wasLocalDead = false;
 
   constructor(
     private readonly options?: {
@@ -209,6 +208,20 @@ export class Game {
       this.systems.push(createShotSendSystem(this.world, this.networkContext));
       this.systems.push(createNetworkSendSystem(this.world, this.networkContext));
     }
+    this.systems.push(
+      createLocalPlayerSystem(this.world, {
+        scene: this.scene,
+        physicsContext: this.physicsContext,
+        getAmmo: () => this.ammo,
+        getRespawns: () => this.currentRespawns,
+        getWeaponTemplate: (weaponId: string) => {
+          const map = this.options?.weaponModelTemplates;
+          if (!map?.size) return undefined;
+          const resolvedId = resolveWeaponId(weaponId);
+          return map.get(resolvedId) ?? map.get(DEFAULT_WEAPON_ID);
+        },
+      }),
+    );
     // После сетевого приёма: у соперников `playerController.locomotion` уже из пакета.
     this.systems.push(createPlayerAnimationSystem(this.world));
     this.systems.push(createWeaponPoseByLocomotionSystem(this.world));
@@ -351,7 +364,6 @@ export class Game {
     });
 
     this.physicsContext.playerRadius = playerRadius;
-    this.syncEntityWeaponVisual(entity);
     this.localPlayerEntity = entity;
     this.networkContext?.setLocalPlayerEntity(entity);
 
@@ -484,7 +496,12 @@ export class Game {
         }
       }
 
-      this.placeLocalPlayerAtRandomRespawn();
+      placeLocalPlayerAtRandomRespawn(
+        this.localPlayerEntity,
+        this.physicsContext,
+        this.currentRespawns,
+        this.ammo,
+      );
 
       if (map.environment) {
         this.scene.environment = map.environment;
@@ -517,19 +534,6 @@ export class Game {
     // Выполняем все системы
     for (const system of this.systems) {
       system(deltaTime);
-    }
-    if (this.localPlayerEntity) {
-      this.syncEntityWeaponVisual(this.localPlayerEntity);
-      const isDead = this.localPlayerEntity.health?.isDead ?? false;
-      if (!this.wasLocalDead && isDead) {
-        this.setViewMode('third');
-      }
-      if (this.wasLocalDead && !isDead) {
-        this.placeLocalPlayerAtRandomRespawn();
-        this.setViewMode('first');
-      }
-      this.wasLocalDead = isDead;
-      this.syncLocalViewVisibility();
     }
 
     // Рендерим сцену
@@ -607,7 +611,6 @@ export class Game {
     if (!this.localPlayerEntity) return;
     applyWeaponDefinition(this.localPlayerEntity.weaponState, weaponId);
     this.localPlayerEntity.networkIdentity.weaponId = this.localPlayerEntity.weaponState.weaponId;
-    this.syncEntityWeaponVisual(this.localPlayerEntity);
   }
 
   public getScoreboard(): ScoreboardPlayer[] {
@@ -647,67 +650,6 @@ export class Game {
     const nextMode: PlayerViewMode = this.getViewMode() === 'third' ? 'first' : 'third';
     this.setViewMode(nextMode);
     return nextMode;
-  }
-
-  private placeLocalPlayerAtRandomRespawn(): void {
-    const local = this.localPlayerEntity;
-    const playerBody = local?.ammoBody?.body ?? null;
-    const playerObject3D = local?.object3d ?? null;
-    const physicsTransform = this.physicsContext.ammoTransform as AmmoTransform | null;
-    if (!local || !playerBody || !playerObject3D || !physicsTransform || this.currentRespawns.length === 0 || !this.ammo) {
-      return;
-    }
-    const point = this.currentRespawns[Math.floor(Math.random() * this.currentRespawns.length)];
-    const playerRadius = this.physicsContext.playerRadius;
-    const spawnX = point.center.x;
-    const spawnY = point.center.y + point.size.y / 2 + playerRadius;
-    const spawnZ = point.center.z;
-    playerObject3D.position.set(spawnX, spawnY, spawnZ);
-    const originVec = new this.ammo.btVector3(spawnX, spawnY, spawnZ);
-    physicsTransform.setIdentity();
-    physicsTransform.setOrigin(originVec);
-    playerBody.setWorldTransform(physicsTransform);
-    const zeroVel = new this.ammo.btVector3(0, 0, 0);
-    playerBody.setLinearVelocity(zeroVel);
-    this.ammo.destroy(zeroVel);
-    this.ammo.destroy(originVec);
-    local.playerPhysicsState.isGrounded = true;
-    local.playerPhysicsState.jumpPending = false;
-  }
-
-  private syncEntityWeaponVisual(entity: {
-    weaponState?: WeaponState;
-    networkIdentity?: NetworkIdentity;
-    weaponVisualRoot?: THREE.Object3D;
-    weaponVisualObject?: THREE.Object3D | null;
-    weaponVisualWeaponId?: string;
-  }): void {
-    if (!entity.weaponState) return;
-    const map = this.options?.weaponModelTemplates;
-    if (!map?.size) return;
-    const resolvedId = resolveWeaponId(entity.weaponState.weaponId);
-    if (entity.weaponState.weaponId !== resolvedId) {
-      applyWeaponDefinition(entity.weaponState, resolvedId);
-    }
-    if (entity.networkIdentity) {
-      entity.networkIdentity.weaponId = entity.weaponState.weaponId;
-    }
-    if (entity.weaponVisualWeaponId === resolvedId && entity.weaponVisualObject) {
-      return;
-    }
-    const template = map.get(resolvedId) ?? map.get(DEFAULT_WEAPON_ID);
-    entity.weaponVisualObject = replaceWeaponVisual(
-      entity.weaponVisualRoot ?? (this.localPlayerEntity?.object3d ?? this.scene),
-      entity.weaponVisualObject,
-      template,
-    );
-    entity.weaponVisualWeaponId = resolvedId;
-  }
-
-  private syncLocalViewVisibility(): void {
-    const local = this.localPlayerEntity;
-    if (!local?.weaponVisualRoot) return;
-    local.weaponVisualRoot.visible = this.getViewMode() !== 'first';
   }
 
   public enableHud(

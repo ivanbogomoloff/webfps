@@ -16,3 +16,4 @@ export { createMatchRulesClientSystem } from './MatchRulesClientSystem';
 export { createWeaponLoadoutSystem } from './WeaponLoadoutSystem';
 export { createWeaponPoseByLocomotionSystem } from './WeaponPoseByLocomotionSystem';
 export { createAudioSystem } from './AudioSystem';
+export { createLocalPlayerSystem, placeLocalPlayerAtRandomRespawn } from './LocalPlayerSystem';
