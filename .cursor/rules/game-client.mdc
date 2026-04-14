@@ -12,12 +12,16 @@ alwaysApply: false
 
 | Файл / область | Назначение |
 |----------------|------------|
-| **`Game.ts`** | Сцена, рендерер, камера, ECS `World`, порядок систем, **Ammo** (`stepPhysics`), карта (`MapLoader`/`MapBuilder`), локальный игрок и `playerBody`. Физику движения применять только к **`localPlayerEntity`**, не к query по всем `playerController`. |
-| **`MapBuilder.ts`**, **`Map.ts`** | Сборка карты из GLB, точки респауна (`userData.respawn`). |
-| **`playerModelPrep.ts`** | Подготовка визуала из GLTF (тени, выравнивание под капсулу, клипы), **`clonePlayerVisualSetup`**. |
-| **`playerModelTemplates.ts`** | Загрузка шаблонов моделей по списку из `supportedPlayerModels`. |
-| **`supportedPlayerModels.ts`** | Поддерживаемые `modelId`, пути к `.glb`, `resolvePlayerModelId`, `pickRandomBotModelId`. |
-| **`playerLocomotionLogic.ts`** | Разбор сетевой `locomotion`, оси strafe ↔ локомоция (как у WASD), скорость → оси для бота. |
+| **`Game.ts`** | Сцена, рендерер, камера, ECS `World`, порядок систем, **Ammo**, карта (`map/MapBuilder`), локальный игрок и `playerBody`. Физику движения применять только к **`localPlayerEntity`**, не к query по всем `playerController`. |
+| **`map/MapBuilder.ts`**, **`map/Map.ts`** | Сборка карты из GLB, коллайдеры Ammo, точки респауна (`userData.respawn`). |
+| **`player/playerModelPrep.ts`** | Подготовка визуала из GLTF (тени, выравнивание под капсулу, клипы), **`clonePlayerVisualSetup`**. |
+| **`player/playerModelTemplates.ts`** | Загрузка шаблонов моделей по списку из `player/supportedPlayerModels`. |
+| **`player/supportedPlayerModels.ts`** | Поддерживаемые `modelId`, пути к `.glb`, `resolvePlayerModelId`, `pickRandomBotModelId`. |
+| **`player/playerLocomotionLogic.ts`** | Разбор сетевой `locomotion`, оси strafe ↔ локомоция (как у WASD), скорость → оси для бота. |
+| **`player/localPlayerFactory.ts`**, **`player/localPlayerPhysics.ts`** | Фабрика локальной сущности игрока и отдельный helper подключения Ammo-тела. |
+| **`weapon/supportedWeaponModels.ts`** | Реэкспорт оружейного каталога (`config/weaponCatalog`) и нормализация weapon id. |
+| **`weapon/weaponModelTemplates.ts`** | Загрузка шаблонов weapon GLB по списку supported weapons. |
+| **`weapon/weaponVisualAttach.ts`** | Крепление/замена weapon visual на риге персонажа и применение transform. |
 
 ## `src/ecs/components/`
 
@@ -36,6 +40,7 @@ alwaysApply: false
 | **NetworkSendSystem** | Периодическая отправка состояния локального игрока (~20 Hz). |
 | **PlayerAnimationSystem** | Микшер и смена клипов по `playerController.locomotion` (локальный и удалённый). |
 | **MatchRulesClientSystem** | Клиентская логика фаз матча / правил при необходимости. |
+| **LocalPlayerSystem** | Локальные клиентские эффекты: weapon visual sync, death/respawn transitions, visibility от view mode. |
 | **RenderSystem** | Отрисовка кадра. |
 | **PhysicsSystem** | Если используется отдельно от Game — проверить актуальность относительно `Game.stepPhysics`. |
 
