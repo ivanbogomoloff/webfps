@@ -635,7 +635,7 @@ export class Game {
   }
 
   public getViewMode(): PlayerViewMode {
-    return this.localPlayerEntity?.playerController?.viewMode ?? 'third';
+    return this.localPlayerEntity?.playerController?.viewMode ?? 'first';
   }
 
   public setViewMode(mode: PlayerViewMode): void {

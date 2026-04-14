@@ -76,6 +76,6 @@ export function createPlayerController(
     sensitivity,
     locomotion: 'idle',
     movementMode: 'walk',
-    viewMode: 'third',
+    viewMode: 'first',
   };
 }

@@ -321,7 +321,7 @@ const addBotButton = matchControls.querySelector('#btnAddBot') as HTMLButtonElem
 const toggleViewButton = matchControls.querySelector('#btnToggleView') as HTMLButtonElement
 window.setInterval(() => {
   addBotButton.disabled = !(game?.canAddBot() ?? false)
-  const viewMode = game?.getViewMode() ?? 'third'
+  const viewMode = game?.getViewMode() ?? 'first'
   toggleViewButton.textContent = viewMode === 'first' ? 'Switch to Third' : 'Switch to First'
 }, 250)
 
