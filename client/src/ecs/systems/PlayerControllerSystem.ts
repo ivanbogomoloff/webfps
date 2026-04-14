@@ -10,6 +10,7 @@ export function createPlayerControllerSystem(
   const FIRST_PERSON_EYE_Y = 1.0;
   const FIRST_PERSON_CROUCH_EYE_Y = 0.35;
   const THIRD_PERSON_DISTANCE = 5;
+  const DEAD_CAMERA_PITCH = Math.PI / 4;
   const thirdPersonDirection = new THREE.Vector3();
   const thirdPersonLookAt = new THREE.Vector3();
   const cameraEuler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -63,6 +64,19 @@ export function createPlayerControllerSystem(
         physicsState.moveDirection.set(0, 0, 0);
         physicsState.jumpPending = false;
         controller.locomotion = health.forcedLocomotion ?? 'death_back';
+        // Death camera is fixed: top-down at 45 degrees, independent from mouse look.
+        const deadYaw = object3d.rotation.y;
+        thirdPersonDirection.set(0, 0, -1);
+        cameraEuler.set(DEAD_CAMERA_PITCH, deadYaw, 0, 'YXZ');
+        thirdPersonDirection.applyEuler(cameraEuler).normalize();
+        thirdPersonDirection.multiplyScalar(THIRD_PERSON_DISTANCE);
+        camera.position.set(
+          object3d.position.x + thirdPersonDirection.x,
+          object3d.position.y + thirdPersonDirection.y,
+          object3d.position.z + thirdPersonDirection.z,
+        );
+        thirdPersonLookAt.copy(object3d.position);
+        camera.lookAt(thirdPersonLookAt);
         continue;
       }
 

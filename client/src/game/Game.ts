@@ -520,12 +520,16 @@ export class Game {
     }
     if (this.localPlayerEntity) {
       this.syncEntityWeaponVisual(this.localPlayerEntity);
-      this.syncLocalViewVisibility();
       const isDead = this.localPlayerEntity.health?.isDead ?? false;
+      if (!this.wasLocalDead && isDead) {
+        this.setViewMode('third');
+      }
       if (this.wasLocalDead && !isDead) {
         this.placeLocalPlayerAtRandomRespawn();
+        this.setViewMode('first');
       }
       this.wasLocalDead = isDead;
+      this.syncLocalViewVisibility();
     }
 
     // Рендерим сцену
