@@ -11,18 +11,18 @@ import {
 } from '../../config/weaponCatalog'
 import { cloneWeaponPoseByLocomotion, type WeaponPoseByLocomotion, type WeaponTransformValues } from '../../config/weapons/types'
 import type { PlayerLocomotion } from '../../ecs/components/PlayerController'
-import { preparePlayerVisualFromGltf } from '../../game/playerModelPrep'
+import { preparePlayerVisualFromGltf } from '../../game/player/playerModelPrep'
 import {
   DEFAULT_PLAYER_MODEL_ID,
   SUPPORTED_PLAYER_MODEL_IDS,
   playerModelGltfPath,
   resolvePlayerModelId,
-} from '../../game/supportedPlayerModels'
+} from '../../game/player/supportedPlayerModels'
 import {
   applyWeaponTransformValues,
   replaceWeaponVisual,
-} from '../../game/weaponVisualAttach'
-import { loadSupportedWeaponModelTemplates } from '../../game/weaponModelTemplates'
+} from '../../game/weapon/weaponVisualAttach'
+import { loadSupportedWeaponModelTemplates } from '../../game/weapon/weaponModelTemplates'
 import { PlayerViewerUi } from './playerViewerUi'
 import {
   cloneWeaponTransformValues,

@@ -11,9 +11,9 @@ import {
   createAudioEmitterState,
   createWeaponState,
 } from '../ecs/components'
-import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/playerModelPrep'
-import { replaceWeaponVisual } from '../game/weaponVisualAttach'
-import { resolveWeaponId } from '../game/supportedWeaponModels'
+import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/player/playerModelPrep'
+import { replaceWeaponVisual } from '../game/weapon/weaponVisualAttach'
+import { resolveWeaponId } from '../game/weapon/supportedWeaponModels'
 import type { IncomingMessage, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
 import type { GameTransport, LocalStateUpdate } from './GameTransport'
 

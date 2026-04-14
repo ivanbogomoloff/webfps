@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MapLoader } from '../utils/MapLoader';
+import { MapLoader } from '../../utils/MapLoader';
 import type { RespawnPoint } from './Map';
 import { Map } from './Map';
 

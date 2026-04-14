@@ -1,5 +1,5 @@
 import type { World } from 'miniplex';
-import { createAmmoBody, type AmmoApi, type AmmoWorld } from '../ecs/components';
+import { createAmmoBody, type AmmoApi, type AmmoWorld } from '../../ecs/components';
 import type { LocalPlayerEntity } from './localPlayerFactory';
 
 type AttachLocalPlayerAmmoBodyParams = {

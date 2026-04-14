@@ -1,6 +1,6 @@
 import type { World } from 'miniplex'
 import { applyWeaponDefinition, type Health, type Input, type NetworkIdentity, type WeaponState } from '../components'
-import { SUPPORTED_WEAPON_IDS } from '../../game/supportedWeaponModels'
+import { SUPPORTED_WEAPON_IDS } from '../../game/weapon/supportedWeaponModels'
 
 const MAX_HOTKEY_WEAPONS = 9
 

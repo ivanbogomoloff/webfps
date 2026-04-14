@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { WeaponTransformValues } from '../config/weapons/types'
+import type { WeaponTransformValues } from '../../config/weapons/types'
 import { cloneWeaponVisualTemplate } from './weaponModelTemplates'
 
 const SOCKET_HINTS = [

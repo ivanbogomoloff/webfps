@@ -3,8 +3,8 @@ import { getSpawnCountByMap } from '../config/mapManifest'
 import {
   locomotionFromStrafeAxes,
   strafeAxesFromWorldVelocity,
-} from '../game/playerLocomotionLogic'
-import { pickRandomBotModelId } from '../game/supportedPlayerModels'
+} from '../game/player/playerLocomotionLogic'
+import { pickRandomBotModelId } from '../game/player/supportedPlayerModels'
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
 import type { IncomingMessage, MatchPhase, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
 

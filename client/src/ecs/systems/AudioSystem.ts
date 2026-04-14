@@ -3,8 +3,8 @@ import * as THREE from 'three'
 import {
   getWeaponDefinition,
   SUPPORTED_WEAPON_IDS,
-} from '../../game/supportedWeaponModels'
-import { toBaseLocomotionFromFire } from '../../game/playerLocomotionLogic'
+} from '../../game/weapon/supportedWeaponModels'
+import { toBaseLocomotionFromFire } from '../../game/player/playerLocomotionLogic'
 import type {
   AudioEmitterState,
   NetworkIdentity,

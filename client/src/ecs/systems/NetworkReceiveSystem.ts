@@ -2,7 +2,7 @@ import type { World } from 'miniplex'
 import * as THREE from 'three'
 import { createNetworkIdentity, createPlayerStats } from '../components'
 import type { NetworkContext } from '../../net/NetworkContext'
-import { parseNetworkLocomotion } from '../../game/playerLocomotionLogic'
+import { parseNetworkLocomotion } from '../../game/player/playerLocomotionLogic'
 
 type AnyEntity = Record<string, any>
 type ActiveHitMarker = {

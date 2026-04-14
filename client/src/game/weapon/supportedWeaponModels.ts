@@ -7,4 +7,4 @@ export {
   resolveWeaponId,
   weaponModelGltfPath,
   type WeaponId as SupportedWeaponId,
-} from '../config/weaponCatalog'
+} from '../../config/weaponCatalog'

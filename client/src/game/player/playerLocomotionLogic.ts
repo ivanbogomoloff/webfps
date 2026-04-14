@@ -1,4 +1,4 @@
-import type { PlayerLocomotion } from '../ecs/components/PlayerController';
+import type { PlayerLocomotion } from '../../ecs/components/PlayerController';
 
 export const PLAYER_LOCOMOTION_IDS = [
   'idle',
@@ -190,7 +190,7 @@ export function toRunLocomotion(locomotion: PlayerLocomotion): PlayerLocomotion 
 }
 
 /**
- * Мировая скорость XZ → «виртуальные» fz/fx как у ввода WASD в локальных осях yaw модели
+ * Мировая скорость XZ -> «виртуальные» fz/fx как у ввода WASD в локальных осях yaw модели
  * (обратное к повороту из PlayerControllerSystem).
  */
 export function strafeAxesFromWorldVelocity(

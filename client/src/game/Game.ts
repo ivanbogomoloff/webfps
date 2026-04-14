@@ -37,21 +37,21 @@ import type { GameTransport } from '../net/GameTransport';
 import { NetworkContext } from '../net/NetworkContext';
 import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
-import { MapBuilder } from './MapBuilder';
-import { createLocalPlayerEntity, type LocalPlayerEntity } from './localPlayerFactory';
-import { attachLocalPlayerAmmoBody } from './localPlayerPhysics';
-import type { RespawnPoint } from './Map';
-import type { PlayerVisualSetup } from './playerModelPrep';
+import { MapBuilder } from './map/MapBuilder';
+import { createLocalPlayerEntity, type LocalPlayerEntity } from './player/localPlayerFactory';
+import { attachLocalPlayerAmmoBody } from './player/localPlayerPhysics';
+import type { RespawnPoint } from './map/Map';
+import type { PlayerVisualSetup } from './player/playerModelPrep';
 import {
   DEFAULT_PLAYER_MODEL_ID,
   resolvePlayerModelId,
   type SupportedPlayerModelId,
-} from './supportedPlayerModels';
+} from './player/supportedPlayerModels';
 import {
   DEFAULT_WEAPON_ID,
   resolveWeaponId,
   type SupportedWeaponId,
-} from './supportedWeaponModels';
+} from './weapon/supportedWeaponModels';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
@@ -149,6 +149,7 @@ export class Game {
       matchState: createMatchState(),
       scoreboard: [] as ScoreboardPlayer[],
     });
+    // Сетевой контекст
     if (this.options?.transport) {
       const templateMap = this.options.playerModelTemplates;
       const weaponTemplateMap = this.options.weaponModelTemplates;

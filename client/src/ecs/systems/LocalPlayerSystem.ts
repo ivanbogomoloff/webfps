@@ -11,9 +11,9 @@ import {
   type WeaponState,
 } from '../components';
 import type { AmmoPhysicsContext } from './PhysicsSystem';
-import type { RespawnPoint } from '../../game/Map';
-import { replaceWeaponVisual } from '../../game/weaponVisualAttach';
-import { DEFAULT_WEAPON_ID, resolveWeaponId } from '../../game/supportedWeaponModels';
+import type { RespawnPoint } from '../../game/map/Map';
+import { replaceWeaponVisual } from '../../game/weapon/weaponVisualAttach';
+import { DEFAULT_WEAPON_ID, resolveWeaponId } from '../../game/weapon/supportedWeaponModels';
 
 type LocalPlayerEntity = {
   networkIdentity?: NetworkIdentity;

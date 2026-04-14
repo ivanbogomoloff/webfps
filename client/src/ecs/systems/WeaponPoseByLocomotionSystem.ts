@@ -2,9 +2,9 @@ import type { World } from 'miniplex'
 import type { PlayerController, WeaponState } from '../components'
 import type { PlayerAnimation } from '../components/PlayerAnimation'
 import { hasAnimationActionForLocomotion } from '../components/PlayerAnimation'
-import { toBaseLocomotionFromFire } from '../../game/playerLocomotionLogic'
-import { getWeaponPoseForLocomotion, resolveWeaponId } from '../../game/supportedWeaponModels'
-import { applyWeaponTransformValues } from '../../game/weaponVisualAttach'
+import { toBaseLocomotionFromFire } from '../../game/player/playerLocomotionLogic'
+import { getWeaponPoseForLocomotion, resolveWeaponId } from '../../game/weapon/supportedWeaponModels'
+import { applyWeaponTransformValues } from '../../game/weapon/weaponVisualAttach'
 
 export function createWeaponPoseByLocomotionSystem(world: World) {
   const appliedKeyByEntity = new WeakMap<object, string>()

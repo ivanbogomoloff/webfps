@@ -1,6 +1,6 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
-import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/playerLocomotionLogic';
+import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/player/playerLocomotionLogic';
 import type { Health, Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
 
 export function createPlayerControllerSystem(

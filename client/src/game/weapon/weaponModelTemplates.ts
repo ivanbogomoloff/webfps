@@ -30,7 +30,7 @@ export async function loadSupportedWeaponModelTemplates(): Promise<
     const glbPath = weaponModelGltfPath(weaponId)
     try {
       const gltf = await loader.loadAsync(glbPath)
-      
+
       gltf.scene.traverse((node) => {
         const mesh = node as THREE.Mesh
         if (mesh.isMesh) {

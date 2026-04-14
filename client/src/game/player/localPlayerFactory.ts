@@ -18,9 +18,9 @@ import {
   type PlayerController,
   type PlayerPhysicsState,
   type WeaponState,
-} from '../ecs/components';
+} from '../../ecs/components';
 import type { PlayerVisualSetup } from './playerModelPrep';
-import { DEFAULT_WEAPON_ID, resolveWeaponId } from './supportedWeaponModels';
+import { DEFAULT_WEAPON_ID, resolveWeaponId } from '../weapon/supportedWeaponModels';
 
 export type LocalPlayerEntity = {
   id: number;
