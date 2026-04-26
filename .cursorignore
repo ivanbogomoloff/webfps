@@ -1,4 +1,13 @@
-public/models
-node_modules
+client/public/
+client/node_modules
+client/dist
+client/build
+client/out
+client/next
+client/public/models
+client/public/audio
+client/public/other
+client/public/maps
+client/public/shaders
 server/logs
 server/bin
