@@ -151,6 +151,7 @@ type LocalPhysicsEntity = {
 };
 
 const RUN_SPEED_MULTIPLIER = 1.2;
+const AIR_CONTROL_MULTIPLIER = 0.45;
 
 function pickLocalBodyEntity(world: World): LocalPhysicsEntity | null {
   for (const entity of world.with('ammoBody', 'playerPhysicsState', 'object3d', 'networkIdentity')) {
@@ -184,8 +185,9 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
         pz = origin.z();
       }
 
-      probeGrounded(context, px, py, pz);
-      const groundedForJump = isBodyGroundedByContacts(context, body);
+      const groundedByProbe = probeGrounded(context, px, py, pz);
+      const groundedByContacts = isBodyGroundedByContacts(context, body);
+      const groundedForJump = groundedByContacts && groundedByProbe;
 
       if (physicsState.moveDirection && local.playerController) {
         const dir = physicsState.moveDirection;
@@ -194,8 +196,9 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
           local.playerController.movementMode === 'run'
             ? baseSpeed * RUN_SPEED_MULTIPLIER
             : baseSpeed;
-        vx = dir.x * speed;
-        vz = dir.z * speed;
+        const horizontalControlMultiplier = groundedForJump ? 1 : AIR_CONTROL_MULTIPLIER;
+        vx = dir.x * speed * horizontalControlMultiplier;
+        vz = dir.z * speed * horizontalControlMultiplier;
       }
 
       const currentVel = body.getLinearVelocity();
