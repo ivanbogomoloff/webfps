@@ -25,5 +25,5 @@ export type { NetworkIdentity } from './NetworkIdentity';
 export type { NetworkTransform } from './NetworkTransform';
 export type { PlayerStats } from './PlayerStats';
 export type { MatchState } from './MatchState';
-export type { WeaponState } from './WeaponState';
+export type { WeaponAction, WeaponState } from './WeaponState';
 export type { AudioEmitterState } from './AudioEmitterState';

@@ -14,6 +14,9 @@ export function createWeaponPoseByLocomotionSystem(world: World) {
     for (const entity of world.with('playerController', 'weaponState', 'weaponVisualObject')) {
       const weaponVisualObject = entity.weaponVisualObject
       if (!weaponVisualObject) continue
+      const weaponVisualFpObject = (entity as { weaponVisualFpObject?: unknown }).weaponVisualFpObject
+      // FP weapon uses a fixed camera-space transform for now; locomotion poses are only for TPS mount.
+      if (weaponVisualFpObject === weaponVisualObject) continue
       const previousVisual = appliedVisualByEntity.get(entity)
       if (previousVisual !== weaponVisualObject) {
         appliedKeyByEntity.delete(entity)

@@ -30,6 +30,7 @@ export function createWeaponLoadoutSystem(world: World) {
         const wasDown = previous.get(key) ?? false
         if (down && !wasDown) {
           applyWeaponDefinition(weaponState, weaponId)
+          weaponState.action = 'pick'
           networkIdentity.weaponId = weaponState.weaponId
         }
         previous.set(key, down)

@@ -36,6 +36,9 @@ export type LocalPlayerEntity = {
   weaponVisualRoot?: THREE.Object3D;
   weaponVisualObject?: THREE.Object3D | null;
   weaponVisualWeaponId?: string;
+  weaponVisualFpRoot?: THREE.Object3D;
+  weaponVisualFpObject?: THREE.Object3D | null;
+  weaponVisualFpWeaponId?: string;
   ammoBody?: AmmoBody;
 };
 
@@ -131,6 +134,10 @@ export function createLocalPlayerEntity(params: LocalPlayerFactoryParams): Local
   const playerRoot = new THREE.Group();
   playerRoot.position.set(0, 6, 0);
   playerRoot.add(setup.visualModel);
+  const fpWeaponRoot = new THREE.Group();
+  fpWeaponRoot.name = 'LocalPlayerFpWeaponRoot';
+  fpWeaponRoot.position.set(0.28, -0.26, -0.44);
+  camera.add(fpWeaponRoot);
   const initialWeaponId = resolveWeaponId(localWeaponId ?? DEFAULT_WEAPON_ID);
 
   const entity = createEntity({
@@ -155,6 +162,9 @@ export function createLocalPlayerEntity(params: LocalPlayerFactoryParams): Local
     weaponVisualRoot: setup.visualModel,
     weaponVisualObject: null as THREE.Object3D | null,
     weaponVisualWeaponId: '' as string,
+    weaponVisualFpRoot: fpWeaponRoot,
+    weaponVisualFpObject: null as THREE.Object3D | null,
+    weaponVisualFpWeaponId: '' as string,
   }) as LocalPlayerEntity;
 
   if (hasCoreClips(setup)) {

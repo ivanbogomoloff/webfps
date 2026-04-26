@@ -25,7 +25,7 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
     const primaryDown = !!local.input.mouse.primaryDown
     const justPressed = primaryDown && !wasPrimaryDown
     wasPrimaryDown = primaryDown
-    if (!justPressed || cooldownSec > 0) return
+    if (!justPressed || cooldownSec > 0 || local.weaponState.isReloading) return
 
     let match: { matchState: MatchState } | undefined
     for (const entity of matchQuery) {
@@ -50,6 +50,8 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
       seq: shotSeq,
       clientTime: Date.now(),
     })
+    local.weaponState.action = 'fire'
+    local.weaponState.actionHoldSec = 0.1
     cooldownSec = Math.max(0.06, 1 / Math.max(1, local.weaponState.fireRate))
   }
 }

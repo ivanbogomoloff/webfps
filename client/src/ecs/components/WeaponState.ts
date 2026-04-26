@@ -1,5 +1,7 @@
 import { getWeaponDefinition } from '../../config/weaponCatalog'
 
+export type WeaponAction = 'fire' | 'reload' | 'hide' | 'pick' | 'walk' | 'run'
+
 export interface WeaponState {
   weaponId: string
   fireRate: number
@@ -8,6 +10,9 @@ export interface WeaponState {
   ammoInMag: number
   cooldownSec: number
   isReloading: boolean
+  reloadRemainingSec: number
+  action: WeaponAction
+  actionHoldSec: number
 }
 
 export function createWeaponState(weaponId: string): WeaponState {
@@ -20,6 +25,9 @@ export function createWeaponState(weaponId: string): WeaponState {
     ammoInMag: definition.magazineSize,
     cooldownSec: 0,
     isReloading: false,
+    reloadRemainingSec: 0,
+    action: 'walk',
+    actionHoldSec: 0,
   }
 }
 
@@ -35,4 +43,7 @@ export function applyWeaponDefinition(state: WeaponState, weaponId: string): voi
   }
   state.cooldownSec = 0
   state.isReloading = false
+  state.reloadRemainingSec = 0
+  state.action = 'pick'
+  state.actionHoldSec = 0.18
 }

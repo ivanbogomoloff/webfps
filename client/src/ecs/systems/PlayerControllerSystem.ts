@@ -1,7 +1,7 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
 import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/player/playerLocomotionLogic';
-import type { Health, Input, NetworkIdentity, PlayerController, PlayerPhysicsState } from '../components';
+import type { Health, Input, NetworkIdentity, PlayerController, PlayerPhysicsState, WeaponState } from '../components';
 
 export function createPlayerControllerSystem(
   world: World,
@@ -11,6 +11,7 @@ export function createPlayerControllerSystem(
   const FIRST_PERSON_CROUCH_EYE_Y = 0.35;
   const THIRD_PERSON_DISTANCE = 5;
   const DEAD_CAMERA_PITCH = Math.PI / 4;
+  const RELOAD_PLACEHOLDER_SEC = 1.2;
   const thirdPersonDirection = new THREE.Vector3();
   const thirdPersonLookAt = new THREE.Vector3();
   const cameraEuler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -39,6 +40,7 @@ export function createPlayerControllerSystem(
   // Состояние камеры для отслеживания углов
   const cameraState = new Map<object, { pitch: number; yaw: number }>();
   const prevSpaceDown = new Map<object, boolean>();
+  const prevReloadDown = new Map<object, boolean>();
 
   return (_deltaTime: number) => {
     for (const entity of world.with('playerController', 'playerPhysicsState', 'object3d', 'input', 'camera')) {
@@ -53,6 +55,7 @@ export function createPlayerControllerSystem(
       const input = entity.input as Input;
       const camera = entity.camera as THREE.PerspectiveCamera;
       const health = (entity as { health?: Health }).health;
+      const weaponState = (entity as { weaponState?: WeaponState }).weaponState;
 
       // Инициализируем состояние камеры если его ещё нет
       if (!cameraState.has(entity)) {
@@ -64,6 +67,12 @@ export function createPlayerControllerSystem(
         physicsState.moveDirection.set(0, 0, 0);
         physicsState.jumpPending = false;
         controller.locomotion = health.forcedLocomotion ?? 'death_back';
+        if (weaponState) {
+          weaponState.action = 'hide';
+          weaponState.actionHoldSec = 0;
+          weaponState.isReloading = false;
+          weaponState.reloadRemainingSec = 0;
+        }
         // Death camera is fixed: top-down at 45 degrees, independent from mouse look.
         const deadYaw = object3d.rotation.y;
         thirdPersonDirection.set(0, 0, -1);
@@ -147,6 +156,27 @@ export function createPlayerControllerSystem(
           : controller.movementMode === 'run'
             ? toRunLocomotion(baseLocomotion)
             : baseLocomotion;
+      const reloadDown = !!input.keys.get('r');
+      const wasReloadDown = prevReloadDown.get(entity) ?? false;
+      if (weaponState) {
+        if (reloadDown && !wasReloadDown && !weaponState.isReloading) {
+          weaponState.isReloading = true;
+          weaponState.reloadRemainingSec = RELOAD_PLACEHOLDER_SEC;
+          weaponState.action = 'reload';
+          weaponState.actionHoldSec = RELOAD_PLACEHOLDER_SEC;
+        }
+        if (weaponState.isReloading) {
+          weaponState.reloadRemainingSec = Math.max(0, weaponState.reloadRemainingSec - _deltaTime);
+          if (weaponState.reloadRemainingSec <= 0) {
+            weaponState.isReloading = false;
+            weaponState.reloadRemainingSec = 0;
+            weaponState.ammoInMag = weaponState.magazineSize;
+            weaponState.actionHoldSec = 0;
+          }
+        }
+        weaponState.actionHoldSec = Math.max(0, weaponState.actionHoldSec - _deltaTime);
+      }
+      prevReloadDown.set(entity, reloadDown);
 
       const spaceDown =
         !!input.keys.get(' ') ||
@@ -165,6 +195,15 @@ export function createPlayerControllerSystem(
         const wantsFire = input.mouse.primaryDown;
         const fireLocomotion = wantsFire ? toFireLocomotion(modeLocomotion) : null;
         controller.locomotion = fireLocomotion ?? modeLocomotion;
+      }
+      if (weaponState) {
+        if (controller.viewMode !== 'first') {
+          weaponState.action = 'hide';
+        } else if (weaponState.isReloading) {
+          weaponState.action = 'reload';
+        } else if (weaponState.actionHoldSec <= 0) {
+          weaponState.action = controller.movementMode === 'run' ? 'run' : 'walk';
+        }
       }
 
       if (direction.length() > 0) {

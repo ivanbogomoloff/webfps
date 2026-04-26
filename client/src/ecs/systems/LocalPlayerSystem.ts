@@ -13,6 +13,7 @@ import {
 import type { AmmoPhysicsContext } from './PhysicsSystem';
 import type { RespawnPoint } from '../../game/map/Map';
 import { replaceWeaponVisual } from '../../game/weapon/weaponVisualAttach';
+import { applyWeaponTransformValues } from '../../game/weapon/weaponVisualAttach';
 import { DEFAULT_WEAPON_ID, resolveWeaponId } from '../../game/weapon/supportedWeaponModels';
 
 type LocalPlayerEntity = {
@@ -23,6 +24,9 @@ type LocalPlayerEntity = {
   weaponVisualRoot?: THREE.Object3D;
   weaponVisualObject?: THREE.Object3D | null;
   weaponVisualWeaponId?: string;
+  weaponVisualFpRoot?: THREE.Object3D;
+  weaponVisualFpObject?: THREE.Object3D | null;
+  weaponVisualFpWeaponId?: string;
   ammoBody?: AmmoBody;
   object3d?: THREE.Object3D;
   playerPhysicsState?: PlayerPhysicsState;
@@ -35,6 +39,12 @@ type LocalPlayerSystemDeps = {
   getRespawns: () => ReadonlyArray<RespawnPoint>;
   getWeaponTemplate: (weaponId: string) => THREE.Object3D | undefined;
 };
+
+const FP_WEAPON_TRANSFORM = {
+  position: { x: 0.22, y: -0.22, z: -0.35 },
+  rotation: { x: 0, y: Math.PI, z: 0 },
+  scale: { x: 1, y: 1, z: 1 },
+} as const;
 
 function getLocalPlayerEntity(world: World): LocalPlayerEntity | null {
   for (const entity of world.with('networkIdentity', 'health', 'playerController', 'weaponState')) {
@@ -56,16 +66,32 @@ function syncEntityWeaponVisual(entity: LocalPlayerEntity, deps: LocalPlayerSyst
     entity.networkIdentity.weaponId = entity.weaponState.weaponId;
   }
   if (entity.weaponVisualWeaponId === resolvedWeaponId && entity.weaponVisualObject) {
-    return;
+    // Keep processing FP slot even when TPS slot is already up to date.
+  } else {
+    const template = deps.getWeaponTemplate(resolvedWeaponId) ?? deps.getWeaponTemplate(DEFAULT_WEAPON_ID);
+    const visualRoot = entity.weaponVisualRoot ?? entity.object3d ?? deps.scene;
+    entity.weaponVisualObject = replaceWeaponVisual(
+      visualRoot,
+      entity.weaponVisualObject,
+      template,
+    );
+    entity.weaponVisualWeaponId = resolvedWeaponId;
   }
+
   const template = deps.getWeaponTemplate(resolvedWeaponId) ?? deps.getWeaponTemplate(DEFAULT_WEAPON_ID);
-  const visualRoot = entity.weaponVisualRoot ?? entity.object3d ?? deps.scene;
-  entity.weaponVisualObject = replaceWeaponVisual(
-    visualRoot,
-    entity.weaponVisualObject,
-    template,
-  );
-  entity.weaponVisualWeaponId = resolvedWeaponId;
+  if (entity.weaponVisualFpRoot) {
+    if (entity.weaponVisualFpWeaponId !== resolvedWeaponId || !entity.weaponVisualFpObject) {
+      entity.weaponVisualFpObject = replaceWeaponVisual(
+        entity.weaponVisualFpRoot,
+        entity.weaponVisualFpObject,
+        template,
+      );
+      entity.weaponVisualFpWeaponId = resolvedWeaponId;
+      if (entity.weaponVisualFpObject) {
+        applyWeaponTransformValues(entity.weaponVisualFpObject, FP_WEAPON_TRANSFORM);
+      }
+    }
+  }
 }
 
 export function placeLocalPlayerAtRandomRespawn(
@@ -135,9 +161,14 @@ export function createLocalPlayerSystem(world: World, deps: LocalPlayerSystemDep
     }
     previousIsDead = isDead;
 
+    const viewMode = localPlayerEntity.playerController?.viewMode ?? 'first';
+    const weaponAction = localPlayerEntity.weaponState?.action ?? 'walk';
+    const fpWeaponVisible = viewMode === 'first' && weaponAction !== 'hide';
     if (localPlayerEntity.weaponVisualRoot) {
-      const viewMode = localPlayerEntity.playerController?.viewMode ?? 'first';
       localPlayerEntity.weaponVisualRoot.visible = viewMode !== 'first';
+    }
+    if (localPlayerEntity.weaponVisualFpRoot) {
+      localPlayerEntity.weaponVisualFpRoot.visible = fpWeaponVisible;
     }
   };
 }
