@@ -52,6 +52,7 @@ import {
   resolveWeaponId,
   type SupportedWeaponId,
 } from './weapon/supportedWeaponModels';
+import { FP_VIEWMODEL_RENDER_LAYER } from './weapon/viewmodelLayer';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
@@ -343,8 +344,22 @@ export class Game {
       system(deltaTime);
     }
 
-    // Рендерим сцену
+    // Рендерим сцену в 2 прохода:
+    // 1) мир без FP-viewmodel, 2) только FP-viewmodel поверх после clearDepth.
+    const previousMask = this.camera.layers.mask;
+    const previousAutoClear = this.renderer.autoClear;
+    this.camera.layers.mask = previousMask & ~(1 << FP_VIEWMODEL_RENDER_LAYER);
+    this.renderer.autoClear = true;
     this.renderer.render(this.scene, this.camera);
+    this.renderer.autoClear = false;
+    this.renderer.clearDepth();
+    const previousBackground = this.scene.background;
+    this.scene.background = null;
+    this.camera.layers.mask = 1 << FP_VIEWMODEL_RENDER_LAYER;
+    this.renderer.render(this.scene, this.camera);
+    this.scene.background = previousBackground;
+    this.camera.layers.mask = previousMask;
+    this.renderer.autoClear = previousAutoClear;
 
     this.statsJs.end();
   };

@@ -21,6 +21,7 @@ import {
 } from '../../ecs/components';
 import type { PlayerVisualSetup } from './playerModelPrep';
 import { DEFAULT_WEAPON_ID, resolveWeaponId } from '../weapon/supportedWeaponModels';
+import { FP_VIEWMODEL_RENDER_LAYER } from '../weapon/viewmodelLayer';
 
 export type LocalPlayerEntity = {
   id: number;
@@ -137,6 +138,7 @@ export function createLocalPlayerEntity(params: LocalPlayerFactoryParams): Local
   const fpWeaponRoot = new THREE.Group();
   fpWeaponRoot.name = 'LocalPlayerFpWeaponRoot';
   fpWeaponRoot.position.set(0.28, -0.26, -0.44);
+  fpWeaponRoot.layers.set(FP_VIEWMODEL_RENDER_LAYER);
   camera.add(fpWeaponRoot);
   const initialWeaponId = resolveWeaponId(localWeaponId ?? DEFAULT_WEAPON_ID);
 

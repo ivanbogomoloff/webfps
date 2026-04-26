@@ -18,6 +18,7 @@ import {
   getWeaponFpPoseForAnimation,
   resolveWeaponId,
 } from '../../game/weapon/supportedWeaponModels';
+import { assignObjectToLayerRecursive, FP_VIEWMODEL_RENDER_LAYER } from '../../game/weapon/viewmodelLayer';
 
 type LocalPlayerEntity = {
   networkIdentity?: NetworkIdentity;
@@ -85,6 +86,7 @@ function syncEntityWeaponVisual(entity: LocalPlayerEntity, deps: LocalPlayerSyst
       );
       entity.weaponVisualFpWeaponId = resolvedWeaponId;
       if (entity.weaponVisualFpObject) {
+        assignObjectToLayerRecursive(entity.weaponVisualFpObject, FP_VIEWMODEL_RENDER_LAYER);
         applyWeaponTransformValues(
           entity.weaponVisualFpObject,
           getWeaponFpPoseForAnimation(resolvedWeaponId, 'idle'),
