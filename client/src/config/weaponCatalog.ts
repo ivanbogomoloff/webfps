@@ -1,7 +1,12 @@
 import type { PlayerLocomotion } from '../ecs/components/PlayerController'
 import { rifle_m16ModelConfig } from './weapons/rifle_m16'
 import { rifle_ak47ModelConfig } from './weapons/rifle_ak47'
-import type { WeaponModelConfig, WeaponTransformValues } from './weapons/types'
+import type {
+  WeaponAnimationPoseKey,
+  WeaponFpPoseByAnimation,
+  WeaponModelConfig,
+  WeaponTransformValues,
+} from './weapons/types'
 
 export type WeaponDefinition = {
   fireRate: number
@@ -89,4 +94,15 @@ export function getWeaponPoseForLocomotion(
   locomotion: PlayerLocomotion,
 ): WeaponTransformValues {
   return getWeaponModelConfig(rawWeaponId).placementByLocomotion[locomotion]
+}
+
+export function getWeaponFpPoseByAnimation(rawWeaponId: string): WeaponFpPoseByAnimation {
+  return getWeaponModelConfig(rawWeaponId).fpPlacementByAnimation
+}
+
+export function getWeaponFpPoseForAnimation(
+  rawWeaponId: string,
+  poseKey: WeaponAnimationPoseKey,
+): WeaponTransformValues {
+  return getWeaponModelConfig(rawWeaponId).fpPlacementByAnimation[poseKey]
 }

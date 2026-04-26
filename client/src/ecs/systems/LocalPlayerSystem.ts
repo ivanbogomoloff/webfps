@@ -12,9 +12,12 @@ import {
 } from '../components';
 import type { AmmoPhysicsContext } from './PhysicsSystem';
 import type { RespawnPoint } from '../../game/map/Map';
-import { replaceWeaponVisual } from '../../game/weapon/weaponVisualAttach';
-import { applyWeaponTransformValues } from '../../game/weapon/weaponVisualAttach';
-import { DEFAULT_WEAPON_ID, resolveWeaponId } from '../../game/weapon/supportedWeaponModels';
+import { applyWeaponTransformValues, replaceWeaponVisual } from '../../game/weapon/weaponVisualAttach';
+import {
+  DEFAULT_WEAPON_ID,
+  getWeaponFpPoseForAnimation,
+  resolveWeaponId,
+} from '../../game/weapon/supportedWeaponModels';
 
 type LocalPlayerEntity = {
   networkIdentity?: NetworkIdentity;
@@ -39,12 +42,6 @@ type LocalPlayerSystemDeps = {
   getRespawns: () => ReadonlyArray<RespawnPoint>;
   getWeaponTemplate: (weaponId: string) => THREE.Object3D | undefined;
 };
-
-const FP_WEAPON_TRANSFORM = {
-  position: { x: 0.22, y: -0.22, z: -0.35 },
-  rotation: { x: 0, y: Math.PI, z: 0 },
-  scale: { x: 1, y: 1, z: 1 },
-} as const;
 
 function getLocalPlayerEntity(world: World): LocalPlayerEntity | null {
   for (const entity of world.with('networkIdentity', 'health', 'playerController', 'weaponState')) {
@@ -88,7 +85,10 @@ function syncEntityWeaponVisual(entity: LocalPlayerEntity, deps: LocalPlayerSyst
       );
       entity.weaponVisualFpWeaponId = resolvedWeaponId;
       if (entity.weaponVisualFpObject) {
-        applyWeaponTransformValues(entity.weaponVisualFpObject, FP_WEAPON_TRANSFORM);
+        applyWeaponTransformValues(
+          entity.weaponVisualFpObject,
+          getWeaponFpPoseForAnimation(resolvedWeaponId, 'idle'),
+        );
       }
     }
   }

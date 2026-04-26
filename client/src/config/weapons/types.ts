@@ -65,10 +65,21 @@ export type WeaponTransformValues = {
 }
 
 export type WeaponPoseByLocomotion = Record<PlayerLocomotion, WeaponTransformValues>
+export type WeaponAnimationPoseKey = 'idle' | 'walk' | 'run' | 'fire' | 'reload'
+export type WeaponFpPoseByAnimation = Record<WeaponAnimationPoseKey, WeaponTransformValues>
+
+export const WEAPON_ANIMATION_POSE_KEYS: readonly WeaponAnimationPoseKey[] = [
+  'idle',
+  'walk',
+  'run',
+  'fire',
+  'reload',
+]
 
 export type WeaponModelConfig = {
   id: string
   placementByLocomotion: WeaponPoseByLocomotion
+  fpPlacementByAnimation: WeaponFpPoseByAnimation
 }
 
 export function cloneWeaponTransformValues(values: WeaponTransformValues): WeaponTransformValues {
@@ -90,10 +101,42 @@ export function cloneWeaponPoseByLocomotion(
   ) as WeaponPoseByLocomotion
 }
 
+export function cloneWeaponFpPoseByAnimation(
+  fpPlacementByAnimation: WeaponFpPoseByAnimation,
+): WeaponFpPoseByAnimation {
+  return Object.fromEntries(
+    WEAPON_ANIMATION_POSE_KEYS.map((poseKey) => [
+      poseKey,
+      cloneWeaponTransformValues(fpPlacementByAnimation[poseKey]),
+    ]),
+  ) as WeaponFpPoseByAnimation
+}
+
 export function createUniformWeaponPlacement(
   transform: WeaponTransformValues,
 ): WeaponPoseByLocomotion {
   return Object.fromEntries(
     PLAYER_LOCOMOTION_KEYS.map((locomotion) => [locomotion, cloneWeaponTransformValues(transform)]),
   ) as WeaponPoseByLocomotion
+}
+
+export function createUniformFpWeaponPlacement(
+  transform: WeaponTransformValues,
+): WeaponFpPoseByAnimation {
+  return Object.fromEntries(
+    WEAPON_ANIMATION_POSE_KEYS.map((poseKey) => [poseKey, cloneWeaponTransformValues(transform)]),
+  ) as WeaponFpPoseByAnimation
+}
+
+export function resolveWeaponAnimationPoseKey(
+  locomotion: PlayerLocomotion,
+  weaponAction: string,
+): WeaponAnimationPoseKey {
+  if (weaponAction === 'reload') return 'reload'
+  if (weaponAction === 'fire' || locomotion.includes('fire')) return 'fire'
+  if (weaponAction === 'run' || locomotion.startsWith('run_')) return 'run'
+  if (locomotion === 'idle' || locomotion === 'idle_crouch' || locomotion.startsWith('death_')) {
+    return 'idle'
+  }
+  return 'walk'
 }

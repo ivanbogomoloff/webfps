@@ -1,4 +1,8 @@
-import { createUniformWeaponPlacement, type WeaponModelConfig } from './types'
+import {
+  createUniformFpWeaponPlacement,
+  createUniformWeaponPlacement,
+  type WeaponModelConfig,
+} from './types'
 
 const base = createUniformWeaponPlacement({
     position: { x: 0.12, y: 0.02, z: -0.02 },
@@ -16,6 +20,18 @@ const run = {
   position: { x: -0.8740, y: -0.3780, z: -0.5020 },
   rotation: { x: 1.4710, y: -1.4880, z: 0.5360 },
   scale: { x: 1.0000, y: 1.0000, z: 1.0000 },
+};
+
+const fpBase = createUniformFpWeaponPlacement({
+  position: { x: -0.1000, y: -0.2200, z: -0.3500 },
+  rotation: { x: 0.0000, y: 3.1416, z: 0.0000 },
+  scale: { x: 0.2000, y: 0.2000, z: 0.2000 },
+});
+
+const fpIdle = {
+  position: { x: -0.1000, y: -0.2200, z: -0.3500 },
+  rotation: { x: 0.0000, y: 3.1416, z: 0.0000 },
+  scale: { x: 0.2000, y: 0.2000, z: 0.2000 },
 };
 
 export const rifle_m16ModelConfig: WeaponModelConfig = {
@@ -103,5 +119,13 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
     run_right_d: run,
     run_backward_left_d: run,
     run_backward_right_d: run,
+  },
+  fpPlacementByAnimation: {
+    ...fpBase,
+    idle: fpIdle,
+    walk: fpIdle,
+    run: fpIdle,
+    fire: fpIdle,
+    reload: fpIdle,
   },
 }
