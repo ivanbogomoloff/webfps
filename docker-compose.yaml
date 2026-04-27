@@ -9,3 +9,14 @@ services:
         volumes:
             - ${PWD}/client:/home/node/client
             - ${PWD}/shared:/home/node/shared
+        depends_on:
+            - server
+    server:
+        image: golang:1.23-alpine
+        working_dir: /home/go/server
+        command: ["sh", "-c", "go build -o bin/api ./cmd/api && ./bin/api"]
+        ports:
+            - "8080:8080"
+        volumes:
+            - ${PWD}/server:/home/go/server
+            - ${PWD}/shared:/home/go/shared
