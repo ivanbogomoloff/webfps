@@ -5,39 +5,57 @@ import {
 } from './types'
 
 const fpBase = createUniformFpWeaponPlacement({
-  position: { x: 0.22, y: -0.22, z: -0.35 },
-  rotation: { x: 0, y: Math.PI, z: 0 },
-  scale: { x: 1, y: 1, z: 1 },
-})
+  position: { x: 0.22, y: -0.3, z: -0.3 },
+  rotation: { x: 0, y: 14, z: 0 },
+  scale: { x: 0.5, y: 0.5, z: 0.5 },
+});
+
+const base = createUniformWeaponPlacement({
+  position: { x: -1.5550, y: 0.1170, z: -1.5550 },
+  rotation: { x: 1.5480, y: -3.1220, z: 0.5360 },
+  scale: { x: 2.5000, y: 2.5000, z: 2.5000 },
+});
+
+const base2 = {
+  position: { x: -0.8120, y: -0.0690, z: -0.9360 },
+  rotation: { x: 1.5480, y: -2.8890, z: 0.5360 },
+  scale: { x: 2.5000, y: 2.5000, z: 2.5000 },
+}
 
 export const rifle_ak47ModelConfig: WeaponModelConfig = {
-  id: 'm16',
-  placementByLocomotion: createUniformWeaponPlacement({
-    position: { x: 0.12, y: 0.02, z: -0.02 },
-    rotation: { x: Math.PI / 2, y: -Math.PI / 2, z: 0 },
-    scale: { x: 1, y: 1, z: 1 },
-  }),
+  id: 'ak47',
+  placementByLocomotion: {
+    ...base,
+    walk: base2,
+    left: base2,
+    right: base2,
+    backwards: base2,
+    backwards_left_d: base2,
+    backwards_right_d: base2,
+    walk_left_d: base2,
+    walk_right_d: base2,
+    fire: base2,
+    walk_fire: base2,
+    walk_crouch: base2,
+    left_crouch: base2,
+    right_crouch: base2,
+    walk_crouch_left_d: base2,
+    walk_crouch_right_d: base2,
+    backwards_crouch: base2,
+    backwards_crouch_left_d: base2,
+    backwards_crouch_right_d: base2,
+    idle_crouch: base2,
+    jump_up: base2,
+    run_forward: base2,
+    run_backward: base2,
+    run_left: base2,
+    run_right: base2,
+    run_left_d: base2,
+    run_right_d: base2,
+    run_backward_left_d: base2,
+    run_backward_right_d: base2,
+  },
   fpPlacementByAnimation: {
-    ...fpBase,
-    walk: {
-      position: { x: 0.25, y: -0.24, z: -0.39 },
-      rotation: { x: -0.03, y: Math.PI, z: -0.02 },
-      scale: { x: 1, y: 1, z: 1 },
-    },
-    run: {
-      position: { x: 0.3, y: -0.34, z: -0.53 },
-      rotation: { x: 0.08, y: Math.PI, z: -0.12 },
-      scale: { x: 1, y: 1, z: 1 },
-    },
-    fire: {
-      position: { x: 0.21, y: -0.225, z: -0.345 },
-      rotation: { x: 0.015, y: Math.PI, z: 0.02 },
-      scale: { x: 1, y: 1, z: 1 },
-    },
-    reload: {
-      position: { x: 0.35, y: -0.3, z: -0.27 },
-      rotation: { x: -0.2, y: 2.7, z: -0.19 },
-      scale: { x: 1, y: 1, z: 1 },
-    },
+    ...fpBase
   },
 }
