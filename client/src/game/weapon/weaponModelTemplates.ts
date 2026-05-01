@@ -8,6 +8,8 @@ import {
   weaponModelGltfPath,
 } from './supportedWeaponModels'
 
+const weaponAnimationsByTemplate = new WeakMap<THREE.Object3D, readonly THREE.AnimationClip[]>()
+
 function emptyWeaponTemplate(): THREE.Object3D {
   const root = new THREE.Group()
   const mesh = new THREE.Mesh(
@@ -40,6 +42,7 @@ export async function loadSupportedWeaponModelTemplates(): Promise<
       })
       // Нормализация под каждое оружение выполняется через WeaponModelConfig
       // normalizeWeaponTemplate(gltf.scene)
+      weaponAnimationsByTemplate.set(gltf.scene, gltf.animations ?? [])
       map.set(weaponId, gltf.scene)
       console.log(`[weaponModelTemplates] loaded weapon '${weaponId}' from '${glbPath}'`)
     } catch (error) {
@@ -54,17 +57,27 @@ export async function loadSupportedWeaponModelTemplates(): Promise<
           `[weaponModelTemplates] failed to load weapon '${weaponId}' from '${glbPath}'. Using fallback mesh. Reason: ${message}`,
         )
       }
-      map.set(weaponId, emptyWeaponTemplate())
+      const fallback = emptyWeaponTemplate()
+      weaponAnimationsByTemplate.set(fallback, [])
+      map.set(weaponId, fallback)
     }
   }
 
   if (!map.has(DEFAULT_WEAPON_ID)) {
-    map.set(DEFAULT_WEAPON_ID, emptyWeaponTemplate())
+    const fallback = emptyWeaponTemplate()
+    weaponAnimationsByTemplate.set(fallback, [])
+    map.set(DEFAULT_WEAPON_ID, fallback)
   }
 
   return map
 }
 
 export function cloneWeaponVisualTemplate(template: THREE.Object3D): THREE.Object3D {
-  return SkeletonUtils.clone(template) as THREE.Object3D
+  const cloned = SkeletonUtils.clone(template) as THREE.Object3D
+  weaponAnimationsByTemplate.set(cloned, weaponAnimationsByTemplate.get(template) ?? [])
+  return cloned
+}
+
+export function getWeaponVisualAnimations(weaponObject: THREE.Object3D): readonly THREE.AnimationClip[] {
+  return weaponAnimationsByTemplate.get(weaponObject) ?? []
 }

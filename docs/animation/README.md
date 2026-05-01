@@ -226,3 +226,4 @@ export const rifle_m16ModelConfig = {
 6. Вставь значения в `client/src/config/weapons/<weapon>.ts`.
 
 Примечание: настройка FP-поз вынесена из debug HUD в отдельный tool `/tools/pv-fp`.
+В игровом runtime для локального FP-оружия также включено проигрывание клипов по ключам `idle|walk|run|fire|reload` (если такие клипы есть в модели); при отсутствии клипа используется fallback через `fpPlacementByAnimation`.

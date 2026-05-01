@@ -18,6 +18,8 @@ type LocalHudEntity = {
   playerPhysicsState: PlayerPhysicsState;
   weaponState: WeaponState;
   weaponVisualFpObject?: THREE.Object3D | null;
+  weaponFpAnimationSource?: 'clip' | 'fallback' | '-';
+  weaponFpAnimationKey?: string;
 };
 
 type HudScoreEntry = {
@@ -196,6 +198,9 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     const fpCurrentLine = fpCurrentTransform
       ? `FP CURRENT: P(${toFixed4(fpCurrentTransform.position.x)}, ${toFixed4(fpCurrentTransform.position.y)}, ${toFixed4(fpCurrentTransform.position.z)}) R(${toFixed4(fpCurrentTransform.rotation.x)}, ${toFixed4(fpCurrentTransform.rotation.y)}, ${toFixed4(fpCurrentTransform.rotation.z)}) S(${toFixed4(uniformScale ?? 1)})`
       : 'FP CURRENT: -';
+    const fpAnimSource = local.weaponFpAnimationSource ?? '-';
+    const fpAnimKey = local.weaponFpAnimationKey ?? fpPoseKey;
+    const fpAnimLine = `FP anim key: ${fpAnimKey} | source: ${fpAnimSource}`;
 
     options.debugHudContentElement.innerHTML = `
       <div>ROOM: ${roomCode ?? '…'}</div>
@@ -205,6 +210,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       <div>ROLE: ${local.networkIdentity.role ?? 'spectator'}</div>
       <div>current weapon: ${local.weaponState.weaponId}</div>
       <div>FP pose key: ${fpPoseKey}</div>
+      <div>${fpAnimLine}</div>
       <div>${fpCurrentLine}</div>
       <div>fire: ${isFiring ? 'on' : 'off'}</div>
       <div>JUMP: ${jumpStateLine}</div>
