@@ -21,7 +21,7 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
 
     cooldownSec = Math.max(0, cooldownSec - deltaTime)
     const primaryDown = !!local.input.mouse.primaryDown
-    if (!primaryDown || cooldownSec > 0 || local.weaponState.isReloading) return
+    if (!primaryDown || cooldownSec > 0 || local.weaponState.isPicking || local.weaponState.isReloading) return
 
     let match: { matchState: MatchState } | undefined
     for (const entity of matchQuery) {

@@ -65,7 +65,7 @@ export type WeaponTransformValues = {
 }
 
 export type WeaponPoseByLocomotion = Record<PlayerLocomotion, WeaponTransformValues>
-export type WeaponAnimationPoseKey = 'idle' | 'walk' | 'run' | 'fire' | 'reload'
+export type WeaponAnimationPoseKey = 'idle' | 'walk' | 'run' | 'fire' | 'reload' | 'pick'
 export type WeaponFpPoseByAnimation = Record<WeaponAnimationPoseKey, WeaponTransformValues>
 export type WeaponAudioEvent = 'shot' | 'reload' | 'emptyShot' | (string & {})
 
@@ -96,12 +96,14 @@ export const WEAPON_ANIMATION_POSE_KEYS: readonly WeaponAnimationPoseKey[] = [
   'run',
   'fire',
   'reload',
+  'pick',
 ]
 
 export type WeaponModelConfig = {
   id: string
   magazineSize: number
   reloadTimeSec: number
+  pickTimeSec: number
   placementByLocomotion: WeaponPoseByLocomotion
   fpPlacementByAnimation: WeaponFpPoseByAnimation
   audio: WeaponAudioConfig
@@ -159,6 +161,7 @@ export function resolveWeaponAnimationPoseKey(
   weaponAction: string,
 ): WeaponAnimationPoseKey {
   if (weaponAction === 'reload') return 'reload'
+  if (weaponAction === 'pick') return 'pick'
   if (weaponAction === 'fire' || locomotion.includes('fire')) return 'fire'
   if (weaponAction === 'run' || locomotion.startsWith('run_')) return 'run'
   if (locomotion === 'idle' || locomotion === 'idle_crouch' || locomotion.startsWith('death_')) {

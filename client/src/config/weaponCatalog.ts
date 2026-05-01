@@ -15,6 +15,7 @@ export type WeaponDefinition = {
   damage: number
   magazineSize: number
   reloadTimeSec: number
+  pickTimeSec: number
   audio: WeaponAudioConfig
   crosshair: WeaponCrosshairConfig
 }
@@ -60,6 +61,7 @@ export function getWeaponDefinition(rawWeaponId: string): WeaponDefinition & { w
     ...WEAPON_CATALOG[weaponId],
     magazineSize: weaponModelConfig.magazineSize,
     reloadTimeSec: weaponModelConfig.reloadTimeSec,
+    pickTimeSec: weaponModelConfig.pickTimeSec,
     audio: weaponModelConfig.audio,
     crosshair: weaponModelConfig.crosshair,
   }

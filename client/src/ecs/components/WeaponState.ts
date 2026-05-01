@@ -9,6 +9,8 @@ export interface WeaponState {
   magazineSize: number
   ammoInMag: number
   cooldownSec: number
+  isPicking: boolean
+  pickRemainingSec: number
   isReloading: boolean
   reloadRemainingSec: number
   emptyShotCounter: number
@@ -25,6 +27,8 @@ export function createWeaponState(weaponId: string): WeaponState {
     magazineSize: definition.magazineSize,
     ammoInMag: definition.magazineSize,
     cooldownSec: 0,
+    isPicking: false,
+    pickRemainingSec: 0,
     isReloading: false,
     reloadRemainingSec: 0,
     emptyShotCounter: 0,
@@ -39,14 +43,13 @@ export function applyWeaponDefinition(state: WeaponState, weaponId: string): voi
   state.fireRate = definition.fireRate
   state.damage = definition.damage
   state.magazineSize = definition.magazineSize
-  state.ammoInMag = Math.min(state.ammoInMag, definition.magazineSize)
-  if (state.ammoInMag <= 0) {
-    state.ammoInMag = definition.magazineSize
-  }
+  state.ammoInMag = Math.max(0, Math.min(state.ammoInMag, definition.magazineSize))
   state.cooldownSec = 0
+  state.isPicking = true
+  state.pickRemainingSec = definition.pickTimeSec
   state.isReloading = false
   state.reloadRemainingSec = 0
   state.emptyShotCounter = 0
   state.action = 'pick'
-  state.actionHoldSec = 0.18
+  state.actionHoldSec = definition.pickTimeSec
 }

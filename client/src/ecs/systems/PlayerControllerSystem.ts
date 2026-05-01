@@ -160,9 +160,17 @@ export function createPlayerControllerSystem(
       const wasReloadDown = prevReloadDown.get(entity) ?? false;
       if (weaponState) {
         const weaponDef = getWeaponDefinition(weaponState.weaponId);
+        if (weaponState.isPicking) {
+          weaponState.pickRemainingSec = Math.max(0, weaponState.pickRemainingSec - _deltaTime);
+          if (weaponState.pickRemainingSec <= 0) {
+            weaponState.isPicking = false;
+            weaponState.pickRemainingSec = 0;
+          }
+        }
         const canStartReload =
           networkIdentity?.role === 'player' &&
           controller.viewMode === 'first' &&
+          !weaponState.isPicking &&
           !weaponState.isReloading &&
           weaponState.ammoInMag < weaponState.magazineSize;
         if (reloadDown && !wasReloadDown && canStartReload) {
@@ -198,7 +206,7 @@ export function createPlayerControllerSystem(
       if (!isGrounded || jumpPending) {
         controller.locomotion = 'jump_up';
       } else {
-        const canUseFireLocomotion = !weaponState || (!weaponState.isReloading && weaponState.ammoInMag > 0);
+        const canUseFireLocomotion = !weaponState || (!weaponState.isPicking && !weaponState.isReloading && weaponState.ammoInMag > 0);
         const wantsFire = input.mouse.primaryDown && canUseFireLocomotion;
         const fireLocomotion = wantsFire ? toFireLocomotion(modeLocomotion) : null;
         controller.locomotion = fireLocomotion ?? modeLocomotion;
@@ -206,6 +214,8 @@ export function createPlayerControllerSystem(
       if (weaponState) {
         if (controller.viewMode !== 'first') {
           weaponState.action = 'hide';
+        } else if (weaponState.isPicking) {
+          weaponState.action = 'pick';
         } else if (weaponState.isReloading) {
           weaponState.action = 'reload';
         } else if (weaponState.actionHoldSec <= 0) {

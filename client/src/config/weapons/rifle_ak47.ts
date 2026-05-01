@@ -26,6 +26,7 @@ export const rifle_ak47ModelConfig: WeaponModelConfig = {
   id: 'ak47',
   magazineSize: 30,
   reloadTimeSec: 2.8,
+  pickTimeSec: 2,
   placementByLocomotion: {
     ...base,
     walk: base2,

@@ -32,6 +32,7 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
   id: 'm16',
   magazineSize: 12,
   reloadTimeSec: 3,
+  pickTimeSec: 2,
   placementByLocomotion: {
     ...base,
     idle: {
