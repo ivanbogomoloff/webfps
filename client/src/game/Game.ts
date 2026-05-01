@@ -31,11 +31,8 @@ import type {
   AmmoApi,
   AmmoWorld,
   PlayerViewMode,
-  WeaponAction,
 } from '../ecs/components';
 import type { AmmoPhysicsContext, GroundProbeDebugState } from '../ecs/systems/PhysicsSystem';
-import { getWeaponCrosshairConfig } from '../config/weaponCatalog';
-import type { WeaponCrosshairConfig } from '../config/weapons/types';
 import type { GameTransport } from '../net/GameTransport';
 import { NetworkContext } from '../net/NetworkContext';
 import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
@@ -55,12 +52,9 @@ import {
   resolveWeaponId,
   type SupportedWeaponId,
 } from './weapon/supportedWeaponModels';
-import { FP_VIEWMODEL_RENDER_LAYER } from './weapon/viewmodelLayer';
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
-const CROSSHAIR_MAX_PULSE = 1.4;
-const CROSSHAIR_SHOT_HOLD_EPSILON = 1e-4;
 
 export class Game {
   private world: World;
@@ -89,18 +83,6 @@ export class Game {
   private matchEntity: { id: number; matchState: ReturnType<typeof createMatchState>; scoreboard: ScoreboardPlayer[] } | null = null;
   private networkContext: NetworkContext | null = null;
   private hudSystemAttached = false;
-  private crosshairScene: THREE.Scene;
-  private crosshairCamera: THREE.OrthographicCamera;
-  private crosshairRoot: THREE.Group;
-  private crosshairMaterial: THREE.MeshBasicMaterial;
-  private crosshairArms: THREE.Mesh[] = [];
-  private crosshairWeaponId: string | null = null;
-  private crosshairBaseScale = 1;
-  private crosshairShotPulseScale = 0.2;
-  private crosshairPulseDecayPerSec = 8;
-  private crosshairPulse = 0;
-  private crosshairLastAction: WeaponAction = 'walk';
-  private crosshairLastActionHoldSec = 0;
 
   constructor(
     private readonly options?: {
@@ -133,22 +115,6 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(this.renderer.domElement);
-    this.crosshairScene = new THREE.Scene();
-    this.crosshairCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
-    this.crosshairCamera.position.z = 5;
-    this.crosshairRoot = new THREE.Group();
-    this.crosshairRoot.renderOrder = 1000;
-    this.crosshairRoot.frustumCulled = false;
-    this.crosshairMaterial = new THREE.MeshBasicMaterial({
-      color: new THREE.Color('#ffffff'),
-      depthTest: false,
-      depthWrite: false,
-      transparent: true,
-      toneMapped: false,
-    });
-    this.crosshairScene.add(this.crosshairRoot);
-    this.configureCrosshair(getWeaponCrosshairConfig(DEFAULT_WEAPON_ID));
-    this.updateCrosshairViewport(window.innerWidth, window.innerHeight);
 
     // Инициализируем MapLoader и MapBuilder
     this.mapLoader = new MapLoader();
@@ -229,7 +195,13 @@ export class Game {
     this.systems.push(createWeaponPoseByLocomotionSystem(this.world));
     this.systems.push(createPhysicsSystem(this.world, this.physicsContext));
     this.systems.push(createAudioSystem(this.world, this.camera));
-    this.systems.push(createRenderSystem(this.world, this.scene)); // В конце рендеринг
+    this.systems.push(
+      createRenderSystem(this.world, {
+        renderer: this.renderer,
+        scene: this.scene,
+        camera: this.camera,
+      }),
+    ); // В конце рендеринг
 
     // Обработка изменения размера окна
     window.addEventListener('resize', () => this.onWindowResize());
@@ -377,28 +349,6 @@ export class Game {
       system(deltaTime);
     }
 
-    // Рендерим сцену в 2 прохода:
-    // 1) мир без FP-viewmodel, 2) только FP-viewmodel поверх после clearDepth.
-    const previousMask = this.camera.layers.mask;
-    const previousAutoClear = this.renderer.autoClear;
-    this.camera.layers.mask = previousMask & ~(1 << FP_VIEWMODEL_RENDER_LAYER);
-    this.renderer.autoClear = true;
-    this.renderer.render(this.scene, this.camera);
-    this.renderer.autoClear = false;
-    this.renderer.clearDepth();
-    const previousBackground = this.scene.background;
-    this.scene.background = null;
-    this.camera.layers.mask = 1 << FP_VIEWMODEL_RENDER_LAYER;
-    this.renderer.render(this.scene, this.camera);
-    this.scene.background = previousBackground;
-    this.camera.layers.mask = previousMask;
-    this.renderer.autoClear = previousAutoClear;
-    this.updateCrosshairState(deltaTime);
-    this.renderer.autoClear = false;
-    this.renderer.clearDepth();
-    this.renderer.render(this.crosshairScene, this.crosshairCamera);
-    this.renderer.autoClear = previousAutoClear;
-
     this.statsJs.end();
   };
 
@@ -424,90 +374,6 @@ export class Game {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(width, height);
-    this.updateCrosshairViewport(width, height);
-  }
-
-  private updateCrosshairViewport(width: number, height: number): void {
-    this.crosshairCamera.left = -width / 2;
-    this.crosshairCamera.right = width / 2;
-    this.crosshairCamera.top = height / 2;
-    this.crosshairCamera.bottom = -height / 2;
-    this.crosshairCamera.updateProjectionMatrix();
-  }
-
-  private rebuildCrosshairArms(config: WeaponCrosshairConfig): void {
-    for (const arm of this.crosshairArms) {
-      this.crosshairRoot.remove(arm);
-      arm.geometry.dispose();
-    }
-    this.crosshairArms = [];
-
-    const horizontalGeometry = new THREE.PlaneGeometry(config.armLengthPx, config.armThicknessPx);
-    const verticalGeometry = new THREE.PlaneGeometry(config.armThicknessPx, config.armLengthPx);
-    const offset = config.gapPx + config.armLengthPx / 2;
-    const placements = [
-      { geometry: horizontalGeometry, x: offset, y: 0 },
-      { geometry: horizontalGeometry.clone(), x: -offset, y: 0 },
-      { geometry: verticalGeometry, x: 0, y: offset },
-      { geometry: verticalGeometry.clone(), x: 0, y: -offset },
-    ] as const;
-
-    for (const placement of placements) {
-      const arm = new THREE.Mesh(placement.geometry, this.crosshairMaterial);
-      arm.position.set(placement.x, placement.y, 0);
-      arm.renderOrder = 1000;
-      arm.frustumCulled = false;
-      this.crosshairRoot.add(arm);
-      this.crosshairArms.push(arm);
-    }
-  }
-
-  private configureCrosshair(config: WeaponCrosshairConfig & { weaponId: string }): void {
-    if (this.crosshairWeaponId === config.weaponId) return;
-    this.crosshairWeaponId = config.weaponId;
-    this.crosshairMaterial.color.set(config.color);
-    this.crosshairBaseScale = Math.max(0.2, config.baseScale);
-    this.crosshairShotPulseScale = Math.max(0.02, config.shotPulseScale);
-    this.crosshairPulseDecayPerSec = Math.max(0.5, config.pulseDecayPerSec);
-    this.rebuildCrosshairArms(config);
-  }
-
-  private updateCrosshairState(deltaTime: number): void {
-    const local = this.localPlayerEntity;
-    if (!local) {
-      this.crosshairRoot.visible = false;
-      this.crosshairPulse = 0;
-      return;
-    }
-
-    this.configureCrosshair(getWeaponCrosshairConfig(local.weaponState.weaponId));
-    const showCrosshair =
-      local.networkIdentity.role === 'player' &&
-      !local.health.isDead &&
-      local.playerController.viewMode === 'first';
-    this.crosshairRoot.visible = showCrosshair;
-    if (!showCrosshair) {
-      this.crosshairPulse = 0;
-    }
-
-    const action = local.weaponState.action;
-    const actionHoldSec = local.weaponState.actionHoldSec;
-    const firedShot =
-      action === 'fire' &&
-      (this.crosshairLastAction !== 'fire' ||
-        actionHoldSec > this.crosshairLastActionHoldSec + CROSSHAIR_SHOT_HOLD_EPSILON);
-    if (showCrosshair && firedShot) {
-      this.crosshairPulse = Math.min(
-        CROSSHAIR_MAX_PULSE,
-        this.crosshairPulse + this.crosshairShotPulseScale,
-      );
-    }
-    this.crosshairPulse = Math.max(0, this.crosshairPulse - this.crosshairPulseDecayPerSec * deltaTime);
-
-    const pulseScale = this.crosshairBaseScale * (1 + this.crosshairPulse);
-    this.crosshairRoot.scale.setScalar(pulseScale);
-    this.crosshairLastAction = action;
-    this.crosshairLastActionHoldSec = actionHoldSec;
   }
 
   public stop(): void {
