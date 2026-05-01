@@ -14,6 +14,7 @@ export type WeaponDefinition = {
   fireRate: number
   damage: number
   magazineSize: number
+  reloadTimeSec: number
   audio: WeaponAudioConfig
   crosshair: WeaponCrosshairConfig
 }
@@ -22,14 +23,12 @@ export const WEAPON_CATALOG = {
   rifle_m16: {
     fireRate: 3,
     damage: 20,
-    magazineSize: 12,
   },
   rifle_ak47: {
     fireRate: 8,
     damage: 12,
-    magazineSize: 30,
   },
-} as const satisfies Record<string, Omit<WeaponDefinition, 'audio' | 'crosshair'>>
+} as const satisfies Record<string, Pick<WeaponDefinition, 'fireRate' | 'damage'>>
 
 export type WeaponId = keyof typeof WEAPON_CATALOG
 
@@ -59,6 +58,8 @@ export function getWeaponDefinition(rawWeaponId: string): WeaponDefinition & { w
   return {
     weaponId,
     ...WEAPON_CATALOG[weaponId],
+    magazineSize: weaponModelConfig.magazineSize,
+    reloadTimeSec: weaponModelConfig.reloadTimeSec,
     audio: weaponModelConfig.audio,
     crosshair: weaponModelConfig.crosshair,
   }

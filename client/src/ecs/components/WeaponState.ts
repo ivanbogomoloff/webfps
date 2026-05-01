@@ -11,6 +11,7 @@ export interface WeaponState {
   cooldownSec: number
   isReloading: boolean
   reloadRemainingSec: number
+  emptyShotCounter: number
   action: WeaponAction
   actionHoldSec: number
 }
@@ -26,6 +27,7 @@ export function createWeaponState(weaponId: string): WeaponState {
     cooldownSec: 0,
     isReloading: false,
     reloadRemainingSec: 0,
+    emptyShotCounter: 0,
     action: 'walk',
     actionHoldSec: 0,
   }
@@ -44,6 +46,7 @@ export function applyWeaponDefinition(state: WeaponState, weaponId: string): voi
   state.cooldownSec = 0
   state.isReloading = false
   state.reloadRemainingSec = 0
+  state.emptyShotCounter = 0
   state.action = 'pick'
   state.actionHoldSec = 0.18
 }

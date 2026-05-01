@@ -35,6 +35,7 @@ type HudSystemOptions = {
   debugHudContentElement: HTMLElement;
   gameHudElement: HTMLElement;
   scoreboardHudElement: HTMLElement;
+  reloadHudElement: HTMLElement;
   getRoomCode: () => string | null;
   getLastNetworkError: () => string | null;
   getJumpDebugState: () => {
@@ -108,6 +109,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     if (!local) {
       options.gameHudElement.style.display = 'none';
       options.scoreboardHudElement.style.display = 'none';
+      options.reloadHudElement.style.display = 'none';
       if (!debugEnabled) {
         options.debugHudRootElement.style.display = 'none';
       }
@@ -128,10 +130,17 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     if (local.networkIdentity.role === 'player') {
       const healthCurrent = Math.max(0, Math.round(local.health.current));
       const healthMax = Math.max(1, Math.round(local.health.max));
+      const ammoCurrent = Math.max(0, Math.round(local.weaponState.ammoInMag));
+      const ammoMax = Math.max(1, Math.round(local.weaponState.magazineSize));
       options.gameHudElement.style.display = 'block';
-      options.gameHudElement.innerHTML = `❤ ${healthCurrent}/${healthMax}`;
+      options.gameHudElement.innerHTML = `❤ ${healthCurrent}/${healthMax} | ${ammoCurrent}/${ammoMax}`;
+      options.reloadHudElement.style.display =
+        local.weaponState.isReloading && local.playerController.viewMode === 'first'
+          ? 'block'
+          : 'none';
     } else {
       options.gameHudElement.style.display = 'none';
+      options.reloadHudElement.style.display = 'none';
     }
 
     const showScoreboard = !!local.input.keys.get('tab');

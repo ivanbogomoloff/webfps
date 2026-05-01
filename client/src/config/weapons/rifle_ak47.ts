@@ -24,6 +24,8 @@ const base2 = {
 
 export const rifle_ak47ModelConfig: WeaponModelConfig = {
   id: 'ak47',
+  magazineSize: 30,
+  reloadTimeSec: 2.8,
   placementByLocomotion: {
     ...base,
     walk: base2,
@@ -64,6 +66,12 @@ export const rifle_ak47ModelConfig: WeaponModelConfig = {
       volume: 0.7,
       refDistance: 11,
       maxDistance: 64,
+    },
+    emptyShot: {
+      src: '/audio/weapons/ak47_empty_shot.mp3',
+      volume: 0.7,
+      refDistance: 8,
+      maxDistance: 40,
     },
   },
   crosshair: {

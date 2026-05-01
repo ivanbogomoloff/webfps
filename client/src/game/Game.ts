@@ -468,6 +468,7 @@ export class Game {
       debugHudContentElement: HTMLElement;
       gameHudElement: HTMLElement;
       scoreboardHudElement: HTMLElement;
+      reloadHudElement: HTMLElement;
     },
     updateHz = 10,
     debugEnabled = false,
@@ -482,6 +483,7 @@ export class Game {
         debugHudContentElement: elements.debugHudContentElement,
         gameHudElement: elements.gameHudElement,
         scoreboardHudElement: elements.scoreboardHudElement,
+        reloadHudElement: elements.reloadHudElement,
         getRoomCode: () => this.getRoomCode(),
         getLastNetworkError: () => this.getLastNetworkError(),
         getJumpDebugState: () => this.getJumpDebugState(),

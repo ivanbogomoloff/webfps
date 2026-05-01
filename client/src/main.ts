@@ -72,6 +72,7 @@ async function startGame(options: StartOptions): Promise<void> {
       debugHudContentElement,
       gameHudElement,
       scoreboardHudElement,
+      reloadHudElement,
     },
     10,
     DEBUG_HUD,
@@ -251,6 +252,31 @@ gameHudElement.style.cssText = `
 `
 gameHudElement.textContent = '❤ 100/100'
 document.body.appendChild(gameHudElement)
+
+const reloadHudElement = document.createElement('div')
+reloadHudElement.id = 'hud-reload'
+reloadHudElement.style.cssText = `
+  position: fixed;
+  left: 50%;
+  top: calc(50% + 44px);
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.58);
+  color: #ffd74a;
+  font-family: system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 215, 74, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  z-index: 1100;
+  pointer-events: none;
+  display: none;
+`
+reloadHudElement.textContent = 'Перезарядка'
+document.body.appendChild(reloadHudElement)
 
 // Scoreboard HUD (на зажатие Tab)
 const scoreboardHudElement = document.createElement('div')

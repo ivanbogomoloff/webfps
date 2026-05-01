@@ -100,6 +100,8 @@ export const WEAPON_ANIMATION_POSE_KEYS: readonly WeaponAnimationPoseKey[] = [
 
 export type WeaponModelConfig = {
   id: string
+  magazineSize: number
+  reloadTimeSec: number
   placementByLocomotion: WeaponPoseByLocomotion
   fpPlacementByAnimation: WeaponFpPoseByAnimation
   audio: WeaponAudioConfig

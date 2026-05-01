@@ -216,6 +216,7 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
       const nodes = getNodes(audioEntity)
 
       state.fireCooldownSec = Math.max(0, state.fireCooldownSec - deltaTime)
+      state.emptyShotCooldownSec = Math.max(0, state.emptyShotCooldownSec - deltaTime)
       if (fireActive && (!state.wasFireActive || state.fireCooldownSec <= 0)) {
         const shotConfig = getWeaponDefinition(audioEntity.weaponState.weaponId).audio.shot
         if (!shotConfig?.src) {
@@ -233,6 +234,19 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
         })
         state.fireCooldownSec = Math.max(0.06, 1 / Math.max(1, audioEntity.weaponState.fireRate))
       }
+      if (isLocal && audioEntity.weaponState.emptyShotCounter > state.lastEmptyShotCounter) {
+        const emptyShotConfig = getWeaponDefinition(audioEntity.weaponState.weaponId).audio.emptyShot
+        if (emptyShotConfig?.src && state.emptyShotCooldownSec <= 0) {
+          playClip(nodes.shot, {
+            src: emptyShotConfig.src,
+            volume: emptyShotConfig.volume ?? 0.7,
+            refDistance: emptyShotConfig.refDistance ?? 8,
+            maxDistance: emptyShotConfig.maxDistance ?? 42,
+          })
+          state.emptyShotCooldownSec = 0.12
+        }
+      }
+      state.lastEmptyShotCounter = audioEntity.weaponState.emptyShotCounter
 
       if (!state.wasGrounded && grounded) {
         playClip(nodes.jump, PLAYER_CLIPS.land)

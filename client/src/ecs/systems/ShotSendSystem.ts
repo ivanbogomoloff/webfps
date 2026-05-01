@@ -34,6 +34,12 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
     }
     if (match?.matchState.phase === 'ended') return
     if (local.networkIdentity.role !== 'player' || local.health.isDead) return
+    if (local.weaponState.ammoInMag <= 0) {
+      local.weaponState.emptyShotCounter += 1
+      local.weaponState.action = 'walk'
+      local.weaponState.actionHoldSec = 0.06
+      return
+    }
 
     local.camera.getWorldDirection(direction)
     if (direction.lengthSq() <= EPSILON) return
@@ -52,6 +58,7 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
     })
     local.weaponState.action = 'fire'
     local.weaponState.actionHoldSec = 0.1
+    local.weaponState.ammoInMag = Math.max(0, local.weaponState.ammoInMag - 1)
     cooldownSec = Math.max(0.06, 1 / Math.max(1, local.weaponState.fireRate))
   }
 }

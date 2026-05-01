@@ -1,6 +1,7 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
 import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/player/playerLocomotionLogic';
+import { getWeaponDefinition } from '../../game/weapon/supportedWeaponModels';
 import type { Health, Input, NetworkIdentity, PlayerController, PlayerPhysicsState, WeaponState } from '../components';
 
 export function createPlayerControllerSystem(
@@ -11,7 +12,6 @@ export function createPlayerControllerSystem(
   const FIRST_PERSON_CROUCH_EYE_Y = 0.35;
   const THIRD_PERSON_DISTANCE = 5;
   const DEAD_CAMERA_PITCH = Math.PI / 4;
-  const RELOAD_PLACEHOLDER_SEC = 1.2;
   const thirdPersonDirection = new THREE.Vector3();
   const thirdPersonLookAt = new THREE.Vector3();
   const cameraEuler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -159,11 +159,17 @@ export function createPlayerControllerSystem(
       const reloadDown = !!input.keys.get('r');
       const wasReloadDown = prevReloadDown.get(entity) ?? false;
       if (weaponState) {
-        if (reloadDown && !wasReloadDown && !weaponState.isReloading) {
+        const weaponDef = getWeaponDefinition(weaponState.weaponId);
+        const canStartReload =
+          networkIdentity?.role === 'player' &&
+          controller.viewMode === 'first' &&
+          !weaponState.isReloading &&
+          weaponState.ammoInMag < weaponState.magazineSize;
+        if (reloadDown && !wasReloadDown && canStartReload) {
           weaponState.isReloading = true;
-          weaponState.reloadRemainingSec = RELOAD_PLACEHOLDER_SEC;
+          weaponState.reloadRemainingSec = weaponDef.reloadTimeSec;
           weaponState.action = 'reload';
-          weaponState.actionHoldSec = RELOAD_PLACEHOLDER_SEC;
+          weaponState.actionHoldSec = weaponDef.reloadTimeSec;
         }
         if (weaponState.isReloading) {
           weaponState.reloadRemainingSec = Math.max(0, weaponState.reloadRemainingSec - _deltaTime);
@@ -192,7 +198,8 @@ export function createPlayerControllerSystem(
       if (!isGrounded || jumpPending) {
         controller.locomotion = 'jump_up';
       } else {
-        const wantsFire = input.mouse.primaryDown;
+        const canUseFireLocomotion = !weaponState || (!weaponState.isReloading && weaponState.ammoInMag > 0);
+        const wantsFire = input.mouse.primaryDown && canUseFireLocomotion;
         const fireLocomotion = wantsFire ? toFireLocomotion(modeLocomotion) : null;
         controller.locomotion = fireLocomotion ?? modeLocomotion;
       }
