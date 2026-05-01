@@ -220,8 +220,9 @@ export const rifle_m16ModelConfig = {
 
 1. Открой `http://localhost:3000/tools/pv-fp`.
 2. Выбери оружие (`Weapon.model`) и ключ FP-позы (`Weapon.pose key`: `idle`, `walk`, `run`, `fire`, `reload`).
-3. Подбери `pos/rot/scale` в блоке `Weapon Transform`.
-4. Нажми `copyCurrent` для одного key или `copyAll` для полного `fpPlacementByAnimation`.
-5. Вставь значения в `client/src/config/weapons/<weapon>.ts`.
+3. В блоке `Animation` выбери клип и проверь проигрывание (`playing/speed`). Список клипов фиксирован по whitelist `idle|walk|run|fire|reload` и показывается только для реально доступных клипов модели.
+4. Подбери `pos/rot/scale` в блоке `Weapon Transform`.
+5. Нажми `copyCurrent` для одного key или `copyAll` для полного `fpPlacementByAnimation`.
+6. Вставь значения в `client/src/config/weapons/<weapon>.ts`.
 
 Примечание: настройка FP-поз вынесена из debug HUD в отдельный tool `/tools/pv-fp`.

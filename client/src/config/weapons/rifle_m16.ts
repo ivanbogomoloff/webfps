@@ -23,16 +23,10 @@ const run = {
 };
 
 const fpBase = createUniformFpWeaponPlacement({
-  position: { x: -0.1000, y: -0.2200, z: -0.3500 },
+  position: { x: -0.1270, y: -0.3200, z: -0.0300 },
   rotation: { x: 0.0000, y: 3.1416, z: 0.0000 },
-  scale: { x: 0.2000, y: 0.2000, z: 0.2000 },
+  scale: { x: 2.5000, y: 2.5000, z: 2.5000 },
 });
-
-const fpIdle = {
-  position: { x: -0.1000, y: -0.2200, z: -0.3500 },
-  rotation: { x: 0.0000, y: 3.1416, z: 0.0000 },
-  scale: { x: 0.2000, y: 0.2000, z: 0.2000 },
-};
 
 export const rifle_m16ModelConfig: WeaponModelConfig = {
   id: 'm16',
@@ -121,12 +115,7 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
     run_backward_right_d: run,
   },
   fpPlacementByAnimation: {
-    ...fpBase,
-    idle: fpIdle,
-    walk: fpIdle,
-    run: fpIdle,
-    fire: fpIdle,
-    reload: fpIdle,
+    ...fpBase
   },
   audio: {
     shot: {
