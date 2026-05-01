@@ -10,22 +10,18 @@ const forwardOffset = new THREE.Vector3()
 
 export function createShotSendSystem(world: World, networkContext: NetworkContext) {
   const matchQuery = world.with('matchState')
-  let wasPrimaryDown = false
   let shotSeq = 0
   let cooldownSec = 0
 
   return (deltaTime: number) => {
     const local = networkContext.getLocalPlayerEntity()
     if (!local?.input?.mouse || !local?.camera || !local?.networkIdentity || !local?.weaponState || !local?.health) {
-      wasPrimaryDown = false
       return
     }
 
     cooldownSec = Math.max(0, cooldownSec - deltaTime)
     const primaryDown = !!local.input.mouse.primaryDown
-    const justPressed = primaryDown && !wasPrimaryDown
-    wasPrimaryDown = primaryDown
-    if (!justPressed || cooldownSec > 0 || local.weaponState.isReloading) return
+    if (!primaryDown || cooldownSec > 0 || local.weaponState.isReloading) return
 
     let match: { matchState: MatchState } | undefined
     for (const entity of matchQuery) {
@@ -38,6 +34,7 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
       local.weaponState.emptyShotCounter += 1
       local.weaponState.action = 'walk'
       local.weaponState.actionHoldSec = 0.06
+      cooldownSec = 0.12
       return
     }
 
