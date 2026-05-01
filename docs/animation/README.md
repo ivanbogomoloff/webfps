@@ -152,6 +152,7 @@ loader.load('path/to/weapon.glb', (weaponGltf) => {
 - типы и список ключей: `client/src/config/weapons/types.ts` (`PLAYER_LOCOMOTION_KEYS`);
 - конфиг оружия по файлам: `client/src/config/weapons/rifle_m16.ts`, `client/src/config/weapons/rifle_ak47.ts`;
 - gameplay-каталог оружия: `client/src/config/weaponCatalog.ts` (урон/скорострельность/магазин).
+- аудио оружия задается прямо в `client/src/config/weapons/<weapon>.ts` через `audio`.
 
 ### Формат
 
@@ -164,7 +165,13 @@ loader.load('path/to/weapon.glb', (weaponGltf) => {
     idle: { position: ..., rotation: ..., scale: ... },
     walk: { ... },
     // ... остальные ключи PlayerLocomotion
-  }
+  },
+  audio: {
+    shot: { src: '/audio/weapons/m16_shot.mp3' },
+    // можно добавлять дополнительные события:
+    // reload: { src: '/audio/weapons/m16_reload.mp3' },
+    // emptyShot: { src: '/audio/weapons/m16_empty.mp3' },
+  },
 }
 ```
 
@@ -208,3 +215,13 @@ export const rifle_m16ModelConfig = {
 5. Нажми `copy` и вставь блок в `placementByLocomotion` нужного файла оружия.
 
 Подсказка: если имя клипа совпадает с ключом локомоции (`idle`, `walk`, `run_forward`, ...), viewer автоматически подставит соответствующий `pose key`.
+
+### Workflow для FP (`fpPlacementByAnimation`)
+
+1. Открой `http://localhost:3000/tools/pv-fp`.
+2. Выбери оружие (`Weapon.model`) и ключ FP-позы (`Weapon.pose key`: `idle`, `walk`, `run`, `fire`, `reload`).
+3. Подбери `pos/rot/scale` в блоке `Weapon Transform`.
+4. Нажми `copyCurrent` для одного key или `copyAll` для полного `fpPlacementByAnimation`.
+5. Вставь значения в `client/src/config/weapons/<weapon>.ts`.
+
+Примечание: настройка FP-поз вынесена из debug HUD в отдельный tool `/tools/pv-fp`.

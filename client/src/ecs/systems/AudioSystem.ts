@@ -140,7 +140,11 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
     PLAYER_CLIPS.land.src,
   ])
   for (const weaponId of SUPPORTED_WEAPON_IDS) {
-    preload.add(getWeaponDefinition(weaponId).audio.shot.src)
+    const weaponAudio = getWeaponDefinition(weaponId).audio
+    for (const clip of Object.values(weaponAudio)) {
+      if (!clip?.src) continue
+      preload.add(clip.src)
+    }
   }
 
   const loadClip = (src: string): void => {
@@ -214,6 +218,13 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
       state.fireCooldownSec = Math.max(0, state.fireCooldownSec - deltaTime)
       if (fireActive && (!state.wasFireActive || state.fireCooldownSec <= 0)) {
         const shotConfig = getWeaponDefinition(audioEntity.weaponState.weaponId).audio.shot
+        if (!shotConfig?.src) {
+          state.fireCooldownSec = Math.max(0.06, 1 / Math.max(1, audioEntity.weaponState.fireRate))
+          state.wasFireActive = fireActive
+          state.wasGrounded = grounded
+          state.lastLocomotion = locomotion
+          continue
+        }
         playClip(nodes.shot, {
           src: shotConfig.src,
           volume: shotConfig.volume ?? 0.72,

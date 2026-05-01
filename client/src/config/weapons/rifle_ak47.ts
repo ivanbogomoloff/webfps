@@ -58,4 +58,12 @@ export const rifle_ak47ModelConfig: WeaponModelConfig = {
   fpPlacementByAnimation: {
     ...fpBase
   },
+  audio: {
+    shot: {
+      src: '/audio/weapons/ak47_shot.mp3',
+      volume: 0.7,
+      refDistance: 11,
+      maxDistance: 64,
+    },
+  },
 }

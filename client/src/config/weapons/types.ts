@@ -67,6 +67,18 @@ export type WeaponTransformValues = {
 export type WeaponPoseByLocomotion = Record<PlayerLocomotion, WeaponTransformValues>
 export type WeaponAnimationPoseKey = 'idle' | 'walk' | 'run' | 'fire' | 'reload'
 export type WeaponFpPoseByAnimation = Record<WeaponAnimationPoseKey, WeaponTransformValues>
+export type WeaponAudioEvent = 'shot' | 'reload' | 'emptyShot' | (string & {})
+
+export type WeaponAudioClipConfig = {
+  src: string
+  volume?: number
+  refDistance?: number
+  maxDistance?: number
+}
+
+export type WeaponAudioConfig = {
+  shot: WeaponAudioClipConfig
+} & Partial<Record<WeaponAudioEvent, WeaponAudioClipConfig>>
 
 export const WEAPON_ANIMATION_POSE_KEYS: readonly WeaponAnimationPoseKey[] = [
   'idle',
@@ -80,6 +92,7 @@ export type WeaponModelConfig = {
   id: string
   placementByLocomotion: WeaponPoseByLocomotion
   fpPlacementByAnimation: WeaponFpPoseByAnimation
+  audio: WeaponAudioConfig
 }
 
 export function cloneWeaponTransformValues(values: WeaponTransformValues): WeaponTransformValues {

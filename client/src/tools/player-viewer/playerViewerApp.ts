@@ -34,16 +34,22 @@ type AudioPreviewId =
   | 'footstep_run'
   | 'jump'
   | 'land'
-  | 'weapon_m16_shot'
-  | 'weapon_ak47_shot'
+  | 'weapon_current_shot'
 
-const AUDIO_PREVIEW_CATALOG: Record<AudioPreviewId, { label: string; src: string }> = {
-  footstep_walk: { label: 'footstep_walk', src: '/audio/player/footstep_walk.ogg' },
-  footstep_run: { label: 'footstep_run', src: '/audio/player/footstep_run.ogg' },
-  jump: { label: 'jump', src: '/audio/player/jump.ogg' },
-  land: { label: 'land', src: '/audio/player/land.wav' },
-  weapon_m16_shot: { label: 'weapon_m16_shot', src: '/audio/weapons/m16_shot.wav' },
-  weapon_ak47_shot: { label: 'weapon_ak47_shot', src: '/audio/weapons/ak47_shot.wav' },
+type AudioPreviewConfig = {
+  label: string
+  resolveSrc: (weaponId: string) => string
+}
+
+const AUDIO_PREVIEW_CATALOG: Record<AudioPreviewId, AudioPreviewConfig> = {
+  footstep_walk: { label: 'footstep_walk', resolveSrc: () => '/audio/player/footstep_walk.ogg' },
+  footstep_run: { label: 'footstep_run', resolveSrc: () => '/audio/player/footstep_run.ogg' },
+  jump: { label: 'jump', resolveSrc: () => '/audio/player/jump.ogg' },
+  land: { label: 'land', resolveSrc: () => '/audio/player/land.wav' },
+  weapon_current_shot: {
+    label: 'weapon_current_shot',
+    resolveSrc: (weaponId) => getWeaponDefinition(weaponId).audio.shot.src,
+  },
 }
 
 class PlayerViewerApp {
@@ -471,7 +477,7 @@ class PlayerViewerApp {
   private async playSelectedAudioPreview(): Promise<void> {
     const entry = AUDIO_PREVIEW_CATALOG[this.selectedAudioPreviewId]
     if (!entry) return
-    await this.playAudioBySrc(entry.src)
+    await this.playAudioBySrc(entry.resolveSrc(this.currentWeaponId))
   }
 
   private async playCurrentWeaponShot(): Promise<void> {

@@ -5,7 +5,6 @@ import type { PlayerAnimation } from '../components/PlayerAnimation'
 import { hasAnimationActionForLocomotion } from '../components/PlayerAnimation'
 import { toBaseLocomotionFromFire } from '../../game/player/playerLocomotionLogic'
 import { resolveWeaponAnimationPoseKey } from '../../config/weapons/types'
-import { getFpWeaponPoseOverride, getFpWeaponPoseOverrideVersion } from '../../game/weapon/fpWeaponPoseDebug'
 import {
   getWeaponFpPoseForAnimation,
   getWeaponPoseForLocomotion,
@@ -36,11 +35,9 @@ export function createWeaponPoseByLocomotionSystem(world: World) {
           appliedFpVisualByEntity.set(entity, weaponVisualFpObject)
         }
         const fpPoseKey = resolveWeaponAnimationPoseKey(locomotion, weaponState.action)
-        const fpOverrideVersion = getFpWeaponPoseOverrideVersion(weaponId, fpPoseKey)
-        const fpCacheKey = `${weaponId}:${fpPoseKey}:${fpOverrideVersion}`
+        const fpCacheKey = `${weaponId}:${fpPoseKey}`
         if (appliedFpKeyByEntity.get(entity) !== fpCacheKey) {
-          const fpPose =
-            getFpWeaponPoseOverride(weaponId, fpPoseKey) ?? getWeaponFpPoseForAnimation(weaponId, fpPoseKey)
+          const fpPose = getWeaponFpPoseForAnimation(weaponId, fpPoseKey)
           applyWeaponTransformValues(weaponVisualFpObject, fpPose)
           appliedFpKeyByEntity.set(entity, fpCacheKey)
         }

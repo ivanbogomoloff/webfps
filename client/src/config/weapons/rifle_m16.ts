@@ -128,4 +128,12 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
     fire: fpIdle,
     reload: fpIdle,
   },
+  audio: {
+    shot: {
+      src: '/audio/weapons/m16_shot.mp3',
+      volume: 0.72,
+      refDistance: 11,
+      maxDistance: 64,
+    },
+  },
 }
