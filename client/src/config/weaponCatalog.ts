@@ -4,6 +4,7 @@ import { rifle_ak47ModelConfig } from './weapons/rifle_ak47'
 import type {
   WeaponAnimationPoseKey,
   WeaponAudioConfig,
+  WeaponCrosshairConfig,
   WeaponFpPoseByAnimation,
   WeaponModelConfig,
   WeaponTransformValues,
@@ -14,6 +15,7 @@ export type WeaponDefinition = {
   damage: number
   magazineSize: number
   audio: WeaponAudioConfig
+  crosshair: WeaponCrosshairConfig
 }
 
 export const WEAPON_CATALOG = {
@@ -27,7 +29,7 @@ export const WEAPON_CATALOG = {
     damage: 12,
     magazineSize: 30,
   },
-} as const satisfies Record<string, Omit<WeaponDefinition, 'audio'>>
+} as const satisfies Record<string, Omit<WeaponDefinition, 'audio' | 'crosshair'>>
 
 export type WeaponId = keyof typeof WEAPON_CATALOG
 
@@ -58,6 +60,7 @@ export function getWeaponDefinition(rawWeaponId: string): WeaponDefinition & { w
     weaponId,
     ...WEAPON_CATALOG[weaponId],
     audio: weaponModelConfig.audio,
+    crosshair: weaponModelConfig.crosshair,
   }
 }
 
@@ -66,6 +69,16 @@ export function getWeaponModelConfig(rawWeaponId: string): WeaponModelConfig & {
   return {
     weaponId,
     ...WEAPON_MODEL_CONFIG_BY_ID[weaponId],
+  }
+}
+
+export function getWeaponCrosshairConfig(
+  rawWeaponId: string,
+): WeaponCrosshairConfig & { weaponId: WeaponId } {
+  const weaponConfig = getWeaponModelConfig(rawWeaponId)
+  return {
+    weaponId: weaponConfig.weaponId,
+    ...weaponConfig.crosshair,
   }
 }
 

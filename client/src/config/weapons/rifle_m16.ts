@@ -125,4 +125,13 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
       maxDistance: 64,
     },
   },
+  crosshair: {
+    color: '#ffffff',
+    gapPx: 6,
+    armLengthPx: 10,
+    armThicknessPx: 2,
+    baseScale: 1,
+    shotPulseScale: 0.2,
+    pulseDecayPerSec: 8.5,
+  },
 }

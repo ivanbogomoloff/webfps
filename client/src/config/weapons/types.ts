@@ -80,6 +80,16 @@ export type WeaponAudioConfig = {
   shot: WeaponAudioClipConfig
 } & Partial<Record<WeaponAudioEvent, WeaponAudioClipConfig>>
 
+export type WeaponCrosshairConfig = {
+  color: string
+  gapPx: number
+  armLengthPx: number
+  armThicknessPx: number
+  baseScale: number
+  shotPulseScale: number
+  pulseDecayPerSec: number
+}
+
 export const WEAPON_ANIMATION_POSE_KEYS: readonly WeaponAnimationPoseKey[] = [
   'idle',
   'walk',
@@ -93,6 +103,7 @@ export type WeaponModelConfig = {
   placementByLocomotion: WeaponPoseByLocomotion
   fpPlacementByAnimation: WeaponFpPoseByAnimation
   audio: WeaponAudioConfig
+  crosshair: WeaponCrosshairConfig
 }
 
 export function cloneWeaponTransformValues(values: WeaponTransformValues): WeaponTransformValues {

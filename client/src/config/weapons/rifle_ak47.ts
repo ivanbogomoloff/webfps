@@ -66,4 +66,13 @@ export const rifle_ak47ModelConfig: WeaponModelConfig = {
       maxDistance: 64,
     },
   },
+  crosshair: {
+    color: '#ffdca8',
+    gapPx: 8,
+    armLengthPx: 12,
+    armThicknessPx: 2.5,
+    baseScale: 1.05,
+    shotPulseScale: 0.28,
+    pulseDecayPerSec: 7.2,
+  },
 }

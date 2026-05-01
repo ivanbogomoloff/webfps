@@ -72,7 +72,6 @@ async function startGame(options: StartOptions): Promise<void> {
       debugHudContentElement,
       gameHudElement,
       scoreboardHudElement,
-      crosshairElement,
     },
     10,
     DEBUG_HUD,
@@ -277,12 +276,6 @@ scoreboardHudElement.style.cssText = `
   white-space: pre-wrap;
 `
 document.body.appendChild(scoreboardHudElement)
-
-const crosshairElement = document.createElement('div')
-crosshairElement.id = 'hud-crosshair'
-crosshairElement.style.display = 'none'
-crosshairElement.textContent = '+'
-document.body.appendChild(crosshairElement)
 
 const matchControls = document.createElement('div')
 matchControls.style.cssText = `
