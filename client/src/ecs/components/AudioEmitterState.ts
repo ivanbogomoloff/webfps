@@ -6,6 +6,7 @@ export interface AudioEmitterState {
   emptyShotCooldownSec: number
   lastEmptyShotCounter: number
   wasGrounded: boolean
+  wasReloading: boolean
   wasFireActive: boolean
   lastLocomotion: PlayerLocomotion
 }
@@ -17,6 +18,7 @@ export function createAudioEmitterState(): AudioEmitterState {
     emptyShotCooldownSec: 0,
     lastEmptyShotCounter: 0,
     wasGrounded: true,
+    wasReloading: false,
     wasFireActive: false,
     lastLocomotion: 'idle',
   }

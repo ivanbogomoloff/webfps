@@ -207,7 +207,8 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
       const state = audioEntity.audioEmitterState
       const locomotion = audioEntity.playerController.locomotion
       const baseLocomotion = toBaseLocomotionFromFire(locomotion)
-      const fireActive = isFireLocomotion(locomotion)
+      const fireActive = isFireLocomotion(locomotion) || audioEntity.weaponState.action === 'fire'
+      const isReloading = audioEntity.weaponState.isReloading
       const isLocal = !!audioEntity.networkIdentity?.isLocal
       const grounded = isLocal
         ? !!audioEntity.playerPhysicsState?.isGrounded
@@ -222,6 +223,7 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
         if (!shotConfig?.src) {
           state.fireCooldownSec = Math.max(0.06, 1 / Math.max(1, audioEntity.weaponState.fireRate))
           state.wasFireActive = fireActive
+          state.wasReloading = isReloading
           state.wasGrounded = grounded
           state.lastLocomotion = locomotion
           continue
@@ -244,6 +246,17 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
             maxDistance: emptyShotConfig.maxDistance ?? 42,
           })
           state.emptyShotCooldownSec = 0.12
+        }
+      }
+      if (isLocal && isReloading && !state.wasReloading) {
+        const reloadConfig = getWeaponDefinition(audioEntity.weaponState.weaponId).audio.reload
+        if (reloadConfig?.src) {
+          playClip(nodes.shot, {
+            src: reloadConfig.src,
+            volume: reloadConfig.volume ?? 0.68,
+            refDistance: reloadConfig.refDistance ?? 10,
+            maxDistance: reloadConfig.maxDistance ?? 58,
+          })
         }
       }
       state.lastEmptyShotCounter = audioEntity.weaponState.emptyShotCounter
@@ -269,6 +282,7 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
       }
 
       state.wasFireActive = fireActive
+      state.wasReloading = isReloading
       state.wasGrounded = grounded
       state.lastLocomotion = locomotion
     }
