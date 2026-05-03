@@ -2,6 +2,7 @@ import type { World } from 'miniplex'
 import * as THREE from 'three'
 import type { MatchState } from '../components'
 import type { NetworkContext } from '../../net/NetworkContext'
+import { publishLocalShotImpactEvent } from './ShotImpactEvents'
 
 const EPSILON = 1e-6
 const direction = new THREE.Vector3()
@@ -52,6 +53,12 @@ export function createShotSendSystem(world: World, networkContext: NetworkContex
       weaponId: local.weaponState.weaponId ?? local.networkIdentity.weaponId ?? 'rifle_m16',
       seq: shotSeq,
       clientTime: Date.now(),
+    })
+    publishLocalShotImpactEvent({
+      seq: shotSeq,
+      weaponId: local.weaponState.weaponId ?? local.networkIdentity.weaponId ?? 'rifle_m16',
+      origin: { x: origin.x, y: origin.y, z: origin.z },
+      direction: { x: direction.x, y: direction.y, z: direction.z },
     })
     local.weaponState.action = 'fire'
     local.weaponState.actionHoldSec = 0.1

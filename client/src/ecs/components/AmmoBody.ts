@@ -29,6 +29,9 @@ export interface AmmoRayCallback {
   set_m_rayFromWorld(from: AmmoVector3): void;
   set_m_rayToWorld(to: AmmoVector3): void;
   hasHit(): boolean;
+  get_m_closestHitFraction?(): number;
+  get_m_hitPointWorld?(): AmmoVector3 | null;
+  get_m_hitNormalWorld?(): AmmoVector3 | null;
 }
 
 export interface AmmoManifoldPoint {

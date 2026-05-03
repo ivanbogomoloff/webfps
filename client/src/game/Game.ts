@@ -21,6 +21,7 @@ import {
   createRenderSystem,
   createRemoteInterpolationSystem,
   createHudSystem,
+  createWorldImpactSystem,
   createInputSystem,
   createPlayerControllerSystem,
   createPlayerAnimationSystem,
@@ -174,6 +175,12 @@ export class Game {
       this.systems.push(createRemoteInterpolationSystem(this.world));
       this.systems.push(createMatchRulesClientSystem(this.world));
       this.systems.push(createShotSendSystem(this.world, this.networkContext));
+      this.systems.push(
+        createWorldImpactSystem(this.world, {
+          scene: this.scene,
+          physicsContext: this.physicsContext,
+        }),
+      );
       this.systems.push(createNetworkSendSystem(this.world, this.networkContext));
     }
     this.systems.push(
