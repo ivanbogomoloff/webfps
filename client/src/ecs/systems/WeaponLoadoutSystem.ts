@@ -39,6 +39,10 @@ export function createWeaponLoadoutSystem(world: World) {
         const down = !!input.keys.get(key)
         const wasDown = previous.get(key) ?? false
         if (down && !wasDown) {
+          if (weaponState.isSwitching) {
+            previous.set(key, down)
+            continue
+          }
           if (weaponState.weaponId === weaponId) {
             previous.set(key, down)
             continue
@@ -47,19 +51,43 @@ export function createWeaponLoadoutSystem(world: World) {
             weaponState.weaponId,
             Math.max(0, Math.min(weaponState.ammoInMag, weaponState.magazineSize)),
           )
-          applyWeaponDefinition(weaponState, weaponId)
-          const storedAmmo = ammoByWeapon.get(weaponState.weaponId)
-          weaponState.ammoInMag =
+          const targetDefinition = getWeaponDefinition(weaponId)
+          const targetWeaponId = targetDefinition.weaponId
+          const pickTimeSec = Math.max(0, targetDefinition.pickTimeSec)
+          if (pickTimeSec <= 0) {
+            applyWeaponDefinition(weaponState, targetWeaponId)
+            const instantAmmo = ammoByWeapon.get(weaponState.weaponId)
+            weaponState.ammoInMag =
+              instantAmmo == null
+                ? weaponState.magazineSize
+                : Math.max(0, Math.min(instantAmmo, weaponState.magazineSize))
+            weaponState.isPicking = false
+            weaponState.pickRemainingSec = 0
+            weaponState.actionHoldSec = 0
+            ammoByWeapon.set(weaponState.weaponId, weaponState.ammoInMag)
+            networkIdentity.weaponId = weaponState.weaponId
+            previous.set(key, down)
+            continue
+          }
+
+          const storedAmmo = ammoByWeapon.get(targetWeaponId)
+          const targetAmmo =
             storedAmmo == null
-              ? weaponState.magazineSize
-              : Math.max(0, Math.min(storedAmmo, weaponState.magazineSize))
-          const pickTimeSec = Math.max(0, getWeaponDefinition(weaponState.weaponId).pickTimeSec)
-          weaponState.isPicking = pickTimeSec > 0
-          weaponState.pickRemainingSec = pickTimeSec
-          weaponState.action = 'pick'
-          weaponState.actionHoldSec = pickTimeSec
-          ammoByWeapon.set(weaponState.weaponId, weaponState.ammoInMag)
-          networkIdentity.weaponId = weaponState.weaponId
+              ? targetDefinition.magazineSize
+              : Math.max(0, Math.min(storedAmmo, targetDefinition.magazineSize))
+          const phaseSec = pickTimeSec / 2
+          weaponState.isPicking = true
+          weaponState.pickRemainingSec = phaseSec
+          weaponState.isSwitching = true
+          weaponState.switchPhase = 'hide'
+          weaponState.switchRemainingSec = phaseSec
+          weaponState.switchPhaseSec = phaseSec
+          weaponState.pendingWeaponId = targetWeaponId
+          weaponState.pendingAmmoInMag = targetAmmo
+          weaponState.isReloading = false
+          weaponState.reloadRemainingSec = 0
+          weaponState.action = 'hide'
+          weaponState.actionHoldSec = phaseSec
         }
         previous.set(key, down)
       }

@@ -65,7 +65,7 @@ export type WeaponTransformValues = {
 }
 
 export type WeaponPoseByLocomotion = Record<PlayerLocomotion, WeaponTransformValues>
-export type WeaponAnimationPoseKey = 'idle' | 'walk' | 'run' | 'fire' | 'reload' | 'pick'
+export type WeaponAnimationPoseKey = 'idle' | 'walk' | 'run' | 'fire' | 'reload' | 'hide' | 'pick'
 export type WeaponFpPoseByAnimation = Record<WeaponAnimationPoseKey, WeaponTransformValues>
 export type WeaponAudioEvent = 'shot' | 'reload' | 'emptyShot' | (string & {})
 
@@ -96,6 +96,7 @@ export const WEAPON_ANIMATION_POSE_KEYS: readonly WeaponAnimationPoseKey[] = [
   'run',
   'fire',
   'reload',
+  'hide',
   'pick',
 ]
 
@@ -161,6 +162,7 @@ export function resolveWeaponAnimationPoseKey(
   weaponAction: string,
 ): WeaponAnimationPoseKey {
   if (weaponAction === 'reload') return 'reload'
+  if (weaponAction === 'hide') return 'hide'
   if (weaponAction === 'pick') return 'pick'
   if (weaponAction === 'fire' || locomotion.includes('fire')) return 'fire'
   if (weaponAction === 'run' || locomotion.startsWith('run_')) return 'run'

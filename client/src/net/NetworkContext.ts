@@ -183,10 +183,13 @@ export class NetworkContext {
   }
 
   setEntityWeapon(entity: AnyEntity, weaponId: string): void {
+    const resolvedWeaponId = resolveWeaponId(weaponId)
     if (!entity.weaponState) {
-      entity.weaponState = createWeaponState(weaponId)
+      entity.weaponState = createWeaponState(resolvedWeaponId)
     } else {
-      applyWeaponDefinition(entity.weaponState, weaponId)
+      if (entity.weaponState.weaponId !== resolvedWeaponId) {
+        applyWeaponDefinition(entity.weaponState, resolvedWeaponId)
+      }
     }
     if (entity.networkIdentity) {
       entity.networkIdentity.weaponId = entity.weaponState.weaponId

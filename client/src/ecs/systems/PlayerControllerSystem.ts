@@ -2,6 +2,7 @@ import { World } from 'miniplex';
 import * as THREE from 'three';
 import { locomotionFromStrafeAxes, toCrouchLocomotion, toFireLocomotion, toRunLocomotion } from '../../game/player/playerLocomotionLogic';
 import { getWeaponDefinition } from '../../game/weapon/supportedWeaponModels';
+import { applyWeaponDefinition } from '../components';
 import type { Health, Input, NetworkIdentity, PlayerController, PlayerPhysicsState, WeaponState } from '../components';
 
 export function createPlayerControllerSystem(
@@ -70,6 +71,14 @@ export function createPlayerControllerSystem(
         if (weaponState) {
           weaponState.action = 'hide';
           weaponState.actionHoldSec = 0;
+          weaponState.isPicking = false;
+          weaponState.pickRemainingSec = 0;
+          weaponState.isSwitching = false;
+          weaponState.switchPhase = 'none';
+          weaponState.switchRemainingSec = 0;
+          weaponState.switchPhaseSec = 0;
+          weaponState.pendingWeaponId = null;
+          weaponState.pendingAmmoInMag = 0;
           weaponState.isReloading = false;
           weaponState.reloadRemainingSec = 0;
         }
@@ -159,14 +168,61 @@ export function createPlayerControllerSystem(
       const reloadDown = !!input.keys.get('r');
       const wasReloadDown = prevReloadDown.get(entity) ?? false;
       if (weaponState) {
-        const weaponDef = getWeaponDefinition(weaponState.weaponId);
-        if (weaponState.isPicking) {
+        const finishWeaponSwitch = () => {
+          weaponState.isSwitching = false;
+          weaponState.switchPhase = 'none';
+          weaponState.switchRemainingSec = 0;
+          weaponState.switchPhaseSec = 0;
+          weaponState.pendingWeaponId = null;
+          weaponState.pendingAmmoInMag = 0;
+          weaponState.isPicking = false;
+          weaponState.pickRemainingSec = 0;
+          weaponState.actionHoldSec = 0;
+        };
+        const startPickPhase = () => {
+          weaponState.isSwitching = true;
+          weaponState.switchPhase = 'pick';
+          weaponState.switchRemainingSec = weaponState.switchPhaseSec;
+          weaponState.pickRemainingSec = weaponState.switchRemainingSec;
+          weaponState.isPicking = true;
+          weaponState.action = 'pick';
+          weaponState.actionHoldSec = weaponState.switchRemainingSec;
+          if (weaponState.switchRemainingSec <= 0) {
+            finishWeaponSwitch();
+          }
+        };
+        if (weaponState.isSwitching) {
+          weaponState.switchRemainingSec = Math.max(0, weaponState.switchRemainingSec - _deltaTime);
+          weaponState.pickRemainingSec = weaponState.switchRemainingSec;
+          if (weaponState.switchRemainingSec <= 0) {
+            if (weaponState.switchPhase === 'hide') {
+              const pendingWeaponId = weaponState.pendingWeaponId;
+              const phaseSec = weaponState.switchPhaseSec;
+              const pendingAmmoInMag = weaponState.pendingAmmoInMag;
+              if (pendingWeaponId) {
+                applyWeaponDefinition(weaponState, pendingWeaponId);
+                weaponState.ammoInMag = Math.max(
+                  0,
+                  Math.min(pendingAmmoInMag, weaponState.magazineSize),
+                );
+                if (networkIdentity) {
+                  networkIdentity.weaponId = weaponState.weaponId;
+                }
+              }
+              weaponState.switchPhaseSec = phaseSec;
+              startPickPhase();
+            } else {
+              finishWeaponSwitch();
+            }
+          }
+        } else if (weaponState.isPicking) {
           weaponState.pickRemainingSec = Math.max(0, weaponState.pickRemainingSec - _deltaTime);
           if (weaponState.pickRemainingSec <= 0) {
             weaponState.isPicking = false;
             weaponState.pickRemainingSec = 0;
           }
         }
+        const weaponDef = getWeaponDefinition(weaponState.weaponId);
         const canStartReload =
           networkIdentity?.role === 'player' &&
           controller.viewMode === 'first' &&
@@ -213,6 +269,8 @@ export function createPlayerControllerSystem(
       }
       if (weaponState) {
         if (controller.viewMode !== 'first') {
+          weaponState.action = 'hide';
+        } else if (weaponState.isSwitching && weaponState.switchPhase === 'hide') {
           weaponState.action = 'hide';
         } else if (weaponState.isPicking) {
           weaponState.action = 'pick';

@@ -1,6 +1,7 @@
 import { getWeaponDefinition } from '../../config/weaponCatalog'
 
 export type WeaponAction = 'fire' | 'reload' | 'hide' | 'pick' | 'walk' | 'run'
+export type WeaponSwitchPhase = 'none' | 'hide' | 'pick'
 
 export interface WeaponState {
   weaponId: string
@@ -11,6 +12,12 @@ export interface WeaponState {
   cooldownSec: number
   isPicking: boolean
   pickRemainingSec: number
+  isSwitching: boolean
+  switchPhase: WeaponSwitchPhase
+  switchRemainingSec: number
+  switchPhaseSec: number
+  pendingWeaponId: string | null
+  pendingAmmoInMag: number
   isReloading: boolean
   reloadRemainingSec: number
   emptyShotCounter: number
@@ -29,6 +36,12 @@ export function createWeaponState(weaponId: string): WeaponState {
     cooldownSec: 0,
     isPicking: false,
     pickRemainingSec: 0,
+    isSwitching: false,
+    switchPhase: 'none',
+    switchRemainingSec: 0,
+    switchPhaseSec: 0,
+    pendingWeaponId: null,
+    pendingAmmoInMag: 0,
     isReloading: false,
     reloadRemainingSec: 0,
     emptyShotCounter: 0,
@@ -47,6 +60,12 @@ export function applyWeaponDefinition(state: WeaponState, weaponId: string): voi
   state.cooldownSec = 0
   state.isPicking = true
   state.pickRemainingSec = definition.pickTimeSec
+  state.isSwitching = false
+  state.switchPhase = 'none'
+  state.switchRemainingSec = 0
+  state.switchPhaseSec = 0
+  state.pendingWeaponId = null
+  state.pendingAmmoInMag = 0
   state.isReloading = false
   state.reloadRemainingSec = 0
   state.emptyShotCounter = 0
