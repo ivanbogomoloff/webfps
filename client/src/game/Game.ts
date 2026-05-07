@@ -234,6 +234,7 @@ export class Game {
       this.ammoSolver,
       this.ammoCollisionConfig
     );
+    this.physicsContext.defaultGravity.set(0, -9.8, 0);
     this.physicsWorld.setGravity(new ammo.btVector3(0, -9.8, 0));
     attachAmmoRuntimeToPhysicsContext(
       this.physicsContext,
@@ -288,6 +289,7 @@ export class Game {
         this.scene.remove(this.currentMap);
       }
       this.currentRespawns = [];
+      this.physicsContext.ladders = [];
       if (this.physicsDebugRoot) {
         this.scene.remove(this.physicsDebugRoot);
         this.physicsDebugRoot = null;
@@ -308,6 +310,7 @@ export class Game {
 
       this.currentMap = map.scene;
       this.currentRespawns = map.getRespawns();
+      this.physicsContext.ladders = map.getLadders();
       this.scene.add(map.scene);
       if (physicsDebugRoot) {
         this.physicsDebugRoot = physicsDebugRoot;

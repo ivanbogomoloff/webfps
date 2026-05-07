@@ -1,5 +1,6 @@
 import { World } from 'miniplex';
 import * as THREE from 'three';
+import type { LadderVolume } from '../../game/map/Map';
 import type {
   AmmoApi,
   AmmoRayCallback,
@@ -29,9 +30,12 @@ export type AmmoPhysicsContext = {
   groundRayCallback: AmmoRayCallback | null;
   playerRadius: number;
   jumpSpeed: number;
+  ladderClimbSpeed: number;
   groundRayMargin: number;
   groundRayLength: number;
   lastGroundProbe: GroundProbeDebugState;
+  ladders: ReadonlyArray<LadderVolume>;
+  defaultGravity: THREE.Vector3;
 };
 
 export function createAmmoPhysicsContext(): AmmoPhysicsContext {
@@ -44,6 +48,7 @@ export function createAmmoPhysicsContext(): AmmoPhysicsContext {
     groundRayCallback: null,
     playerRadius: 0.5,
     jumpSpeed: 3.8,
+    ladderClimbSpeed: 3.2,
     groundRayMargin: 0.05,
     groundRayLength: 0.38,
     lastGroundProbe: {
@@ -54,6 +59,8 @@ export function createAmmoPhysicsContext(): AmmoPhysicsContext {
       toY: 0,
       hit: false,
     },
+    ladders: [],
+    defaultGravity: new THREE.Vector3(0, -9.8, 0),
   };
 }
 
@@ -152,6 +159,50 @@ type LocalPhysicsEntity = {
 
 const RUN_SPEED_MULTIPLIER = 1.2;
 const AIR_CONTROL_MULTIPLIER = 0.45;
+const LADDER_STRAFE_CONTROL_MULTIPLIER = 0.35;
+const LADDER_ATTACH_DISTANCE_BONUS = 0.12;
+const LADDER_DETACH_DISTANCE_BONUS = 0.3;
+const LADDER_VERTICAL_PADDING = 0.6;
+const LADDER_DETACH_COOLDOWN_MS = 220;
+
+function setBodyGravity(context: AmmoPhysicsContext, body: AmmoRigidBody, gravity: THREE.Vector3): void {
+  if (!context.ammo) return;
+  const gravitySetter = (body as AmmoRigidBody & { setGravity?: (v: AmmoVector3) => void }).setGravity;
+  if (!gravitySetter) return;
+  const btGravity = new context.ammo.btVector3(gravity.x, gravity.y, gravity.z);
+  gravitySetter.call(body, btGravity);
+  context.ammo.destroy(btGravity);
+}
+
+function getHorizontalDistanceToAabb(x: number, z: number, ladder: LadderVolume): number {
+  const dx = x < ladder.min.x ? ladder.min.x - x : x > ladder.max.x ? x - ladder.max.x : 0;
+  const dz = z < ladder.min.z ? ladder.min.z - z : z > ladder.max.z ? z - ladder.max.z : 0;
+  return Math.hypot(dx, dz);
+}
+
+function findNearbyLadder(
+  ladders: ReadonlyArray<LadderVolume>,
+  x: number,
+  y: number,
+  z: number,
+  maxHorizontalDistance: number,
+  playerRadius: number,
+): LadderVolume | null {
+  let closest: LadderVolume | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  const minY = y - playerRadius;
+  const maxY = y + playerRadius;
+  for (const ladder of ladders) {
+    const ladderMinY = ladder.min.y - LADDER_VERTICAL_PADDING;
+    const ladderMaxY = ladder.max.y + LADDER_VERTICAL_PADDING;
+    if (maxY < ladderMinY || minY > ladderMaxY) continue;
+    const horizontalDistance = getHorizontalDistanceToAabb(x, z, ladder);
+    if (horizontalDistance > maxHorizontalDistance || horizontalDistance >= closestDistance) continue;
+    closest = ladder;
+    closestDistance = horizontalDistance;
+  }
+  return closest;
+}
 
 function pickLocalBodyEntity(world: World): LocalPhysicsEntity | null {
   for (const entity of world.with('ammoBody', 'playerPhysicsState', 'object3d', 'networkIdentity')) {
@@ -188,6 +239,50 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
       const groundedByProbe = probeGrounded(context, px, py, pz);
       const groundedByContacts = isBodyGroundedByContacts(context, body);
       const groundedForJump = groundedByContacts && groundedByProbe;
+      const nowMs = Date.now();
+      const canUseLadder = local.networkIdentity?.role === 'player';
+      const attachDistance = context.playerRadius + LADDER_ATTACH_DISTANCE_BONUS;
+      const detachDistance = context.playerRadius + LADDER_DETACH_DISTANCE_BONUS;
+      const nearbyAttachLadder = findNearbyLadder(
+        context.ladders,
+        px,
+        py,
+        pz,
+        attachDistance,
+        context.playerRadius,
+      );
+      const nearbyDetachLadder = findNearbyLadder(
+        context.ladders,
+        px,
+        py,
+        pz,
+        detachDistance,
+        context.playerRadius,
+      );
+
+      if (physicsState.isOnLadder) {
+        const lostLadderContact = !nearbyDetachLadder;
+        const sideDetach = physicsState.ladderWantsSideDetach && !nearbyDetachLadder;
+        if (!canUseLadder || lostLadderContact || physicsState.ladderWantsDetach || sideDetach) {
+          physicsState.isOnLadder = false;
+          physicsState.ladderDetachUntilMs = nowMs + LADDER_DETACH_COOLDOWN_MS;
+        }
+      } else if (
+        canUseLadder &&
+        physicsState.ladderDetachUntilMs <= nowMs &&
+        nearbyAttachLadder &&
+        physicsState.ladderClimbInput !== 0
+      ) {
+        physicsState.isOnLadder = true;
+      }
+
+      if (physicsState.isOnLadder && !physicsState.ladderGravityDisabled) {
+        setBodyGravity(context, body, new THREE.Vector3(0, 0, 0));
+        physicsState.ladderGravityDisabled = true;
+      } else if (!physicsState.isOnLadder && physicsState.ladderGravityDisabled) {
+        setBodyGravity(context, body, context.defaultGravity);
+        physicsState.ladderGravityDisabled = false;
+      }
 
       if (physicsState.moveDirection && local.playerController) {
         const dir = physicsState.moveDirection;
@@ -196,17 +291,25 @@ export function createPhysicsSystem(world: World, context: AmmoPhysicsContext) {
           local.playerController.movementMode === 'run'
             ? baseSpeed * RUN_SPEED_MULTIPLIER
             : baseSpeed;
-        const horizontalControlMultiplier = groundedForJump ? 1 : AIR_CONTROL_MULTIPLIER;
+        const horizontalControlMultiplier = physicsState.isOnLadder
+          ? LADDER_STRAFE_CONTROL_MULTIPLIER
+          : groundedForJump
+            ? 1
+            : AIR_CONTROL_MULTIPLIER;
         vx = dir.x * speed * horizontalControlMultiplier;
         vz = dir.z * speed * horizontalControlMultiplier;
       }
 
       const currentVel = body.getLinearVelocity();
       let vy = currentVel.y();
-      if (physicsState.jumpPending && groundedForJump) {
+      if (physicsState.isOnLadder) {
+        vy = physicsState.ladderClimbInput * context.ladderClimbSpeed;
+      } else if (physicsState.jumpPending && groundedForJump) {
         vy = context.jumpSpeed;
       }
       physicsState.jumpPending = false;
+      physicsState.ladderWantsDetach = false;
+      physicsState.ladderWantsSideDetach = false;
 
       body.activate?.(true);
       const newVel = new context.ammo.btVector3(vx, vy, vz);

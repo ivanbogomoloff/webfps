@@ -67,6 +67,10 @@ export function createPlayerControllerSystem(
       if (health?.isDead) {
         physicsState.moveDirection.set(0, 0, 0);
         physicsState.jumpPending = false;
+        physicsState.isOnLadder = false;
+        physicsState.ladderClimbInput = 0;
+        physicsState.ladderWantsDetach = false;
+        physicsState.ladderWantsSideDetach = false;
         controller.locomotion = health.forcedLocomotion ?? 'death_back';
         if (weaponState) {
           weaponState.action = 'hide';
@@ -119,15 +123,18 @@ export function createPlayerControllerSystem(
       // Обработка движения (WASD)
       const direction = new THREE.Vector3();
 
-      const hasW = input.keys.get('w');
-      const hasS = input.keys.get('s');
-      const hasA = input.keys.get('a');
-      const hasD = input.keys.get('d');
+      const hasW = !!input.keys.get('w');
+      const hasS = !!input.keys.get('s');
+      const hasA = !!input.keys.get('a');
+      const hasD = !!input.keys.get('d');
 
-      if (hasW) {
+      physicsState.ladderClimbInput = (hasW ? 1 : 0) + (hasS ? -1 : 0);
+      physicsState.ladderWantsSideDetach = physicsState.isOnLadder && (hasA || hasD);
+
+      if (!physicsState.isOnLadder && hasW) {
         direction.z += 1; // Вперёд
       }
-      if (hasS) {
+      if (!physicsState.isOnLadder && hasS) {
         direction.z -= 1; // Назад
       }
       if (hasA) {
@@ -145,9 +152,13 @@ export function createPlayerControllerSystem(
 
       if (networkIdentity?.role === 'spectator') {
         direction.set(0, 0, 0);
+        physicsState.ladderClimbInput = 0;
+        physicsState.isOnLadder = false;
+        physicsState.ladderWantsDetach = false;
+        physicsState.ladderWantsSideDetach = false;
       }
 
-      const fz = (hasW ? 1 : 0) + (hasS ? -1 : 0);
+      const fz = physicsState.isOnLadder ? 0 : (hasW ? 1 : 0) + (hasS ? -1 : 0);
       const fx = (hasA ? 1 : 0) + (hasD ? -1 : 0);
       const baseLocomotion = locomotionFromStrafeAxes(fz, fx);
       const crouchDown = !!input.keys.get('control') || !!input.keys.get('ctrl');
@@ -254,6 +265,9 @@ export function createPlayerControllerSystem(
       const wasSpace = prevSpaceDown.get(entity) ?? false;
       if (networkIdentity?.role === 'player' && spaceDown && !wasSpace) {
         physicsState.jumpPending = true;
+        if (physicsState.isOnLadder) {
+          physicsState.ladderWantsDetach = true;
+        }
       }
       prevSpaceDown.set(entity, spaceDown);
 

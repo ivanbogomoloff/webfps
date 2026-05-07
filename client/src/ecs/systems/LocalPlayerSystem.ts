@@ -131,6 +131,12 @@ export function placeLocalPlayerAtRandomRespawn(
   if (entity.playerPhysicsState) {
     entity.playerPhysicsState.isGrounded = true;
     entity.playerPhysicsState.jumpPending = false;
+    entity.playerPhysicsState.isOnLadder = false;
+    entity.playerPhysicsState.ladderClimbInput = 0;
+    entity.playerPhysicsState.ladderWantsDetach = false;
+    entity.playerPhysicsState.ladderWantsSideDetach = false;
+    entity.playerPhysicsState.ladderDetachUntilMs = 0;
+    entity.playerPhysicsState.ladderGravityDisabled = false;
   }
 }
 

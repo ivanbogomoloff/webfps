@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MapLoader } from '../../utils/MapLoader';
-import type { RespawnPoint } from './Map';
+import type { LadderVolume, RespawnPoint } from './Map';
 import { Map } from './Map';
 
 /** Контекст сборки карты: физика Ammo (после инициализации) и опции отладки. */
@@ -219,6 +219,7 @@ export class MapBuilder {
     const { ammo, physicsWorld } = await getPhysics();
 
     const respawnPoints: RespawnPoint[] = [];
+    const ladderVolumes: LadderVolume[] = [];
     let physicsDebugRoot: THREE.Group | null = null;
 
     if (ammo && physicsWorld) {
@@ -242,6 +243,17 @@ export class MapBuilder {
           if (userData && userData.respawn === true) {
             respawnPoints.push({ center: center.clone(), size: size.clone() });
           }
+          const meshName = mesh.name ?? '';
+          const isLadder =
+            (userData && userData.ladder === true) ||
+            meshName.toLowerCase().startsWith('ladder');
+          if (isLadder) {
+            ladderVolumes.push({
+              min: box.min.clone(),
+              max: box.max.clone(),
+              name: meshName,
+            });
+          }
 
           const isCollision =
             (mesh.name != null && mesh.name.startsWith('collision')) ||
@@ -260,7 +272,7 @@ export class MapBuilder {
             createPhysicsDebugBox,
           };
 
-          const name = mesh.name ?? '';
+          const name = meshName;
           const isCylinder = name.toLowerCase().includes('cylinder');
           const isRamp = name.startsWith('collision_ramp');
 
@@ -279,7 +291,7 @@ export class MapBuilder {
       }
     }
 
-    const map = new Map(mapScene, respawnPoints, environment);
+    const map = new Map(mapScene, respawnPoints, ladderVolumes, environment);
     return { map, physicsDebugRoot };
   }
 }
