@@ -170,8 +170,10 @@ export function createLocalPlayerSystem(world: World, deps: LocalPlayerSystemDep
     previousIsDead = isDead;
 
     const viewMode = localPlayerEntity.playerController?.viewMode ?? 'first';
-    const weaponAction = localPlayerEntity.weaponState?.action ?? 'walk';
-    const fpWeaponVisible = viewMode === 'first' && weaponAction !== 'hide';
+    const weaponState = localPlayerEntity.weaponState;
+    const weaponAction = weaponState?.action ?? 'walk';
+    const keepVisibleForHideSwitch = weaponState?.isSwitching === true && weaponState.switchPhase === 'hide';
+    const fpWeaponVisible = viewMode === 'first' && (weaponAction !== 'hide' || keepVisibleForHideSwitch);
     if (localPlayerEntity.weaponVisualRoot) {
       localPlayerEntity.weaponVisualRoot.visible = viewMode !== 'first';
     }

@@ -44,7 +44,7 @@ function toUniformScaleValue(scale: WeaponTransformValues['scale']): number {
   return (scale.x + scale.y + scale.z) / 3
 }
 
-const WEAPON_ANIMATION_CLIP_WHITELIST = ['idle', 'walk', 'run', 'fire', 'reload'] as const
+const WEAPON_ANIMATION_CLIP_WHITELIST = ['idle', 'walk', 'run', 'fire', 'reload', 'hide', 'pick'] as const
 
 class PlayerViewerArmsApp {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -592,6 +592,12 @@ class PlayerViewerArmsApp {
       if (loadedClips.length === 0) {
         loadedClips = await this.loadWeaponAnimationClips(resolvedWeaponId)
       }
+      const availableAnimationNames = this.resolveAvailableAnimationNames(loadedClips)
+      console.info(
+        `[player-viewer-arms] weapon '${resolvedWeaponId}' available animations: ${
+          availableAnimationNames.length > 0 ? availableAnimationNames.join(', ') : '(none)'
+        }`,
+      )
       this.setupWeaponAnimations(loadedClips)
       this.syncTransformUi(this.currentTransform)
       this.refreshHint()
