@@ -131,7 +131,7 @@ export const rifle_m16ModelConfig: WeaponModelConfig = {
       src: '/audio/weapons/reload.mp3',
     },
     emptyShot: {
-      src: '/audio/weapons/m16_empty_shot.mp3',
+      src: '/audio/weapons/empty_shot.mp3',
       volume: 0.7,
       refDistance: 8,
       maxDistance: 40,

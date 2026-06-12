@@ -72,7 +72,7 @@ export const rifle_ak47ModelConfig: WeaponModelConfig = {
       src: '/audio/weapons/reload.mp3',
     },
     emptyShot: {
-      src: '/audio/weapons/ak47_empty_shot.mp3',
+      src: '/audio/weapons/empty_shot.mp3',
       volume: 0.7,
       refDistance: 8,
       maxDistance: 40,

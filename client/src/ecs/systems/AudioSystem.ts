@@ -184,9 +184,9 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
     return nodes
   }
 
-  const playClip = (node: THREE.PositionalAudio, clip: ClipConfig): void => {
+  const playClip = (node: THREE.PositionalAudio, clip: ClipConfig): boolean => {
     const buffer = getBuffer(clip.src)
-    if (!buffer) return
+    if (!buffer) return false
     if (node.isPlaying) {
       node.stop()
     }
@@ -195,6 +195,7 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
     node.setMaxDistance(clip.maxDistance)
     node.setVolume(clip.volume)
     node.play()
+    return true
   }
 
   for (const src of preload) {
@@ -236,16 +237,24 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
         })
         state.fireCooldownSec = Math.max(0.06, 1 / Math.max(1, audioEntity.weaponState.fireRate))
       }
+      if (isLocal && audioEntity.weaponState.emptyShotCounter < state.lastEmptyShotCounter) {
+        state.lastEmptyShotCounter = audioEntity.weaponState.emptyShotCounter
+      }
       if (isLocal && audioEntity.weaponState.emptyShotCounter > state.lastEmptyShotCounter) {
         const emptyShotConfig = getWeaponDefinition(audioEntity.weaponState.weaponId).audio.emptyShot
-        if (emptyShotConfig?.src && state.emptyShotCooldownSec <= 0) {
-          playClip(nodes.shot, {
+        if (!emptyShotConfig?.src) {
+          state.lastEmptyShotCounter = audioEntity.weaponState.emptyShotCounter
+        } else if (state.emptyShotCooldownSec <= 0) {
+          const played = playClip(nodes.shot, {
             src: emptyShotConfig.src,
             volume: emptyShotConfig.volume ?? 0.7,
             refDistance: emptyShotConfig.refDistance ?? 8,
             maxDistance: emptyShotConfig.maxDistance ?? 42,
           })
-          state.emptyShotCooldownSec = 0.12
+          if (played) {
+            state.emptyShotCooldownSec = 0.12
+            state.lastEmptyShotCounter = audioEntity.weaponState.emptyShotCounter
+          }
         }
       }
       if (isLocal && isReloading && !state.wasReloading) {
@@ -259,7 +268,6 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
           })
         }
       }
-      state.lastEmptyShotCounter = audioEntity.weaponState.emptyShotCounter
 
       if (!state.wasGrounded && grounded) {
         playClip(nodes.jump, PLAYER_CLIPS.land)

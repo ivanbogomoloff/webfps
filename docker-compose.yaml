@@ -1,6 +1,6 @@
 services:
     client:
-        user: node
+        user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
         image: node:18-alpine
         command: ["npm", "run", "dev"]
         working_dir: /home/node/client
