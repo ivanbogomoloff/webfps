@@ -3,6 +3,59 @@ import { MapLoader } from '../../utils/MapLoader';
 import type { LadderVolume, RespawnPoint } from './Map';
 import { Map } from './Map';
 
+const GLB_MAGIC = 0x46546c67;
+
+/** Ошибка сборки карты с контекстом путей к ассетам. */
+export class MapBuildError extends Error {
+  readonly mapPath: string;
+  readonly hdrPath?: string;
+  readonly cause?: unknown;
+
+  constructor(message: string, mapPath: string, cause?: unknown, hdrPath?: string) {
+    super(message);
+    this.name = 'MapBuildError';
+    this.mapPath = mapPath;
+    this.hdrPath = hdrPath;
+    this.cause = cause;
+  }
+}
+
+function describeMapLoadFailure(
+  mapPath: string,
+  hdrPath: string | undefined,
+  error: unknown
+): string {
+  const raw = error instanceof Error ? error.message : String(error);
+
+  if (raw.includes("Unexpected token '<'") || raw.includes('is not valid JSON')) {
+    return (
+      `Файл карты не найден или недоступен: ${mapPath}. ` +
+      'Загрузчик получил HTML вместо GLB — обычно dev-сервер отдаёт index.html, если GLB нет в ' +
+      'client/public/models/maps/<id>/map_<id>.glb'
+    );
+  }
+
+  if (/404|not found/i.test(raw)) {
+    return `Файл карты не найден (404): ${mapPath}`;
+  }
+
+  const hdrHint = hdrPath ? `, HDR: ${hdrPath}` : '';
+  return `Ошибка загрузки карты ${mapPath}${hdrHint}: ${raw}`;
+}
+
+function logMapBuildError(
+  message: string,
+  mapPath: string,
+  hdrPath: string | undefined,
+  error: unknown
+): void {
+  console.error(`[MapBuilder] ${message}`, {
+    mapPath,
+    hdrPath: hdrPath ?? null,
+    error,
+  });
+}
+
 /** Контекст сборки карты: физика Ammo (после инициализации) и опции отладки. */
 export interface MapBuildContext {
   /** Возвращает ammo и physicsWorld после готовности физики. Вызывать в build() до создания тел. */
@@ -26,6 +79,59 @@ interface CollisionPhysicsCtx {
  */
 export class MapBuilder {
   constructor(private mapLoader: MapLoader) {}
+
+  /** Проверяет, что по URL доступен GLB, а не HTML-страница ошибки / SPA fallback. */
+  private async verifyGlbAsset(mapPath: string): Promise<void> {
+    let response: Response;
+    try {
+      response = await fetch(mapPath, { headers: { Range: 'bytes=0-63' } });
+    } catch (networkError) {
+      throw new MapBuildError(
+        `Не удалось запросить файл карты (сеть): ${mapPath}`,
+        mapPath,
+        networkError
+      );
+    }
+
+    if (response.status === 404) {
+      throw new MapBuildError(
+        `Файл карты не найден (404): ${mapPath}. Ожидается client/public/models/maps/<id>/map_<id>.glb`,
+        mapPath
+      );
+    }
+
+    if (!response.ok && response.status !== 206) {
+      throw new MapBuildError(
+        `Файл карты недоступен (HTTP ${response.status} ${response.statusText}): ${mapPath}`,
+        mapPath
+      );
+    }
+
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength === 0) {
+      throw new MapBuildError(`Файл карты пуст: ${mapPath}`, mapPath);
+    }
+
+    if (buffer.byteLength >= 4 && new DataView(buffer).getUint32(0, true) === GLB_MAGIC) {
+      return;
+    }
+
+    const head = new TextDecoder()
+      .decode(buffer.slice(0, Math.min(buffer.byteLength, 128)))
+      .trimStart()
+      .toLowerCase();
+    if (head.startsWith('<!doctype') || head.startsWith('<html')) {
+      throw new MapBuildError(
+        `Файл карты не найден: ${mapPath}. Сервер вернул HTML вместо GLB — положите map_<id>.glb в client/public/models/maps/<id>/`,
+        mapPath
+      );
+    }
+
+    throw new MapBuildError(
+      `Файл не похож на GLB (неверная сигнатура): ${mapPath}. Экспортируйте карту как glTF Binary (.glb).`,
+      mapPath
+    );
+  }
 
   private createRampPhysicsBody(mesh: THREE.Mesh, ctx: CollisionPhysicsCtx): boolean {
     const { ammo, physicsWorld, debugPhysics, physicsDebugRoot } = ctx;
@@ -213,7 +319,27 @@ export class MapBuilder {
     context: MapBuildContext,
     hdrPath?: string
   ): Promise<{ map: Map; physicsDebugRoot: THREE.Group | null }> {
-    const { scene: mapScene, environment } = await this.mapLoader.loadMap(mapPath, hdrPath);
+    console.log(
+      `[MapBuilder] Loading map: ${mapPath}${hdrPath ? `, HDR: ${hdrPath}` : ''}`
+    );
+
+    let mapScene: THREE.Group;
+    let environment: THREE.Texture | undefined;
+
+    try {
+      await this.verifyGlbAsset(mapPath);
+      ({ scene: mapScene, environment } = await this.mapLoader.loadMap(mapPath, hdrPath));
+    } catch (error) {
+      if (error instanceof MapBuildError) {
+        logMapBuildError(error.message, error.mapPath, error.hdrPath ?? hdrPath, error.cause ?? error);
+        throw error;
+      }
+
+      const message = describeMapLoadFailure(mapPath, hdrPath, error);
+      logMapBuildError(message, mapPath, hdrPath, error);
+      throw new MapBuildError(message, mapPath, error, hdrPath);
+    }
+
     const { getPhysics, debugPhysics, scene, createPhysicsDebugBox } = context;
 
     const { ammo, physicsWorld } = await getPhysics();
@@ -292,6 +418,7 @@ export class MapBuilder {
     }
 
     const map = new Map(mapScene, respawnPoints, ladderVolumes, environment);
+    console.log(`[MapBuilder] Map ready: ${mapPath}`);
     return { map, physicsDebugRoot };
   }
 }

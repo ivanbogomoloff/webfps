@@ -3,7 +3,15 @@
     {
       "id": "test2",
       "name": "Test 2",
-      "spawnCount": 4
+      "spawnCount": 4,
+      "path": "/models/maps/test2/map_test2.glb",
+      "hdrPath": "/models/maps/test2/map_test2.hdr"
+    },
+    {
+      "id": "de_dust",
+      "name": "de_dust",
+      "spawnCount": 2,
+      "path": "/models/maps/de_dust/map_de_dust.glb"
     }
   ]
 }

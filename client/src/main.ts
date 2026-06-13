@@ -5,6 +5,7 @@ import { loadSupportedWeaponModelTemplates } from './game/weapon/weaponModelTemp
 import { clonePlayerVisualSetup, DEFAULT_PLAYER_RADIUS } from './game/player/playerModelPrep'
 import { DEFAULT_PLAYER_MODEL_ID, resolvePlayerModelId } from './game/player/supportedPlayerModels'
 import { DEFAULT_WEAPON_ID, resolveWeaponId, SUPPORTED_WEAPON_IDS } from './game/weapon/supportedWeaponModels'
+import { DEFAULT_MAP_ID, getManifestMaps, resolveMapAssets } from './config/mapManifest'
 import type { GameTransport, TransportConnectParams } from './net/GameTransport'
 import { WsTransport } from './net/WsTransport'
 
@@ -28,14 +29,6 @@ type StartOptions = {
 }
 
 let game: Game | null = null
-
-function resolveMapAssets(mapId: string): { mapPath: string; hdrPath: string } {
-  const normalizedMapId = mapId.trim() || 'test2'
-  return {
-    mapPath: `/models/maps/${normalizedMapId}/map_${normalizedMapId}.glb`,
-    hdrPath: `/models/maps/${normalizedMapId}/map_${normalizedMapId}.hdr`,
-  }
-}
 
 async function startGame(options: StartOptions): Promise<void> {
   const templates = await loadSupportedPlayerModelTemplates()
@@ -97,6 +90,15 @@ async function startGame(options: StartOptions): Promise<void> {
   }
 }
 
+function buildMapSelectOptions(): string {
+  return getManifestMaps()
+    .map(
+      (map) =>
+        `<option value="${map.id}"${map.id === DEFAULT_MAP_ID ? ' selected' : ''}>${map.name}</option>`
+    )
+    .join('')
+}
+
 function createLobbyUI(onStart: (options: StartOptions) => void): void {
   const root = document.createElement('div')
   root.id = 'multiplayer-lobby'
@@ -135,8 +137,10 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
       <label style="display:block; margin-bottom:8px;">Weapon ID
         <input id="weaponId" value="${DEFAULT_WEAPON_ID}" style="width:100%; margin-top:4px;" />
       </label>
-      <label style="display:block; margin-bottom:8px;">Map ID
-        <input id="mapId" value="test2" style="width:100%; margin-top:4px;" />
+      <label style="display:block; margin-bottom:8px;">Map
+        <select id="mapId" style="width:100%; margin-top:4px;">
+          ${buildMapSelectOptions()}
+        </select>
       </label>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <label style="display:block; flex:1;">Time limit (sec)
@@ -162,7 +166,7 @@ function createLobbyUI(onStart: (options: StartOptions) => void): void {
   const nickname = getEl<HTMLInputElement>('nickname')
   const modelId = getEl<HTMLInputElement>('modelId')
   const weaponId = getEl<HTMLInputElement>('weaponId')
-  const mapId = getEl<HTMLInputElement>('mapId')
+  const mapId = getEl<HTMLSelectElement>('mapId')
   const timeLimit = getEl<HTMLInputElement>('timeLimit')
   const fragLimit = getEl<HTMLInputElement>('fragLimit')
   const error = getEl<HTMLDivElement>('lobbyError')
