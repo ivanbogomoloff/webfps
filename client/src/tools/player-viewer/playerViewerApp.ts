@@ -3,10 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {
   DEFAULT_WEAPON_ID,
-  SUPPORTED_WEAPON_IDS,
+  GAME_WEAPON_IDS,
   getWeaponDefinition,
   getWeaponModelConfig,
-  resolveWeaponId,
+  resolveGameWeaponId,
   weaponModelGltfPath,
 } from '../../config/weaponCatalog'
 import { cloneWeaponPoseByLocomotion, type WeaponPoseByLocomotion, type WeaponTransformValues } from '../../config/weapons/types'
@@ -65,7 +65,7 @@ class PlayerViewerApp {
   private readonly root = document.createElement('div')
   private readonly hintElement = document.createElement('div')
   private readonly ui: PlayerViewerUi
-  private readonly weaponTemplatesPromise = loadSupportedWeaponModelTemplates()
+  private readonly weaponTemplatesPromise = loadSupportedWeaponModelTemplates(GAME_WEAPON_IDS)
   private readonly audioListener = new THREE.AudioListener()
   private readonly audioPreview = new THREE.Audio(this.audioListener)
   private readonly audioBuffersBySrc = new Map<string, AudioBuffer>()
@@ -144,7 +144,7 @@ class PlayerViewerApp {
 
     this.ui = new PlayerViewerUi({
       playerModelIds: SUPPORTED_PLAYER_MODEL_IDS,
-      weaponIds: SUPPORTED_WEAPON_IDS,
+      weaponIds: GAME_WEAPON_IDS,
       onPlayerModelChange: (modelId) => {
         this.state.modelId = modelId
         void this.loadPlayerModel(modelId)
@@ -318,7 +318,7 @@ class PlayerViewerApp {
 
   private async loadWeapon(weaponId: string): Promise<void> {
     if (!this.playerRoot) return
-    const resolvedWeaponId = resolveWeaponId(weaponId)
+    const resolvedWeaponId = resolveGameWeaponId(weaponId)
     this.currentWeaponId = resolvedWeaponId
     this.currentPlacementByLocomotion = cloneWeaponPoseByLocomotion(
       getWeaponModelConfig(resolvedWeaponId).placementByLocomotion,

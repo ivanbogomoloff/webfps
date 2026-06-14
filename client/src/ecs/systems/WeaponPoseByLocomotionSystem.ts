@@ -12,7 +12,7 @@ import {
 import {
   getWeaponFpPoseForAnimation,
   getWeaponPoseForLocomotion,
-  resolveWeaponId,
+  resolveGameWeaponId,
 } from '../../game/weapon/supportedWeaponModels'
 import { applyWeaponTransformValues } from '../../game/weapon/weaponVisualAttach'
 import { getWeaponVisualAnimations } from '../../game/weapon/weaponModelTemplates'
@@ -120,7 +120,7 @@ export function createWeaponPoseByLocomotionSystem(world: World) {
       const playerController = entity.playerController as PlayerController
       const playerAnimation = (entity as { playerAnimation?: PlayerAnimation }).playerAnimation
       const weaponState = entity.weaponState as WeaponState
-      const weaponId = resolveWeaponId(weaponState.weaponId)
+      const weaponId = resolveGameWeaponId(weaponState.weaponId)
       const locomotion = playerController.locomotion
 
       if (weaponVisualFpObject) {

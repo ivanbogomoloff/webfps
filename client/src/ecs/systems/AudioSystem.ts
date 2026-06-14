@@ -2,7 +2,7 @@ import type { World } from 'miniplex'
 import * as THREE from 'three'
 import {
   getWeaponDefinition,
-  SUPPORTED_WEAPON_IDS,
+  GAME_WEAPON_IDS,
 } from '../../game/weapon/supportedWeaponModels'
 import { toBaseLocomotionFromFire } from '../../game/player/playerLocomotionLogic'
 import type {
@@ -139,7 +139,7 @@ export function createAudioSystem(world: World, camera: THREE.PerspectiveCamera)
     PLAYER_CLIPS.jump.src,
     PLAYER_CLIPS.land.src,
   ])
-  for (const weaponId of SUPPORTED_WEAPON_IDS) {
+  for (const weaponId of GAME_WEAPON_IDS) {
     const weaponAudio = getWeaponDefinition(weaponId).audio
     for (const clip of Object.values(weaponAudio)) {
       if (!clip?.src) continue

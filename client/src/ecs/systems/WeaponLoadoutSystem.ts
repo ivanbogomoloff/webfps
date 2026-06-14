@@ -1,13 +1,13 @@
 import type { World } from 'miniplex'
 import { applyWeaponDefinition, type Health, type Input, type NetworkIdentity, type WeaponState } from '../components'
-import { getWeaponDefinition, SUPPORTED_WEAPON_IDS } from '../../game/weapon/supportedWeaponModels'
+import { GAME_WEAPON_IDS, getWeaponDefinition } from '../../game/weapon/supportedWeaponModels'
 
 const MAX_HOTKEY_WEAPONS = 9
 
 export function createWeaponLoadoutSystem(world: World) {
   const previousByEntity = new Map<object, Map<string, boolean>>()
   const ammoByWeaponByEntity = new Map<object, Map<string, number>>()
-  const weaponIds = SUPPORTED_WEAPON_IDS.slice(0, MAX_HOTKEY_WEAPONS)
+  const weaponIds = GAME_WEAPON_IDS.slice(0, MAX_HOTKEY_WEAPONS)
 
   return (_deltaTime: number) => {
     for (const entity of world.with('input', 'weaponState', 'networkIdentity')) {

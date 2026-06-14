@@ -13,7 +13,7 @@ import {
 } from '../ecs/components'
 import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/player/playerModelPrep'
 import { replaceWeaponVisual } from '../game/weapon/weaponVisualAttach'
-import { resolveWeaponId } from '../game/weapon/supportedWeaponModels'
+import { resolveGameWeaponId } from '../game/weapon/supportedWeaponModels'
 import type { IncomingMessage, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
 import type { GameTransport, LocalStateUpdate } from './GameTransport'
 
@@ -101,7 +101,7 @@ export class NetworkContext {
       id: Math.random(),
       object3d: remoteRoot,
       health: createHealth(100),
-      networkIdentity: createNetworkIdentity(playerId, nickname, modelId, resolveWeaponId(weaponId), false, role),
+      networkIdentity: createNetworkIdentity(playerId, nickname, modelId, resolveGameWeaponId(weaponId), false, role),
       networkTransform: createNetworkTransform(),
       playerStats: createPlayerStats(),
       audioEmitterState: createAudioEmitterState(),
@@ -183,7 +183,7 @@ export class NetworkContext {
   }
 
   setEntityWeapon(entity: AnyEntity, weaponId: string): void {
-    const resolvedWeaponId = resolveWeaponId(weaponId)
+    const resolvedWeaponId = resolveGameWeaponId(weaponId)
     if (!entity.weaponState) {
       entity.weaponState = createWeaponState(resolvedWeaponId)
     } else {

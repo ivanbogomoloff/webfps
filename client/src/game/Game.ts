@@ -50,7 +50,7 @@ import {
 } from './player/supportedPlayerModels';
 import {
   DEFAULT_WEAPON_ID,
-  resolveWeaponId,
+  resolveGameWeaponId,
   type SupportedWeaponId,
 } from './weapon/supportedWeaponModels';
 
@@ -164,7 +164,7 @@ export class Game {
               },
               getWeaponVisualTemplate: (weaponId: string) => {
                 if (!weaponTemplateMap?.size) return undefined;
-                const id = resolveWeaponId(weaponId);
+                const id = resolveGameWeaponId(weaponId);
                 return weaponTemplateMap.get(id) ?? weaponTemplateMap.get(DEFAULT_WEAPON_ID);
               },
             }
@@ -192,7 +192,7 @@ export class Game {
         getWeaponTemplate: (weaponId: string) => {
           const map = this.options?.weaponModelTemplates;
           if (!map?.size) return undefined;
-          const resolvedId = resolveWeaponId(weaponId);
+          const resolvedId = resolveGameWeaponId(weaponId);
           return map.get(resolvedId) ?? map.get(DEFAULT_WEAPON_ID);
         },
       }),

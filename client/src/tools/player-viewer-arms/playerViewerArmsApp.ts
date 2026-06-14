@@ -7,6 +7,7 @@ import {
   getWeaponFpPoseByAnimation,
   resolveWeaponId,
   weaponModelGltfPath,
+  type WeaponId,
 } from '../../config/weaponCatalog'
 import {
   WEAPON_ANIMATION_POSE_KEYS,
@@ -17,6 +18,11 @@ import {
   type WeaponTransformValues,
 } from '../../config/weapons/types'
 import { loadSupportedWeaponModelTemplates } from '../../game/weapon/weaponModelTemplates'
+import {
+  FP_VIEWMODEL_RENDER_LAYER,
+  assignObjectToLayerRecursive,
+  renderSceneWithFpViewmodelPass,
+} from '../../game/weapon/viewmodelLayer'
 import { applyWeaponTransformValues, replaceWeaponVisual } from '../../game/weapon/weaponVisualAttach'
 
 type UiState = {
@@ -59,7 +65,7 @@ class PlayerViewerArmsApp {
   private readonly loader = new GLTFLoader()
   private readonly root = document.createElement('div')
   private readonly hintElement = document.createElement('div')
-  private readonly weaponTemplatesPromise = loadSupportedWeaponModelTemplates()
+  private readonly weaponTemplatesPromise = loadSupportedWeaponModelTemplates(SUPPORTED_WEAPON_IDS)
   private readonly gui = new GUI({ title: 'Player Viewer FP Arms', width: 430 })
   private readonly animationFolder: GUI
   private animationController: GUIController
@@ -76,7 +82,7 @@ class PlayerViewerArmsApp {
   private animationClips: THREE.AnimationClip[] = []
   private animationActionByName = new Map<string, THREE.AnimationAction>()
   private readonly clipCacheByWeaponId = new Map<string, readonly THREE.AnimationClip[]>()
-  private currentWeaponId = DEFAULT_WEAPON_ID
+  private currentWeaponId: WeaponId = DEFAULT_WEAPON_ID
   private currentPoseKey: WeaponAnimationPoseKey = 'idle'
   private currentFpPlacementByAnimation: WeaponFpPoseByAnimation = cloneWeaponFpPoseByAnimation(
     getWeaponFpPoseByAnimation(DEFAULT_WEAPON_ID),
@@ -129,7 +135,12 @@ class PlayerViewerArmsApp {
     this.scene.add(this.camera)
     this.fpRoot.name = 'FpViewerWeaponRoot'
     this.fpRoot.position.set(0.28, -0.26, -0.44)
+    this.fpRoot.layers.set(FP_VIEWMODEL_RENDER_LAYER)
     this.camera.add(this.fpRoot)
+
+    for (const light of [this.ambientLight, this.hemiLight, this.keyLight, this.fillLight]) {
+      light.layers.enable(FP_VIEWMODEL_RENDER_LAYER)
+    }
 
     this.keyLight.position.set(1.8, 2.4, 1.6)
     this.fillLight.position.set(-2.2, 1.6, -1.2)
@@ -346,6 +357,18 @@ class PlayerViewerArmsApp {
     }
 
     return [...new Set(available)]
+  }
+
+  private listModelAnimationNames(clips: readonly THREE.AnimationClip[]): string[] {
+    const names: string[] = []
+    const seen = new Set<string>()
+    for (const clip of clips) {
+      const name = clip.name.trim()
+      if (name.length === 0 || seen.has(name)) continue
+      seen.add(name)
+      names.push(name)
+    }
+    return names
   }
 
   private pickDefaultAnimation(animationNames: readonly string[]): string {
@@ -588,15 +611,20 @@ class PlayerViewerArmsApp {
       }
       this.weaponObject = replaceWeaponVisual(this.fpRoot, this.weaponObject, template)
       if (!this.weaponObject) return
+      assignObjectToLayerRecursive(this.weaponObject, FP_VIEWMODEL_RENDER_LAYER)
       applyWeaponTransformValues(this.weaponObject, this.currentTransform)
       if (loadedClips.length === 0) {
         loadedClips = await this.loadWeaponAnimationClips(resolvedWeaponId)
       }
       const availableAnimationNames = this.resolveAvailableAnimationNames(loadedClips)
+      const allModelAnimationNames = this.listModelAnimationNames(loadedClips)
+      const modelOnlyAnimationNames = allModelAnimationNames.filter(
+        (name) => !availableAnimationNames.includes(name),
+      )
       console.info(
-        `[player-viewer-arms] weapon '${resolvedWeaponId}' available animations: ${
-          availableAnimationNames.length > 0 ? availableAnimationNames.join(', ') : '(none)'
-        }`,
+        `[player-viewer-arms] weapon '${resolvedWeaponId}'`,
+        `game-available: ${availableAnimationNames.length > 0 ? availableAnimationNames.join(', ') : '(none)'}`,
+        `model-only: ${modelOnlyAnimationNames.length > 0 ? modelOnlyAnimationNames.join(', ') : '(none)'}`,
       )
       this.setupWeaponAnimations(loadedClips)
       this.syncTransformUi(this.currentTransform)
@@ -619,7 +647,7 @@ class PlayerViewerArmsApp {
       this.mixer.update(delta)
     }
     this.updateAnimationRuntimeStatus()
-    this.renderer.render(this.scene, this.camera)
+    renderSceneWithFpViewmodelPass(this.renderer, this.scene, this.camera)
   }
 
   private readonly dispose = (): void => {

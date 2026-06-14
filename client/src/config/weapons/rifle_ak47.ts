@@ -5,9 +5,9 @@ import {
 } from './types'
 
 const fpBase = createUniformFpWeaponPlacement({
-  position: { x: 0.22, y: -0.3, z: -0.3 },
-  rotation: { x: 0, y: 14, z: 0 },
-  scale: { x: 0.5, y: 0.5, z: 0.5 },
+  position: { x: 0.0670, y: -0.2720, z: -0.5620 },
+  rotation: { x: 0.0000, y: 1.6240, z: -0.0470 },
+  scale: { x: 0.5000, y: 0.5000, z: 0.5000 },
 });
 
 const base = createUniformWeaponPlacement({

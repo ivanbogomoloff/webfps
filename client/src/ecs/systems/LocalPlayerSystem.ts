@@ -16,7 +16,7 @@ import { applyWeaponTransformValues, replaceWeaponVisual } from '../../game/weap
 import {
   DEFAULT_WEAPON_ID,
   getWeaponFpPoseForAnimation,
-  resolveWeaponId,
+  resolveGameWeaponId,
 } from '../../game/weapon/supportedWeaponModels';
 import { assignObjectToLayerRecursive, FP_VIEWMODEL_RENDER_LAYER } from '../../game/weapon/viewmodelLayer';
 
@@ -56,7 +56,7 @@ function getLocalPlayerEntity(world: World): LocalPlayerEntity | null {
 
 function syncEntityWeaponVisual(entity: LocalPlayerEntity, deps: LocalPlayerSystemDeps): void {
   if (!entity.weaponState) return;
-  const resolvedWeaponId = resolveWeaponId(entity.weaponState.weaponId);
+  const resolvedWeaponId = resolveGameWeaponId(entity.weaponState.weaponId);
   if (entity.weaponState.weaponId !== resolvedWeaponId) {
     applyWeaponDefinition(entity.weaponState, resolvedWeaponId);
   }

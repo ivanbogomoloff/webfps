@@ -1,12 +1,15 @@
 export {
   DEFAULT_WEAPON_ID,
+  GAME_WEAPON_IDS,
   SUPPORTED_WEAPON_IDS,
   getWeaponDefinition,
   getWeaponFpPoseByAnimation,
   getWeaponFpPoseForAnimation,
   getWeaponModelConfig,
   getWeaponPoseForLocomotion,
+  resolveGameWeaponId,
   resolveWeaponId,
   weaponModelGltfPath,
+  type GameWeaponId,
   type WeaponId as SupportedWeaponId,
 } from '../../config/weaponCatalog'

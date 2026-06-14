@@ -10,7 +10,7 @@ import type {
 } from '../components';
 import type { WeaponCrosshairConfig } from '../../config/weapons/types';
 import { DEFAULT_WEAPON_ID } from '../../game/weapon/supportedWeaponModels';
-import { FP_VIEWMODEL_RENDER_LAYER } from '../../game/weapon/viewmodelLayer';
+import { renderSceneWithFpViewmodelPass } from '../../game/weapon/viewmodelLayer';
 
 const CROSSHAIR_MAX_PULSE = 1.4;
 const CROSSHAIR_SHOT_HOLD_EPSILON = 1e-4;
@@ -161,23 +161,8 @@ export function createRenderSystem(world: World, options: RenderSystemOptions) {
     updateCrosshairViewport(renderer, crosshairCamera, viewportSize);
     updateCrosshairState(deltaTime);
 
-    const previousMask = camera.layers.mask;
     const previousAutoClear = renderer.autoClear;
-
-    camera.layers.mask = previousMask & ~(1 << FP_VIEWMODEL_RENDER_LAYER);
-    renderer.autoClear = true;
-    renderer.render(scene, camera);
-
-    renderer.autoClear = false;
-    renderer.clearDepth();
-    const previousBackground = scene.background;
-    scene.background = null;
-    camera.layers.mask = 1 << FP_VIEWMODEL_RENDER_LAYER;
-    renderer.render(scene, camera);
-    scene.background = previousBackground;
-
-    camera.layers.mask = previousMask;
-    renderer.autoClear = previousAutoClear;
+    renderSceneWithFpViewmodelPass(renderer, scene, camera);
 
     renderer.autoClear = false;
     renderer.clearDepth();

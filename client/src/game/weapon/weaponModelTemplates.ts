@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
 import {
   DEFAULT_WEAPON_ID,
-  SUPPORTED_WEAPON_IDS,
+  GAME_WEAPON_IDS,
   type SupportedWeaponId,
   weaponModelGltfPath,
 } from './supportedWeaponModels'
@@ -22,13 +22,13 @@ function emptyWeaponTemplate(): THREE.Object3D {
   return root
 }
 
-export async function loadSupportedWeaponModelTemplates(): Promise<
-  Map<SupportedWeaponId, THREE.Object3D>
-> {
+export async function loadSupportedWeaponModelTemplates(
+  weaponIds: readonly SupportedWeaponId[] = GAME_WEAPON_IDS,
+): Promise<Map<SupportedWeaponId, THREE.Object3D>> {
   const loader = new GLTFLoader()
   const map = new Map<SupportedWeaponId, THREE.Object3D>()
 
-  for (const weaponId of SUPPORTED_WEAPON_IDS) {
+  for (const weaponId of weaponIds) {
     const glbPath = weaponModelGltfPath(weaponId)
     try {
       const gltf = await loader.loadAsync(glbPath)

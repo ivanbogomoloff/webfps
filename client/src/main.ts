@@ -4,7 +4,7 @@ import { loadSupportedPlayerModelTemplates } from './game/player/playerModelTemp
 import { loadSupportedWeaponModelTemplates } from './game/weapon/weaponModelTemplates'
 import { clonePlayerVisualSetup, DEFAULT_PLAYER_RADIUS } from './game/player/playerModelPrep'
 import { DEFAULT_PLAYER_MODEL_ID, resolvePlayerModelId } from './game/player/supportedPlayerModels'
-import { DEFAULT_WEAPON_ID, resolveWeaponId, SUPPORTED_WEAPON_IDS } from './game/weapon/supportedWeaponModels'
+import { DEFAULT_WEAPON_ID, GAME_WEAPON_IDS, resolveGameWeaponId } from './game/weapon/supportedWeaponModels'
 import { DEFAULT_MAP_ID, getManifestMaps, resolveMapAssets } from './config/mapManifest'
 import type { GameTransport, TransportConnectParams } from './net/GameTransport'
 import { WsTransport } from './net/WsTransport'
@@ -32,9 +32,9 @@ let game: Game | null = null
 
 async function startGame(options: StartOptions): Promise<void> {
   const templates = await loadSupportedPlayerModelTemplates()
-  const weaponTemplates = await loadSupportedWeaponModelTemplates()
+  const weaponTemplates = await loadSupportedWeaponModelTemplates(GAME_WEAPON_IDS)
   const resolvedModelId = resolvePlayerModelId(options.modelId.trim() || DEFAULT_PLAYER_MODEL_ID)
-  const resolvedWeaponId = resolveWeaponId(options.weaponId.trim() || DEFAULT_WEAPON_ID)
+  const resolvedWeaponId = resolveGameWeaponId(options.weaponId.trim() || DEFAULT_WEAPON_ID)
   const transport: GameTransport = new WsTransport(options.wsUrl)
   const connectParams: TransportConnectParams = {
     roomCode: options.roomCode.trim(),
@@ -354,7 +354,7 @@ weaponHotkeysHint.style.cssText = `
   color: #9df;
   font-size: 11px;
 `
-weaponHotkeysHint.textContent = `Weapon hotkeys: ${SUPPORTED_WEAPON_IDS.map((id, i) => `${i + 1}:${id}`).join(' | ')}`
+weaponHotkeysHint.textContent = `Weapon hotkeys: ${GAME_WEAPON_IDS.map((id, i) => `${i + 1}:${id}`).join(' | ')}`
 debugHudElement.appendChild(weaponHotkeysHint)
 
 // Очищаем ресурсы при закрытии вкладки
