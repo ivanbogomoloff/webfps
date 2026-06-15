@@ -7,6 +7,7 @@ const MAX_HOTKEY_WEAPONS = 9
 export function createWeaponLoadoutSystem(world: World) {
   const previousByEntity = new Map<object, Map<string, boolean>>()
   const ammoByWeaponByEntity = new Map<object, Map<string, number>>()
+  const previousIsDeadByEntity = new Map<object, boolean>()
   const weaponIds = GAME_WEAPON_IDS.slice(0, MAX_HOTKEY_WEAPONS)
 
   return (_deltaTime: number) => {
@@ -16,7 +17,6 @@ export function createWeaponLoadoutSystem(world: World) {
       const networkIdentity = entity.networkIdentity as NetworkIdentity
       const health = (entity as { health?: Health }).health
       if (!networkIdentity.isLocal) continue
-      if (health?.isDead) continue
 
       let previous = previousByEntity.get(entity)
       if (!previous) {
@@ -28,6 +28,15 @@ export function createWeaponLoadoutSystem(world: World) {
         ammoByWeapon = new Map()
         ammoByWeaponByEntity.set(entity, ammoByWeapon)
       }
+
+      const isDead = health?.isDead ?? false
+      const wasDead = previousIsDeadByEntity.get(entity) ?? false
+      previousIsDeadByEntity.set(entity, isDead)
+      if (!wasDead && isDead) {
+        ammoByWeapon.clear()
+        weaponState.ammoInMag = weaponState.magazineSize
+      }
+      if (isDead) continue
       ammoByWeapon.set(
         weaponState.weaponId,
         Math.max(0, Math.min(weaponState.ammoInMag, weaponState.magazineSize)),
