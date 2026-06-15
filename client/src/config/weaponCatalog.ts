@@ -1,7 +1,6 @@
 import type { PlayerLocomotion } from '../ecs/components/PlayerController'
 import { rifle_m16ModelConfig } from './weapons/rifle_m16'
 import { rifle_ak47ModelConfig } from './weapons/rifle_ak47'
-import { rifle_uziModelConfig } from './weapons/rifle_uzi'
 import type {
   WeaponAnimationPoseKey,
   WeaponAudioConfig,
@@ -32,11 +31,6 @@ export const WEAPON_CATALOG = {
     damage: 12,
     inGame: true,
   },
-  rifle_uzi: {
-    fireRate: 10,
-    damage: 10,
-    inGame: false,
-  },
 } as const satisfies Record<string, Pick<WeaponDefinition, 'fireRate' | 'damage'> & { inGame: boolean }>
 
 export type WeaponId = keyof typeof WEAPON_CATALOG
@@ -56,7 +50,6 @@ export const DEFAULT_WEAPON_ID: GameWeaponId = 'rifle_m16'
 const WEAPON_MODEL_CONFIG_BY_ID = {
   rifle_m16: rifle_m16ModelConfig,
   rifle_ak47: rifle_ak47ModelConfig,
-  rifle_uzi: rifle_uziModelConfig,
 } as const satisfies Record<WeaponId, WeaponModelConfig>
 
 export function weaponModelGltfPath(weaponId: WeaponId): string {

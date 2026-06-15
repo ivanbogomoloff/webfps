@@ -18,7 +18,6 @@ import { applyWeaponTransformValues } from '../../game/weapon/weaponVisualAttach
 import { getWeaponVisualAnimations } from '../../game/weapon/weaponModelTemplates'
 
 const WEAPON_ANIMATION_CLIP_WHITELIST = WEAPON_ANIMATION_POSE_KEYS
-const WEAPON_ONE_SHOT_ANIMATION_KEYS: ReadonlySet<WeaponAnimationPoseKey> = new Set(['reload'])
 
 type WeaponFpAnimationRuntime = {
   visual: THREE.Object3D
@@ -53,13 +52,8 @@ function createFpAnimationRuntime(weaponVisual: THREE.Object3D): WeaponFpAnimati
     if (!clip) continue
     const action = mixer.clipAction(clip)
     action.enabled = true
-    if (WEAPON_ONE_SHOT_ANIMATION_KEYS.has(key)) {
-      action.setLoop(THREE.LoopOnce, 1)
-      action.clampWhenFinished = true
-    } else {
-      action.setLoop(THREE.LoopRepeat, Infinity)
-      action.clampWhenFinished = false
-    }
+    action.setLoop(THREE.LoopRepeat, Infinity)
+    action.clampWhenFinished = false
     action.setEffectiveWeight(1)
     action.setEffectiveTimeScale(1)
     actionByKey[key] = action
@@ -78,21 +72,15 @@ function playFpAnimationForKey(runtime: WeaponFpAnimationRuntime, key: WeaponAni
     runtime.currentAnimationKey = null
     return false
   }
-  const isSameKey = runtime.currentAnimationKey === key
-  const isOneShot = WEAPON_ONE_SHOT_ANIMATION_KEYS.has(key)
-  if (isSameKey && (nextAction.isRunning() || isOneShot)) {
+  if (runtime.currentAnimationKey === key && nextAction.isRunning() && !nextAction.paused) {
     return true
   }
   for (const candidateKey of WEAPON_ANIMATION_CLIP_WHITELIST) {
     const action = runtime.actionByKey[candidateKey]
     if (!action || action === nextAction) continue
-    action.stop()
-    action.enabled = false
     action.paused = true
     action.setEffectiveWeight(0)
-    action.setEffectiveTimeScale(1)
   }
-  nextAction.reset()
   nextAction.enabled = true
   nextAction.paused = false
   nextAction.setEffectiveWeight(1)
