@@ -45,6 +45,16 @@ type HudSystemOptions = {
     movementMode: string;
     groundProbe: GroundProbeDebugState;
   } | null;
+  getBotDebugState?: () => {
+    mapId: string;
+    waypointCount: number;
+    edgeCount: number;
+    serverWaypointCount: number;
+    botId: string | null;
+    waypointIndex: number;
+    targetId: string | null;
+    predDelta: number | null;
+  } | null;
 };
 
 function cloneObjectTransform(source: THREE.Object3D): WeaponTransformValues {
@@ -121,6 +131,7 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     const networkError = options.getLastNetworkError();
     const roomCode = options.getRoomCode();
     const jumpDebug = options.getJumpDebugState();
+    const botDebug = options.getBotDebugState?.() ?? null;
 
     if (roomCode && roomCode !== lastLoggedRoomCode) {
       lastLoggedRoomCode = roomCode;
@@ -201,6 +212,13 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
     const fpAnimKey = local.weaponFpAnimationKey ?? fpPoseKey;
     const fpAnimLine = `FP anim key: ${fpAnimKey} | source: ${fpAnimSource}`;
 
+    const botNavLine = botDebug
+      ? `BOT NAV: map=${botDebug.mapId} waypoints=${botDebug.waypointCount} edges=${botDebug.edgeCount} server=${botDebug.serverWaypointCount}`
+      : 'BOT NAV: -';
+    const botDebugLine = botDebug?.botId
+      ? `BOT DEBUG: ${botDebug.botId} wp=${botDebug.waypointIndex} target=${botDebug.targetId ?? '-'} predΔ=${botDebug.predDelta != null ? botDebug.predDelta.toFixed(2) : '-'}m`
+      : 'BOT DEBUG: -';
+
     options.debugHudContentElement.innerHTML = `
       <div>ROOM: ${roomCode ?? '…'}</div>
       <div>POSITION: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}</div>
@@ -214,6 +232,8 @@ export function createHudSystem(world: World, options: HudSystemOptions) {
       <div>fire: ${isFiring ? 'on' : 'off'}</div>
       <div>JUMP: ${jumpStateLine}</div>
       <div>${groundProbeLine}</div>
+      <div>${botNavLine}</div>
+      <div>${botDebugLine}</div>
       <div>PHASE: ${matchState?.phase ?? 'waiting'} | TIME: ${matchState?.timeLeftSec ?? 0}s | FRAG LIMIT: ${matchState?.fragLimit ?? 0}</div>
       <div>MAX PLAYERS: ${matchState?.maxPlayers ?? '-'}</div>
       <div>WINNER: ${winner}</div>

@@ -71,21 +71,46 @@ async function startGame(options: StartOptions): Promise<void> {
     DEBUG_HUD,
   )
   game.createPlayer(localVisual, DEFAULT_PLAYER_RADIUS)
+  game.start()
 
   try {
     const { mapPath, hdrPath } = resolveMapAssets(connectParams.mapId)
     await game.loadMap(
       mapPath,
       hdrPath,
+      connectParams.mapId,
     )
   } catch (error) {
     console.error('Failed to load game:', error)
   } finally {
-    game.start()
     matchControls.style.display = DEBUG_HUD ? 'flex' : 'none'
     game.setLocalRole(options.startAsPlayer ? 'player' : 'spectator')
     if (options.startAsPlayer) {
       game.requestSpawn()
+    }
+    if (options.mode === 'loopback_bot') {
+      // Дождаться первого state_update с позицией игрока на карте
+      await new Promise<void>((resolve) => {
+        const deadline = Date.now() + 3000
+        const check = () => {
+          const pos = game?.getLocalPlayerPosition()
+          if (pos && pos.y > 0.5) {
+            resolve()
+            return
+          }
+          if (Date.now() >= deadline) {
+            resolve()
+            return
+          }
+          requestAnimationFrame(check)
+        }
+        requestAnimationFrame(check)
+      })
+      try {
+        game?.addBot()
+      } catch (error) {
+        console.warn('[main] Failed to auto-add bot:', error)
+      }
     }
   }
 }
@@ -311,14 +336,16 @@ const matchControls = document.createElement('div')
 matchControls.style.cssText = `
   margin-top: 8px;
   display: none;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 `
 matchControls.innerHTML = `
-  <button id="btnSpectator">Spectator</button>
-  <button id="btnEnterMatch">Enter Match</button>
-  <button id="btnToggleView">Toggle View</button>
-  <button id="btnAddBot">Add Bot</button>
-  <button id="btnHitSelf">Hit Self</button>
+  <button type="button" id="btnSpectator">Spectator</button>
+  <button type="button" id="btnEnterMatch">Enter Match</button>
+  <button type="button" id="btnToggleView">Toggle View</button>
+  <button type="button" id="btnAddBot">Add Bot</button>
+  <button type="button" id="btnHitSelf">Hit Self</button>
 `
 debugHudElement.appendChild(matchControls)
 
@@ -332,11 +359,28 @@ debugHudElement.appendChild(matchControls)
 ;(matchControls.querySelector('#btnToggleView') as HTMLButtonElement).addEventListener('click', () => {
   game?.toggleViewMode()
 })
-;(matchControls.querySelector('#btnAddBot') as HTMLButtonElement).addEventListener('click', () => {
-  if (!game?.canAddBot()) return
-  game.addBot()
+;(matchControls.querySelector('#btnAddBot') as HTMLButtonElement).addEventListener('click', (e) => {
+  e.preventDefault()
+  e.stopPropagation()
+  if (!game) return
+  if (!game.canAddBot()) {
+    console.warn('[UI] Add Bot: only room owner can add bots')
+    return
+  }
+  if (!game.isNetworkConnected()) {
+    console.error('[UI] Add Bot: WebSocket disconnected — reload the page and ensure the server is running')
+    return
+  }
+  try {
+    game.addBot()
+    console.log('[UI] Add Bot requested')
+  } catch (error) {
+    console.error('[UI] Add Bot failed:', error)
+  }
 })
-;(matchControls.querySelector('#btnHitSelf') as HTMLButtonElement).addEventListener('click', () => {
+;(matchControls.querySelector('#btnHitSelf') as HTMLButtonElement).addEventListener('click', (e) => {
+  e.preventDefault()
+  e.stopPropagation()
   game?.debugHitSelf()
 })
 

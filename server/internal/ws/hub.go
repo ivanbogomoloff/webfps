@@ -16,6 +16,9 @@ import (
 	"web-fps/server/internal/rooms"
 )
 
+// botNavSubmit can include thousands of waypoints/edges and exceed the library default (32 KiB).
+const wsReadLimitBytes = 8 << 20 // 8 MiB
+
 type Hub struct {
 	manager   *rooms.Manager
 	clientSeq atomic.Int64
@@ -33,6 +36,7 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ws accept error: %v", err)
 		return
 	}
+	conn.SetReadLimit(wsReadLimitBytes)
 	defer conn.Close(websocket.StatusNormalClosure, "bye")
 
 	clientID := "c-" + strconv.FormatInt(h.clientSeq.Add(1), 10)
@@ -40,10 +44,8 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	defer h.manager.Disconnect(clientID)
 
 	for {
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		var msg protocol.Message
-		err := wsjson.Read(ctx, conn, &msg)
-		cancel()
+		err := wsjson.Read(r.Context(), conn, &msg)
 		if err != nil {
 			return
 		}
@@ -75,7 +77,14 @@ func (h *Hub) routeMessage(client *clientConn, msg protocol.Message) {
 			h.sendError(client, "bad_payload", "invalid add_bot payload")
 			return
 		}
-		h.manager.AddBot(client.id)
+		h.manager.AddBot(client.id, payload)
+	case protocol.TypeBotNavSubmit:
+		var payload protocol.BotNavSubmitPayload
+		if !decodePayload(msg.Payload, &payload) {
+			h.sendError(client, "bad_payload", "invalid bot_nav_submit payload")
+			return
+		}
+		h.manager.HandleBotNavSubmit(client.id, payload)
 	case protocol.TypeStateUpdate:
 		var payload protocol.StateUpdatePayload
 		if !decodePayload(msg.Payload, &payload) {

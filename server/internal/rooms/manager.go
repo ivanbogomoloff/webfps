@@ -77,6 +77,14 @@ type playerState struct {
 	HitboxCY    float64 `json:"-"`
 	HitboxCZ    float64 `json:"-"`
 	HitboxR     float64 `json:"-"`
+	BotWaypointIndex  int     `json:"-"`
+	BotPath           []int   `json:"-"`
+	BotPathCursor     int     `json:"-"`
+	BotAmmoInMag      int     `json:"-"`
+	BotIsReloading    bool    `json:"-"`
+	BotReloadUntilMs  int64   `json:"-"`
+	BotTargetID       string  `json:"-"`
+	BotWeaponSwitchAt int64   `json:"-"`
 }
 
 type roomState struct {
@@ -91,6 +99,7 @@ type roomState struct {
 	WinnerID      string
 	Players       map[string]*playerState
 	Clients       map[string]ClientSender
+	BotNav        *BotNavGraph
 }
 
 type Manager struct {
@@ -127,7 +136,7 @@ func NewManager(manifestPath string) (*Manager, error) {
 		clientToPlayer: make(map[string]string),
 		spawnByMap:     spawnByMap,
 		random:         rand.New(rand.NewSource(time.Now().UnixNano())),
-		botBehavior:    IdleBotBehavior{},
+		botBehavior:    CombatPatrolBotBehavior{RNG: rand.New(rand.NewSource(time.Now().UnixNano()))},
 	}, nil
 }
 
@@ -285,15 +294,50 @@ func (m *Manager) SpawnRequest(clientID string) {
 			},
 		})
 		go m.runRoomTimer(room.Code)
+		go m.runBotTicker(room.Code)
 	}
 }
 
-func (m *Manager) AddBot(clientID string) {
+func (m *Manager) HandleBotNavSubmit(clientID string, payload protocol.BotNavSubmitPayload) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	room, player := m.getRoomAndPlayerByClientLocked(clientID)
+	if room == nil || player == nil {
+		return
+	}
+	if player.PlayerID != room.OwnerPlayerID {
+		m.sendErrorLocked(clientID, "forbidden", "only room owner can submit bot nav")
+		return
+	}
+	if payload.MapID != "" && room.MapID != "" && payload.MapID != room.MapID {
+		m.sendErrorLocked(clientID, "bad_payload", "mapId mismatch")
+		return
+	}
+
+	waypoints := make([]BotWaypoint, 0, len(payload.Waypoints))
+	for _, wp := range payload.Waypoints {
+		waypoints = append(waypoints, BotWaypoint{X: wp.X, Y: wp.Y, Z: wp.Z})
+	}
+	edges := make([]BotNavEdge, 0, len(payload.Edges))
+	for _, edge := range payload.Edges {
+		edges = append(edges, BotNavEdge{From: edge.From, To: edge.To, Weight: edge.Weight})
+	}
+	room.BotNav = &BotNavGraph{
+		MapID:     payload.MapID,
+		Waypoints: waypoints,
+		Edges:     edges,
+	}
+	m.broadcastRoomStateLocked(room)
+}
+
+func (m *Manager) AddBot(clientID string, payload protocol.AddBotPayload) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	room, _ := m.getRoomAndPlayerByClientLocked(clientID)
 	if room == nil {
+		log.Printf("[rooms] AddBot: client %s not in room", clientID)
 		return
 	}
 	requestPlayerID := m.clientToPlayer[clientID]
@@ -309,11 +353,28 @@ func (m *Manager) AddBot(clientID string) {
 	m.nextBotInt++
 	botID := fmt.Sprintf("bot-%d", m.nextBotInt)
 	spawnX, spawnY, spawnZ, spawnRotY := m.pickBotSpawnLocked(room)
+
+	owner := room.Players[room.OwnerPlayerID]
+	ownerPosUnset := owner != nil && owner.Y < 1.0 && math.Abs(owner.X) < 1.0 && math.Abs(owner.Z) < 1.0
+	if payload.SpawnY > 0.5 {
+		spawnX = payload.SpawnX + 2.5*math.Cos(payload.SpawnRotY)
+		spawnY = payload.SpawnY
+		spawnZ = payload.SpawnZ + 2.5*math.Sin(payload.SpawnRotY)
+		spawnRotY = payload.SpawnRotY
+	} else if ownerPosUnset {
+		// owner position unknown — keep pickBotSpawn result (+offset below)
+		spawnX += 2.5
+	} else {
+		spawnX += 2.5
+	}
+
+	log.Printf("[rooms] AddBot room=%s bot=%s at (%.1f, %.1f, %.1f)", room.Code, botID, spawnX, spawnY, spawnZ)
+	weaponID := "rifle_ak47"
 	bot := &playerState{
 		PlayerID:   botID,
 		Nickname:   fmt.Sprintf("Bot %d", m.nextBotInt),
 		ModelID:    "player1",
-		WeaponID:   "rifle_ak47",
+		WeaponID:   weaponID,
 		Role:       "player",
 		Locomotion: "idle",
 		X:          spawnX,
@@ -327,9 +388,9 @@ func (m *Manager) AddBot(clientID string) {
 		HitboxCY:   spawnY + defaultHitboxYOff,
 		HitboxCZ:   spawnZ,
 		HitboxR:    defaultHitboxRadius,
+		BotAmmoInMag: botMagazineSize(weaponID),
 	}
 	room.Players[botID] = bot
-	m.applyBotBehaviorLocked(room, time.Now().UnixMilli())
 
 	m.broadcastLocked(room, map[string]any{
 		"type": protocol.TypePlayerJoined,
@@ -583,6 +644,28 @@ func (m *Manager) Disconnect(clientID string) {
 	m.LeaveRoom(clientID)
 }
 
+func (m *Manager) runBotTicker(roomCode string) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for range ticker.C {
+		m.mu.Lock()
+		room := m.rooms[roomCode]
+		if room == nil || room.Phase != "running" {
+			m.mu.Unlock()
+			return
+		}
+		respawnStateChanged := m.applyRespawnsLocked(room, time.Now().UnixMilli())
+		changed := m.applyBotBehaviorLocked(room, time.Now().UnixMilli())
+		if changed || respawnStateChanged {
+			m.broadcastPlayerStatesLocked(room)
+			if respawnStateChanged {
+				m.broadcastRoomStateLocked(room)
+			}
+		}
+		m.mu.Unlock()
+	}
+}
+
 func (m *Manager) runRoomTimer(roomCode string) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -594,7 +677,7 @@ func (m *Manager) runRoomTimer(roomCode string) {
 			return
 		}
 		respawnStateChanged := m.applyRespawnsLocked(room, time.Now().UnixMilli())
-		m.applyBotBehaviorLocked(room, time.Now().UnixMilli())
+		// Bot AI runs in runBotTicker at 10 Hz.
 		room.TimeLeftSec--
 		m.broadcastLocked(room, map[string]any{
 			"type": protocol.TypeMatchTick,
@@ -681,12 +764,13 @@ func (m *Manager) broadcastRoomStateLocked(room *roomState) {
 	m.broadcastLocked(room, map[string]any{
 		"type": protocol.TypeRoomState,
 		"payload": map[string]any{
-			"phase":         room.Phase,
-			"timeLimitSec":  room.TimeLimitSec,
-			"timeLeftSec":   room.TimeLeftSec,
-			"fragLimit":     room.FragLimit,
-			"ownerPlayerId": room.OwnerPlayerID,
-			"players":       players,
+			"phase":               room.Phase,
+			"timeLimitSec":        room.TimeLimitSec,
+			"timeLeftSec":         room.TimeLeftSec,
+			"fragLimit":           room.FragLimit,
+			"ownerPlayerId":       room.OwnerPlayerID,
+			"players":             players,
+			"botNavWaypointCount": botNavWaypointCount(room),
 		},
 	})
 	m.broadcastScoreboardLocked(room)
@@ -768,6 +852,17 @@ func (m *Manager) applyRespawnsLocked(room *roomState, nowMs int64) bool {
 		p.RespawnAtMs = 0
 		p.ForcedLoc = ""
 		p.Locomotion = "idle"
+		if p.IsBot {
+			p.BotAmmoInMag = botMagazineSize(p.WeaponID)
+			p.BotIsReloading = false
+			p.BotReloadUntilMs = 0
+			p.BotPath = nil
+			p.BotPathCursor = 0
+			p.BotTargetID = ""
+			if room.BotNav != nil && len(room.BotNav.Waypoints) > 0 {
+				p.X, p.Y, p.Z = botSpawnFromNav(room.BotNav, p.X, p.Y, p.Z)
+			}
+		}
 		changed = true
 	}
 	return changed
@@ -940,20 +1035,43 @@ func (m *Manager) sendErrorLocked(clientID string, code string, message string) 
 	})
 }
 
-func (m *Manager) applyBotBehaviorLocked(room *roomState, nowMs int64) {
+func (m *Manager) applyBotBehaviorLocked(room *roomState, nowMs int64) bool {
 	if room == nil || m.botBehavior == nil {
-		return
+		return false
 	}
+	changed := false
 	for _, player := range room.Players {
 		if !player.IsBot {
 			continue
 		}
+		prevX, prevY, prevZ := player.X, player.Y, player.Z
+		prevRotY := player.RotY
+		prevLoc := player.Locomotion
+		prevWeapon := player.WeaponID
+
 		m.botBehavior.Apply(player, room, nowMs)
+		if player.BotTargetID != "" && !player.BotIsReloading && player.BotAmmoInMag > 0 && !player.IsDead {
+			m.botShootLocked(room, player, nowMs)
+		}
+
 		player.HitboxCX = player.X
 		player.HitboxCY = player.Y + defaultHitboxYOff
 		player.HitboxCZ = player.Z
 		player.HitboxR = defaultHitboxRadius
+
+		if player.X != prevX || player.Y != prevY || player.Z != prevZ ||
+			player.RotY != prevRotY || player.Locomotion != prevLoc || player.WeaponID != prevWeapon {
+			changed = true
+		}
 	}
+	return changed
+}
+
+func botNavWaypointCount(room *roomState) int {
+	if room == nil || room.BotNav == nil {
+		return 0
+	}
+	return len(room.BotNav.Waypoints)
 }
 
 func (m *Manager) pickBotSpawnLocked(room *roomState) (x float64, y float64, z float64, rotY float64) {

@@ -24,6 +24,8 @@ Every message has:
   - payload: `{}`
 - `add_bot`
   - payload: `{}`
+- `bot_nav_submit` (only `ownerPlayerId`)
+  - payload: `{ "mapId": "test2", "waypoints": [{ "x": 1, "y": 0.5, "z": 2 }], "edges": [{ "from": 0, "to": 3, "weight": 12.4 }] }`
 - `state_update`
   - payload: `{ "x": 0, "y": 0, "z": 0, "rotY": 0, "role": "spectator" | "player", "frags": 0, "deaths": 0, "locomotion": "idle" | "walk" | "walk_left_d" | "walk_right_d" | "backwards" | "backwards_left_d" | "backwards_right_d" | "left" | "right" | "idle_crouch" | "walk_crouch" | "walk_crouch_left_d" | "walk_crouch_right_d" | "backwards_crouch" | "backwards_crouch_left_d" | "backwards_crouch_right_d" | "left_crouch" | "right_crouch" | "run_forward" | "run_backward" | "run_left" | "run_right" | "run_left_d" | "run_right_d" | "run_backward_left_d" | "run_backward_right_d" | "jump_up", "weaponId": "rifle_m16", "hitbox": { "center": { "x": 0, "y": 1.1, "z": 0 }, "radius": 0.55 } }`
 - `player_shot`
@@ -41,7 +43,8 @@ Every message has:
   - payload:
     - `phase`: `"waiting" | "running" | "ended"`
     - `timeLimitSec`, `timeLeftSec`, `fragLimit`
-    - `ownerPlayerId`: creator of room (only this player can call `add_bot`)
+    - `ownerPlayerId`: creator of room (only this player can call `add_bot` / `bot_nav_submit`)
+    - `botNavWaypointCount`: optional waypoint count for bot navigation
     - `players`: array with `{ playerId, nickname, modelId, weaponId, role, frags, deaths }`
 - `player_joined`
   - payload: `{ playerId, nickname, modelId, weaponId, role }`

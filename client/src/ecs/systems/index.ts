@@ -18,3 +18,4 @@ export { createWeaponLoadoutSystem } from './WeaponLoadoutSystem';
 export { createWeaponPoseByLocomotionSystem } from './WeaponPoseByLocomotionSystem';
 export { createAudioSystem } from './AudioSystem';
 export { createLocalPlayerSystem, placeLocalPlayerAtRandomRespawn } from './LocalPlayerSystem';
+export { createBotNavBuildSystem, ensureBotNavGraph, createBotAISystem, createBotNavDebugSystem, invalidateBotNavCache } from './bot';

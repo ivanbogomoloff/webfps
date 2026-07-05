@@ -10,6 +10,7 @@ const (
 	TypeSetRole        = "set_role"
 	TypeSpawnRequest   = "spawn_request"
 	TypeAddBot         = "add_bot"
+	TypeBotNavSubmit   = "bot_nav_submit"
 	TypeStateUpdate    = "state_update"
 	TypePlayerShot     = "player_shot"
 	TypeReportKill     = "report_kill"
@@ -157,7 +158,31 @@ type ReportKillPayload struct {
 }
 
 type DebugHitSelfPayload struct{}
-type AddBotPayload struct{}
+
+type AddBotPayload struct {
+	SpawnX    float64 `json:"spawnX,omitempty"`
+	SpawnY    float64 `json:"spawnY,omitempty"`
+	SpawnZ    float64 `json:"spawnZ,omitempty"`
+	SpawnRotY float64 `json:"spawnRotY,omitempty"`
+}
+
+type BotNavWaypoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	Z float64 `json:"z"`
+}
+
+type BotNavEdgePayload struct {
+	From   int     `json:"from"`
+	To     int     `json:"to"`
+	Weight float64 `json:"weight"`
+}
+
+type BotNavSubmitPayload struct {
+	MapID     string              `json:"mapId"`
+	Waypoints []BotNavWaypoint    `json:"waypoints"`
+	Edges     []BotNavEdgePayload `json:"edges"`
+}
 
 type ErrorPayload struct {
 	Code    string `json:"code"`

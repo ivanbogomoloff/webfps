@@ -53,6 +53,31 @@ export interface PlayerStateMessage {
   forcedLocomotion?: PlayerLocomotion
 }
 
+export interface BotNavWaypoint {
+  x: number
+  y: number
+  z: number
+}
+
+export interface BotNavEdge {
+  from: number
+  to: number
+  weight: number
+}
+
+export interface BotNavSubmitPayload {
+  mapId: string
+  waypoints: BotNavWaypoint[]
+  edges: BotNavEdge[]
+}
+
+export interface AddBotPayload {
+  spawnX?: number
+  spawnY?: number
+  spawnZ?: number
+  spawnRotY?: number
+}
+
 export interface ScoreboardPlayer {
   playerId: string
   nickname: string
@@ -84,6 +109,7 @@ export type IncomingMessage =
         fragLimit: number
         ownerPlayerId: string
         players: RoomPlayer[]
+        botNavWaypointCount?: number
       }
     }
   | {
@@ -103,7 +129,8 @@ export type OutgoingMessage =
   | { type: 'join_room'; payload: JoinRoomPayload }
   | { type: 'set_role'; payload: { role: PlayerRole } }
   | { type: 'spawn_request'; payload: Record<string, never> }
-  | { type: 'add_bot'; payload: Record<string, never> }
+  | { type: 'add_bot'; payload: AddBotPayload }
+  | { type: 'bot_nav_submit'; payload: BotNavSubmitPayload }
   | {
       type: 'state_update'
       payload: {

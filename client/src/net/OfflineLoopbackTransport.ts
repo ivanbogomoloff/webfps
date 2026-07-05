@@ -6,7 +6,7 @@ import {
 } from '../game/player/playerLocomotionLogic'
 import { pickRandomBotModelId } from '../game/player/supportedPlayerModels'
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
-import type { IncomingMessage, MatchPhase, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
+import type { IncomingMessage, MatchPhase, PlayerRole, PlayerShotPayload, ScoreboardPlayer, AddBotPayload } from './protocol'
 
 type SimPlayer = {
   playerId: string
@@ -129,6 +129,10 @@ export class OfflineLoopbackTransport implements GameTransport {
     this.startLoop()
   }
 
+  isConnected(): boolean {
+    return this.localPlayerId != null
+  }
+
   async disconnect(): Promise<void> {
     if (this.intervalId != null) {
       window.clearInterval(this.intervalId)
@@ -168,7 +172,7 @@ export class OfflineLoopbackTransport implements GameTransport {
     }
   }
 
-  addBot(): void {
+  addBot(_payload?: AddBotPayload): void {
     // Loopback transport is kept only for local fallback and does not expose server bot spawning.
   }
 

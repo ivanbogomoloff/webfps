@@ -39,6 +39,14 @@ import { NetworkContext } from '../net/NetworkContext';
 import type { PlayerRole, ScoreboardPlayer } from '../net/protocol';
 import { MapLoader } from '../utils/MapLoader';
 import { MapBuilder } from './map/MapBuilder';
+import {
+  createBotNavDebugSystem,
+  createBotAISystem,
+  ensureBotNavGraph,
+  invalidateBotNavCache,
+} from '../ecs/systems/bot';
+import { createBotNavGraph } from '../ecs/components/bot';
+import type { CollisionVolume, BoundsXZ } from './map/Map';
 import { createLocalPlayerEntity, type LocalPlayerEntity } from './player/localPlayerFactory';
 import { attachLocalPlayerAmmoBody } from './player/localPlayerPhysics';
 import type { RespawnPoint } from './map/Map';
@@ -56,6 +64,8 @@ import {
 
 /** Включить отрисовку границ физических тел карты (Ammo). Задаётся через VITE_DEBUG_PHYSICS=true в .env */
 const DEBUG_PHYSICS = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_PHYSICS === 'true';
+/** Визуализация waypoints бота (сферы/рёбра). Только при VITE_DEBUG_BOT_NAV=true */
+const DEBUG_BOT_NAV = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_DEBUG_BOT_NAV === 'true';
 
 export class Game {
   private world: World;
@@ -69,6 +79,10 @@ export class Game {
   private mapBuilder: MapBuilder;
   private currentMap: THREE.Group | null = null;
   private currentRespawns: ReadonlyArray<RespawnPoint> = [];
+  private currentMapId: string = 'test2';
+  private currentCollisionVolumes: ReadonlyArray<CollisionVolume> = [];
+  private currentBoundsXZ: BoundsXZ = { minX: -50, maxX: 50, minZ: -50, maxZ: 50, area: 10000 };
+  private botNavEntity: { id: number; botNavGraph: ReturnType<typeof createBotNavGraph> } | null = null;
   /** Группа с wireframe-боксами границ физических тел карты (только при VITE_DEBUG_PHYSICS=true) */
   private physicsDebugRoot: THREE.Group | null = null;
   private statsJs: Stats;
@@ -173,6 +187,13 @@ export class Game {
       this.networkContext.start();
       this.systems.push(createNetworkReceiveSystem(this.world, this.scene, this.networkContext));
       this.systems.push(createRemoteInterpolationSystem(this.world));
+      this.systems.push(
+        createBotAISystem(this.world, {
+          physicsContext: this.physicsContext,
+          getAllPlayerStates: () => this.getAllPlayerStates(),
+        }),
+      );
+      this.systems.push(createBotNavDebugSystem(this.world, this.scene, DEBUG_BOT_NAV));
       this.systems.push(createMatchRulesClientSystem(this.world));
       this.systems.push(createShotSendSystem(this.world, this.networkContext));
       this.systems.push(
@@ -281,15 +302,21 @@ export class Game {
     });
   }
 
-  public async loadMap(mapPath: string, hdrPath?: string): Promise<void> {
+  public async loadMap(mapPath: string, hdrPath?: string, mapId?: string): Promise<void> {
     try {
       console.log(`Loading map: ${mapPath}`);
+      if (mapId) {
+        this.currentMapId = mapId;
+      }
 
       if (this.currentMap) {
         this.scene.remove(this.currentMap);
       }
       this.currentRespawns = [];
+      this.currentCollisionVolumes = [];
       this.physicsContext.ladders = [];
+      this.botNavEntity = null;
+      invalidateBotNavCache();
       if (this.physicsDebugRoot) {
         this.scene.remove(this.physicsDebugRoot);
         this.physicsDebugRoot = null;
@@ -310,6 +337,8 @@ export class Game {
 
       this.currentMap = map.scene;
       this.currentRespawns = map.getRespawns();
+      this.currentCollisionVolumes = map.getCollisionVolumes();
+      this.currentBoundsXZ = map.getBoundsXZ();
       this.physicsContext.ladders = map.getLadders();
       this.scene.add(map.scene);
       if (physicsDebugRoot) {
@@ -330,6 +359,10 @@ export class Game {
         this.scene.environment = map.environment;
         this.scene.background = map.environment;
       }
+
+      void this.ensureBotNav().catch((error) => {
+        console.warn('[Game] Bot nav build failed during map load:', error);
+      });
 
       console.log(`Map loaded successfully: ${mapPath}`);
     } catch (error) {
@@ -411,12 +444,51 @@ export class Game {
     this.networkContext?.requestSpawn();
   }
 
+  public async ensureBotNav(): Promise<void> {
+    await ensureBotNavGraph({
+      mapId: this.currentMapId,
+      collisionVolumes: this.currentCollisionVolumes,
+      boundsXZ: this.currentBoundsXZ,
+      physicsContext: this.physicsContext,
+      getNavEntity: () => this.botNavEntity,
+      setNavEntity: (entity) => {
+        if (!this.botNavEntity) {
+          this.botNavEntity = this.createEntity(entity);
+        } else {
+          this.botNavEntity.botNavGraph = entity.botNavGraph;
+        }
+      },
+      networkContext: this.networkContext,
+    });
+  }
+
   public addBot(): void {
-    this.networkContext?.addBot();
+    const local = this.localPlayerEntity;
+    const pos = local?.object3d?.position;
+    const spawnHint =
+      pos && pos.y > 0.5
+        ? {
+            spawnX: pos.x,
+            spawnY: pos.y,
+            spawnZ: pos.z,
+            spawnRotY: local.object3d?.rotation.y ?? 0,
+          }
+        : undefined;
+    if (!spawnHint) {
+      console.warn('[Game] Add Bot: local position not on map yet — press Enter Match first');
+    }
+    this.networkContext?.addBot(spawnHint);
+    void this.ensureBotNav().catch((error) => {
+      console.warn('[Game] Bot nav build failed (bot still requested):', error);
+    });
   }
 
   public canAddBot(): boolean {
     return this.networkContext?.canAddBot() ?? false;
+  }
+
+  public isNetworkConnected(): boolean {
+    return this.options?.transport?.isConnected() ?? false;
   }
 
   public debugHitSelf(): void {
@@ -461,6 +533,12 @@ export class Game {
     return this.localPlayerEntity?.playerController?.viewMode ?? 'first';
   }
 
+  public getLocalPlayerPosition(): { x: number; y: number; z: number } | null {
+    const pos = this.localPlayerEntity?.object3d?.position;
+    if (!pos) return null;
+    return { x: pos.x, y: pos.y, z: pos.z };
+  }
+
   public setViewMode(mode: PlayerViewMode): void {
     if (!this.localPlayerEntity?.playerController) return;
     this.localPlayerEntity.playerController.viewMode = mode;
@@ -497,8 +575,73 @@ export class Game {
         getRoomCode: () => this.getRoomCode(),
         getLastNetworkError: () => this.getLastNetworkError(),
         getJumpDebugState: () => this.getJumpDebugState(),
+        getBotDebugState: () => this.getBotDebugState(),
       }),
     );
+  }
+
+  private getAllPlayerStates(): Array<{
+    playerId: string;
+    x: number;
+    y: number;
+    z: number;
+    isDead: boolean;
+  }> {
+    const out: Array<{ playerId: string; x: number; y: number; z: number; isDead: boolean }> = [];
+    const local = this.localPlayerEntity;
+    if (local?.networkIdentity && local.object3d) {
+      out.push({
+        playerId: local.networkIdentity.playerId,
+        x: local.object3d.position.x,
+        y: local.object3d.position.y,
+        z: local.object3d.position.z,
+        isDead: local.health?.isDead ?? false,
+      });
+    }
+    if (!this.networkContext) return out;
+    for (const entity of this.world.with('networkIdentity', 'networkTransform')) {
+      const e = entity as any;
+      if (e.networkIdentity?.isLocal) continue;
+      out.push({
+        playerId: e.networkIdentity.playerId,
+        x: e.networkTransform.x,
+        y: e.networkTransform.y,
+        z: e.networkTransform.z,
+        isDead: e.health?.isDead ?? false,
+      });
+    }
+    return out;
+  }
+
+  public getBotDebugState(): {
+    mapId: string;
+    waypointCount: number;
+    edgeCount: number;
+    serverWaypointCount: number;
+    botId: string | null;
+    waypointIndex: number;
+    targetId: string | null;
+    predDelta: number | null;
+  } | null {
+    const nav = this.botNavEntity?.botNavGraph;
+    if (!nav) return null;
+
+    let botEntity: any = null;
+    for (const entity of this.world.with('botIdentity', 'botAgentState')) {
+      botEntity = entity;
+      break;
+    }
+
+    return {
+      mapId: nav.mapId,
+      waypointCount: nav.waypoints.length,
+      edgeCount: nav.edges.length,
+      serverWaypointCount: this.networkContext?.getServerBotNavWaypointCount() ?? 0,
+      botId: botEntity?.botIdentity?.playerId ?? null,
+      waypointIndex: botEntity?.botAgentState?.waypointIndex ?? 0,
+      targetId: botEntity?.botAgentState?.targetId ?? null,
+      predDelta: botEntity?.botDebugDelta ?? null,
+    };
   }
 
   public getJumpDebugState(): {

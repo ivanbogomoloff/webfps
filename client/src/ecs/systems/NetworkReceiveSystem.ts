@@ -1,6 +1,7 @@
 import type { World } from 'miniplex'
 import * as THREE from 'three'
 import { createNetworkIdentity, createPlayerStats } from '../components'
+import { createBotIdentity, createBotAgentState } from '../components/bot'
 import type { NetworkContext } from '../../net/NetworkContext'
 import { parseNetworkLocomotion } from '../../game/player/playerLocomotionLogic'
 
@@ -9,6 +10,16 @@ type ActiveHitMarker = {
   mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>
   victimEntity: AnyEntity
   expiresAtMs: number
+}
+
+function attachBotComponents(world: World, entity: AnyEntity, playerId: string, weaponId: string): void {
+  if (!playerId.startsWith('bot-')) return
+  if (!entity.botIdentity) {
+    world.addComponent(entity as any, 'botIdentity', createBotIdentity(playerId))
+  }
+  if (!entity.botAgentState) {
+    world.addComponent(entity as any, 'botAgentState', createBotAgentState(weaponId))
+  }
 }
 
 export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, networkContext: NetworkContext) {
@@ -68,6 +79,9 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
         }
         case 'room_state': {
           networkContext.setOwnerPlayerId(message.payload.ownerPlayerId)
+          if (typeof message.payload.botNavWaypointCount === 'number') {
+            networkContext.setServerBotNavWaypointCount(message.payload.botNavWaypointCount)
+          }
           if (matchEntity?.matchState) {
             matchEntity.matchState.phase = message.payload.phase
             matchEntity.matchState.timeLimitSec = message.payload.timeLimitSec
@@ -115,7 +129,8 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
         }
         case 'player_joined': {
           if (message.payload.playerId === networkContext.getLocalPlayerId()) break
-          networkContext.getOrCreateRemoteEntity(
+          console.log('[net] player_joined:', message.payload.playerId, message.payload.nickname)
+          const entity = networkContext.getOrCreateRemoteEntity(
             world,
             scene,
             message.payload.playerId,
@@ -124,6 +139,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
             message.payload.weaponId,
             message.payload.role
           )
+          attachBotComponents(world, entity, message.payload.playerId, message.payload.weaponId)
           break
         }
         case 'player_left': {
@@ -159,11 +175,16 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
                 state.role,
               )
             }
+            const wasFirstTransform = entity.networkTransform.updatedAtMs === 0
             entity.networkTransform.x = state.x
             entity.networkTransform.y = state.y
             entity.networkTransform.z = state.z
             entity.networkTransform.rotY = state.rotY
             entity.networkTransform.updatedAtMs = performance.now()
+            if (wasFirstTransform && entity.object3d) {
+              entity.object3d.position.set(state.x, state.y, state.z)
+              entity.object3d.rotation.y = state.rotY
+            }
             entity.networkIdentity.role = state.role
             networkContext.setEntityWeapon(entity, state.weaponId || 'rifle_m16')
             entity.playerStats.frags = state.frags
@@ -182,6 +203,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
                 : state.locomotion
               pc.locomotion = parseNetworkLocomotion(locomotion)
             }
+            attachBotComponents(world, entity, state.playerId, state.weaponId || 'rifle_m16')
           }
           break
         }
@@ -246,6 +268,7 @@ export function createNetworkReceiveSystem(world: World, scene: THREE.Scene, net
         }
         case 'error': {
           networkContext.lastError = `${message.payload.code}: ${message.payload.message}`
+          console.warn('[net] server error:', networkContext.lastError)
           break
         }
       }

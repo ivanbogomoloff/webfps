@@ -14,7 +14,7 @@ import {
 import { clonePlayerVisualSetup, type PlayerVisualSetup } from '../game/player/playerModelPrep'
 import { replaceWeaponVisual } from '../game/weapon/weaponVisualAttach'
 import { resolveGameWeaponId } from '../game/weapon/supportedWeaponModels'
-import type { IncomingMessage, PlayerRole, PlayerShotPayload, ScoreboardPlayer } from './protocol'
+import type { IncomingMessage, PlayerRole, PlayerShotPayload, ScoreboardPlayer, BotNavSubmitPayload, AddBotPayload } from './protocol'
 import type { GameTransport, LocalStateUpdate } from './GameTransport'
 
 type AnyEntity = Record<string, any>
@@ -34,6 +34,7 @@ export class NetworkContext {
 
   public scoreboard: ScoreboardPlayer[] = []
   public lastError: string | null = null
+  private serverBotNavWaypointCount = 0
 
   constructor(
     private readonly transport: GameTransport,
@@ -239,7 +240,24 @@ export class NetworkContext {
 
   canAddBot(): boolean {
     const localPlayerId = this.getLocalPlayerId()
-    return localPlayerId != null && this.ownerPlayerId != null && localPlayerId === this.ownerPlayerId
+    const ownerPlayerId = this.ownerPlayerId ?? this.transport.getOwnerPlayerId?.() ?? null
+    return localPlayerId != null && ownerPlayerId != null && localPlayerId === ownerPlayerId
+  }
+
+  isRoomOwner(): boolean {
+    return this.canAddBot()
+  }
+
+  sendBotNavSubmit(payload: BotNavSubmitPayload): void {
+    this.transport.sendBotNavSubmit?.(payload)
+  }
+
+  setServerBotNavWaypointCount(count: number): void {
+    this.serverBotNavWaypointCount = count
+  }
+
+  getServerBotNavWaypointCount(): number {
+    return this.serverBotNavWaypointCount
   }
 
   sendState(update: LocalStateUpdate): void {
@@ -258,8 +276,8 @@ export class NetworkContext {
     this.transport.requestSpawn()
   }
 
-  addBot(): void {
-    this.transport.addBot()
+  addBot(payload?: AddBotPayload): void {
+    this.transport.addBot(payload ?? {})
   }
 
   debugHitSelf(): void {

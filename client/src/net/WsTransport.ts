@@ -1,13 +1,18 @@
 import type { GameTransport, LocalStateUpdate, TransportConnectParams, TransportHandler } from './GameTransport'
-import type { IncomingMessage, OutgoingMessage, PlayerRole, PlayerShotPayload } from './protocol'
+import type { IncomingMessage, OutgoingMessage, PlayerRole, PlayerShotPayload, BotNavSubmitPayload, AddBotPayload } from './protocol'
 
 export class WsTransport implements GameTransport {
   private socket: WebSocket | null = null
   private handlers = new Set<TransportHandler>()
   private localPlayerId: string | null = null
+  private ownerPlayerId: string | null = null
   private roomCode: string | null = null
 
   constructor(private readonly wsUrl: string) {}
+
+  isConnected(): boolean {
+    return this.socket?.readyState === WebSocket.OPEN
+  }
 
   async connect(params: TransportConnectParams): Promise<void> {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) return
@@ -28,11 +33,21 @@ export class WsTransport implements GameTransport {
       socket.addEventListener('error', onError, { once: true })
     })
 
+    socket.addEventListener('close', (event) => {
+      const reason = event.reason ? `, reason=${event.reason}` : ''
+      console.error(`[net] WebSocket closed (code=${event.code}${reason})`)
+    })
+
+    socket.addEventListener('error', () => {
+      console.error('[net] WebSocket error')
+    })
+
     socket.addEventListener('message', (event) => {
       const data = this.safeParse(event.data)
       if (!data) return
       if (data.type === 'room_joined') {
         this.localPlayerId = data.payload.localPlayerId
+        this.ownerPlayerId = data.payload.ownerPlayerId
         this.roomCode = data.payload.roomCode
       }
       this.emit(data)
@@ -48,6 +63,7 @@ export class WsTransport implements GameTransport {
     this.socket = null
     this.roomCode = null
     this.localPlayerId = null
+    this.ownerPlayerId = null
   }
 
   setRole(role: PlayerRole): void {
@@ -58,8 +74,17 @@ export class WsTransport implements GameTransport {
     this.send({ type: 'spawn_request', payload: {} })
   }
 
-  addBot(): void {
-    this.send({ type: 'add_bot', payload: {} })
+  addBot(payload: AddBotPayload = {}): void {
+    if (!this.isConnected()) {
+      console.error('[net] add_bot dropped: WebSocket is not connected')
+      return
+    }
+    console.log('[net] add_bot →', payload)
+    this.send({ type: 'add_bot', payload })
+  }
+
+  sendBotNavSubmit(payload: BotNavSubmitPayload): void {
+    this.send({ type: 'bot_nav_submit', payload })
   }
 
   debugHitSelf(): void {
@@ -101,6 +126,10 @@ export class WsTransport implements GameTransport {
     return this.localPlayerId
   }
 
+  getOwnerPlayerId(): string | null {
+    return this.ownerPlayerId
+  }
+
   getRoomCode(): string | null {
     return this.roomCode
   }
@@ -112,7 +141,9 @@ export class WsTransport implements GameTransport {
   }
 
   private send(message: OutgoingMessage): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      return
+    }
     this.socket.send(JSON.stringify(message))
   }
 

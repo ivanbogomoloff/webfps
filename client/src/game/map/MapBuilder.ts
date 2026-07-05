@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MapLoader } from '../../utils/MapLoader';
-import type { LadderVolume, RespawnPoint } from './Map';
+import type { CollisionVolume, LadderVolume, RespawnPoint } from './Map';
 import { Map } from './Map';
 
 const GLB_MAGIC = 0x46546c67;
@@ -346,6 +346,7 @@ export class MapBuilder {
 
     const respawnPoints: RespawnPoint[] = [];
     const ladderVolumes: LadderVolume[] = [];
+    const collisionVolumes: CollisionVolume[] = [];
     let physicsDebugRoot: THREE.Group | null = null;
 
     if (ammo && physicsWorld) {
@@ -386,6 +387,12 @@ export class MapBuilder {
             (userData && userData.collider === true);
           if (!isCollision) return;
 
+          collisionVolumes.push({
+            min: box.min.clone(),
+            max: box.max.clone(),
+            name: meshName,
+          });
+
           if (mesh.name != null && mesh.name.startsWith('collision')) {
             mesh.visible = false;
           }
@@ -417,7 +424,7 @@ export class MapBuilder {
       }
     }
 
-    const map = new Map(mapScene, respawnPoints, ladderVolumes, environment);
+    const map = new Map(mapScene, respawnPoints, ladderVolumes, collisionVolumes, environment);
     console.log(`[MapBuilder] Map ready: ${mapPath}`);
     return { map, physicsDebugRoot };
   }

@@ -12,6 +12,8 @@ export { createPlayerStats } from './PlayerStats';
 export { createMatchState } from './MatchState';
 export { createWeaponState, applyWeaponDefinition } from './WeaponState';
 export { createAudioEmitterState } from './AudioEmitterState';
+export { createBotNavGraph, createBotIdentity, createBotAgentState } from './bot';
+export type { BotNavGraph, BotIdentity, BotAgentState } from './bot';
 
 export type { Camera } from './Camera';
 export type { Input } from './Input';
